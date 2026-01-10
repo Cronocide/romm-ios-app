@@ -14,6 +14,7 @@ struct EmulatorView: View {
     private let viewModel: EmulatorViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showExitConfirmation = false
+    @State private var showMenu = false
 
     init(rom: Rom) {
         self.rom = rom
@@ -25,12 +26,14 @@ struct EmulatorView: View {
             ZStack {
                 // WebView - Full screen
                 if viewModel.emulatorURL != nil {
-                    EmulatorWebView(viewModel: viewModel)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .edgesIgnoringSafeArea(.bottom)  // Ignore bottom, navbar handles top
+                    ScrollView {
+                        EmulatorWebView(viewModel: viewModel)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .edgesIgnoringSafeArea(.bottom)  // Ignore bottom, navbar handles top
+                    }
                 }
 
-                // Overlay Controls (optional, für später)
+                // Overlay Controls (optional, for later)
                 if viewModel.showControls {
                     EmulatorControlsOverlay(
                         viewModel: viewModel,
@@ -72,11 +75,7 @@ struct EmulatorView: View {
                         dismiss()
                     }
                     .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(.red)
-                    )
+                    .padding(.vertical, 12)                    
                     .foregroundColor(.white)
                 }
                 .padding(32)
@@ -91,10 +90,20 @@ struct EmulatorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        showExitConfirmation = true
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
+                    Menu {
+                        Button(role: .destructive, action: {
+                            showExitConfirmation = true
+                        }) {
+                            Label("Exit", systemImage: "xmark.circle")
+                        }
+
+                        Button(action: {
+                            viewModel.clearCacheAndReload()
+                        }) {
+                            Label("Clear Cache & Reload", systemImage: "arrow.clockwise")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle.fill")
                             .font(.system(size: 20))
                             .foregroundColor(.white)
                     }
@@ -106,13 +115,13 @@ struct EmulatorView: View {
         .navigationViewStyle(.stack)
         .statusBar(hidden: false)
         .preferredColorScheme(.dark)
-        .alert("Emulator beenden?", isPresented: $showExitConfirmation) {
-            Button("Abbrechen", role: .cancel) {}
-            Button("Beenden", role: .destructive) {
+        .alert("Exit Emulator?", isPresented: $showExitConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Exit", role: .destructive) {
                 dismiss()
             }
         } message: {
-            Text("Möchtest du den Emulator wirklich beenden?")
+            Text("Do you really want to exit the emulator?")
         }
         .task {
             // Start emulator when view appears

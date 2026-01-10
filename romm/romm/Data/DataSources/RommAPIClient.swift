@@ -154,10 +154,10 @@ class RommAPIClient: RommAPIClientProtocol {
             let loginString = "\(username):\(password)"
             if let loginData = loginString.data(using: .utf8) {
                 let base64LoginString = loginData.base64EncodedString()
-                
+
                 // Set authentication headers for OpenAPI clients
                 rommAPI.customHeaders["Authorization"] = "Basic \(base64LoginString)"
-                
+
                 logger.debug("✅ OpenAPI authentication updated for user: \(username)")
             } else {
                 logger.error("❌ Failed to encode login data")
@@ -218,7 +218,7 @@ class RommAPIClient: RommAPIClientProtocol {
             logger.error("No authentication credentials available")
             throw APIClientError.noCredentials
         }
-        
+
         // Create Basic Auth header
         let loginString = "\(username):\(password)"
         guard let loginData = loginString.data(using: .utf8) else {
@@ -661,8 +661,8 @@ extension RommAPIClient {
             logger.error("Missing username or password for Basic Auth")
             throw APIClientError.noCredentials
         }
-        
-        // Create Basic Auth token: admin:password -> Base64
+
+        // Create Basic Auth token: username:password -> Base64
         let loginString = "\(username):\(password)"
         guard let loginData = loginString.data(using: .utf8) else {
             logger.error("Failed to encode credentials")

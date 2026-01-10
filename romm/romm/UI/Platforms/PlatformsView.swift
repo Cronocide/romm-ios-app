@@ -65,11 +65,16 @@ struct PlatformListView: View {
     let platforms: [Platform]
     let isLoading: Bool
     let viewModel: PlatformsViewModel
-    
+
+    // Filter platforms with at least one ROM
+    private var nonEmptyPlatforms: [Platform] {
+        platforms.filter { $0.romCount > 0 }
+    }
+
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
-                ForEach(platforms) { platform in
+                ForEach(nonEmptyPlatforms) { platform in
                     NavigationLink {
                         PlatformDetailView(platform: platform)
                     } label: {

@@ -217,14 +217,14 @@ class DefaultConfigurationService: ConfigurationService {
         logger.info("Testing Basic Auth connection...")
         logger.debug("Server URL: \(serverURL)")
         logger.debug("Username: \(username)")
-        
+
         guard let url = URL(string: "\(serverURL)/api/users/me") else {
             logger.error("Invalid URL: \(serverURL)/api/users/me")
             throw ConfigurationError.invalidURL
         }
-        
+
         logger.debug("Full URL: \(url.absoluteString)")
-        
+
         // Create Basic Auth header
         let loginString = "\(username):\(password)"
         guard let loginData = loginString.data(using: .utf8) else {

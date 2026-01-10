@@ -7,6 +7,7 @@
 
 import Foundation
 import Observation
+import WebKit
 
 @Observable
 @MainActor
@@ -67,5 +68,37 @@ class EmulatorViewModel {
 
     func clearError() {
         errorMessage = nil
+    }
+
+    func clearCacheAndReload() {
+        logger.info("🗑️ Clearing cache and reloading emulator...")
+
+        Task {
+            // Clear all website data (cookies, cache, local storage, etc.)
+            let dataStore = WKWebsiteDataStore.default()
+            let dataTypes = WKWebsiteDataStore.allWebsiteDataTypes()
+
+            await dataStore.removeData(ofTypes: dataTypes, modifiedSince: .distantPast)
+            logger.info("✅ Cache cleared")
+
+            // Reload emulator
+            isLoading = true
+            errorMessage = nil
+
+            // Re-sync cookies from HTTPCookieStorage
+            let sharedCookies = HTTPCookieStorage.shared.cookies ?? []
+            logger.info("🍪 Re-syncing \(sharedCookies.count) cookies after cache clear")
+            for cookie in sharedCookies {
+                await dataStore.httpCookieStore.setCookie(cookie)
+            }
+
+            // Trigger reload by resetting and setting URL again
+            let currentURL = emulatorURL
+            emulatorURL = nil
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
+            emulatorURL = currentURL
+
+            logger.info("✅ Emulator reloading with fresh cache")
+        }
     }
 }
