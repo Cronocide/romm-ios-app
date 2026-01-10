@@ -106,13 +106,13 @@ struct EmulatorView: View {
         .navigationViewStyle(.stack)
         .statusBar(hidden: false)
         .preferredColorScheme(.dark)
-        .alert("Emulator beenden?", isPresented: $showExitConfirmation) {
-            Button("Abbrechen", role: .cancel) {}
-            Button("Beenden", role: .destructive) {
+        .alert("Quit Emulator?", isPresented: $showExitConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Quit", role: .destructive) {
                 dismiss()
             }
         } message: {
-            Text("Möchtest du den Emulator wirklich beenden?")
+            Text("Do you really want to quite the emulator?")
         }
         .task {
             // Start emulator when view appears
