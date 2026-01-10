@@ -8,112 +8,389 @@
 import SwiftUI
 import os
 
+/// Settings UI for the logging system
 struct LoggingConfigurationView: View {
-    @StateObject private var logConfig = LogConfiguration.shared
+    @StateObject private var config = LogConfiguration.shared
     private let logger = Logger.ui
-    
+
     var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Global Settings")) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Global Minimum Level")
-                            .font(.headline)
-                        
-                        Picker("Global Level", selection: $logConfig.globalMinLevel) {
+        Form {
+            // MARK: - Master Toggle
+            Section {
+                Toggle("Enable Logging", isOn: $config.isLoggingEnabled)
+                    .font(.headline)
+
+                if !config.isLoggingEnabled {
+                    HStack(spacing: 8) {
+                        Image(systemName: "info.circle.fill")
+                            .foregroundColor(.orange)
+                        Text("Logging is disabled. No logs will be collected.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            } header: {
+                Text("Logging")
+            } footer: {
+                Text("When disabled, no logs will be collected and the system has no performance impact.")
+            }
+
+            if config.isLoggingEnabled {
+                // MARK: - Global Settings
+                Section {
+                    Picker("Global Level", selection: $config.globalMinLevel) {
+                        ForEach(LogLevel.allCases, id: \.self) { level in
+                            Text("\(level.emoji) \(levelName(for: level))")
+                                .tag(level)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                } header: {
+                    Text("Global Settings")
+                } footer: {
+                    Text("Base level for the entire app. All categories use at least this level.")
+                }
+
+                // MARK: - Categories
+                Section {
+                    ForEach(LogCategory.allCases, id: \.self) { category in
+                        Picker(selection: Binding(
+                            get: { config.getLevel(for: category) },
+                            set: { config.setLevel($0, for: category) }
+                        )) {
                             ForEach(LogLevel.allCases, id: \.self) { level in
                                 Text("\(level.emoji) \(levelName(for: level))")
                                     .tag(level)
                             }
-                        }
-                        .pickerStyle(.menu)
-                        
-                        Text("Logs below this level will be filtered out globally")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Toggle("Show Performance Logs", isOn: $logConfig.showPerformanceLogs)
-                    Toggle("Show Timestamps", isOn: $logConfig.showTimestamps)
-                    Toggle("Include Source Location", isOn: $logConfig.includeSourceLocation)
-                }
-                
-                Section(header: Text("Category-specific Levels")) {
-                    ForEach(LogCategory.allCases, id: \.self) { category in
-                        VStack(alignment: .leading, spacing: 8) {
+                        } label: {
                             HStack {
-                                Text(category.rawValue)
-                                    .font(.headline)
-                                Spacer()
-                                Text(levelName(for: logConfig.getLevel(for: category)))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Picker("Level for \(category.rawValue)", selection: Binding(
-                                get: { logConfig.getLevel(for: category) },
-                                set: { logConfig.setLevel($0, for: category) }
-                            )) {
-                                ForEach(LogLevel.allCases, id: \.self) { level in
-                                    Text("\(level.emoji) \(levelName(for: level))")
-                                        .tag(level)
+                                Text(categoryEmoji(for: category))
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(category.rawValue)
+                                        .font(.body)
+                                    Text(categoryDescription(for: category))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
                                 }
                             }
-                            .pickerStyle(.menu)
                         }
-                        .padding(.vertical, 4)
+                        .pickerStyle(.menu)
                     }
+                } header: {
+                    Text("Categories")
+                } footer: {
+                    Text("Select the log level for each category.")
                 }
-                
-                Section(header: Text("Reset")) {
-                    Button("Reset to Defaults") {
+
+                // MARK: - Display Options
+                Section {
+                    Toggle("Show performance logs", isOn: $config.showPerformanceLogs)
+                    Toggle("Show timestamps", isOn: $config.showTimestamps)
+                    Toggle("Show source location", isOn: $config.includeSourceLocation)
+                } header: {
+                    Text("Display Options")
+                } footer: {
+                    Text("These options affect the formatting of log outputs.")
+                }
+
+                // MARK: - Log Viewer
+                Section {
+                    NavigationLink {
+                        DebugLogViewer()
+                    } label: {
+                        HStack {
+                            Image(systemName: "list.bullet.rectangle")
+                            Text("Open Log Viewer")
+                        }
+                    }
+                } header: {
+                    Text("View Logs")
+                } footer: {
+                    Text("View all collected logs with filter and export functions.")
+                }
+
+                // MARK: - Reset
+                Section {
+                    Button(role: .destructive) {
                         resetToDefaults()
+                    } label: {
+                        HStack {
+                            Image(systemName: "arrow.counterclockwise")
+                            Text("Reset to Defaults")
+                        }
                     }
-                    .foregroundColor(.orange)
-                }
-                
-                Section(footer: Text("Changes take effect immediately. Lower log levels include higher ones (Debug includes all, Critical includes only critical messages).")) {
-                    EmptyView()
+                } footer: {
+                    Text("Resets all logging settings to default values (logging disabled, all levels set to Debug).")
                 }
             }
-            .navigationTitle("Logging Configuration")
-            .navigationBarTitleDisplayMode(.inline)
         }
+        .navigationTitle("Logging Configuration")
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             logger.debug("Opened logging configuration view")
         }
     }
-    
+
     private func levelName(for level: LogLevel) -> String {
-        switch level.rawValue {
-        case 0: return "Debug"
-        case 1: return "Info"
-        case 2: return "Notice"
-        case 3: return "Warning"
-        case 4: return "Error"
-        case 5: return "Critical"
-        default: return "Unknown"
+        switch level {
+        case .debug: return "Debug"
+        case .info: return "Info"
+        case .notice: return "Notice"
+        case .warning: return "Warning"
+        case .error: return "Error"
+        case .critical: return "Critical"
         }
     }
-    
+
+    private func categoryEmoji(for category: LogCategory) -> String {
+        switch category {
+        case .network: return "🌐"
+        case .ui: return "🎨"
+        case .data: return "🗃️"
+        case .auth: return "🔐"
+        case .performance: return "⚡"
+        case .general: return "📦"
+        case .manual: return "📚"
+        case .viewModel: return "🔄"
+        case .sync: return "🔄"
+        }
+    }
+
+    private func categoryDescription(for category: LogCategory) -> String {
+        switch category {
+        case .network: return "Network operations, API calls"
+        case .ui: return "User interface, view updates"
+        case .data: return "Data operations, repository"
+        case .auth: return "Authentication, login"
+        case .performance: return "Performance metrics, timing"
+        case .general: return "General logic, use cases"
+        case .manual: return "PDF manual system"
+        case .viewModel: return "View model layer, state"
+        case .sync: return "Synchronization operations"
+        }
+    }
+
     private func resetToDefaults() {
         logger.info("Resetting logging configuration to defaults")
-        
-        // Reset all category levels (this will use globalMinLevel as fallback)
+
+        // Reset all category levels
         for category in LogCategory.allCases {
-            logConfig.setLevel(.debug, for: category)
+            config.setLevel(.debug, for: category)
         }
-        
+
         // Reset global settings
-        logConfig.globalMinLevel = .debug
-        logConfig.showPerformanceLogs = true
-        logConfig.showTimestamps = true
-        logConfig.includeSourceLocation = true
-        
+        config.globalMinLevel = .debug
+        config.showPerformanceLogs = true
+        config.showTimestamps = true
+        config.includeSourceLocation = true
+        config.isLoggingEnabled = false
+
         logger.info("Logging configuration reset to defaults")
     }
 }
 
+// MARK: - Log Level Picker View
+
+struct LogLevelPickerView: View {
+    let title: String
+    @Binding var selectedLevel: LogLevel
+    let description: String?
+
+    init(
+        title: String,
+        selectedLevel: Binding<LogLevel>,
+        description: String? = nil
+    ) {
+        self.title = title
+        self._selectedLevel = selectedLevel
+        self.description = description
+    }
+
+    var body: some View {
+        Form {
+            if let description = description {
+                Section {
+                    Text(description)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Section {
+                ForEach(LogLevel.allCases, id: \.self) { level in
+                    Button {
+                        selectedLevel = level
+                    } label: {
+                        HStack {
+                            Text(level.emoji)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(levelName(for: level))
+                                    .foregroundColor(.primary)
+                                Text(levelDescription(for: level))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            if selectedLevel == level {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.accentColor)
+                            }
+                        }
+                    }
+                }
+            } header: {
+                Text("Select Log Level")
+            } footer: {
+                Text("Higher levels show fewer logs. Debug shows everything, Critical shows only critical messages.")
+            }
+        }
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func levelName(for level: LogLevel) -> String {
+        switch level {
+        case .debug: return "Debug"
+        case .info: return "Info"
+        case .notice: return "Notice"
+        case .warning: return "Warning"
+        case .error: return "Error"
+        case .critical: return "Critical"
+        }
+    }
+
+    private func levelDescription(for level: LogLevel) -> String {
+        switch level {
+        case .debug:
+            return "Shows all log messages"
+        case .info:
+            return "Shows Info and higher"
+        case .notice:
+            return "Shows notable events and higher"
+        case .warning:
+            return "Shows only warnings, errors and critical"
+        case .error:
+            return "Shows only errors and critical"
+        case .critical:
+            return "Shows only critical system messages"
+        }
+    }
+}
+
+// MARK: - Category Detail View
+
+struct CategoryDetailView: View {
+    let category: LogCategory
+    @StateObject private var config = LogConfiguration.shared
+
+    var body: some View {
+        Form {
+            Section {
+                HStack {
+                    Text("Category")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(categoryEmoji)
+                    Text(category.rawValue)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Description")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                    Text(categoryDescription)
+                }
+            }
+
+            Section {
+                NavigationLink {
+                    LogLevelPickerView(
+                        title: "\(category.rawValue) Log Level",
+                        selectedLevel: Binding(
+                            get: { config.getLevel(for: category) },
+                            set: { config.setLevel($0, for: category) }
+                        ),
+                        description: "Select the minimum log level for \(category.rawValue) logs."
+                    )
+                } label: {
+                    HStack {
+                        Text("Log Level")
+                        Spacer()
+                        let level = config.getLevel(for: category)
+                        Text(levelName(for: level))
+                            .foregroundColor(.secondary)
+                        Text(level.emoji)
+                    }
+                }
+            } header: {
+                Text("Settings")
+            }
+
+            Section {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Log Level Hierarchy:")
+                        .font(.headline)
+
+                    Text("Debug < Info < Notice < Warning < Error < Critical")
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundColor(.secondary)
+
+                    Text("A higher level shows fewer logs. For example, if you choose 'Warning', you will only see Warning, Error and Critical logs.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            } header: {
+                Text("Help")
+            }
+        }
+        .navigationTitle(category.rawValue)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var categoryEmoji: String {
+        switch category {
+        case .network: return "🌐"
+        case .ui: return "🎨"
+        case .data: return "🗃️"
+        case .auth: return "🔐"
+        case .performance: return "⚡"
+        case .general: return "📦"
+        case .manual: return "📚"
+        case .viewModel: return "🔄"
+        case .sync: return "🔄"
+        }
+    }
+
+    private var categoryDescription: String {
+        switch category {
+        case .network: return "Netzwerk-Operationen, API-Aufrufe"
+        case .ui: return "Benutzeroberfläche, View-Updates"
+        case .data: return "Daten-Operationen, Repository"
+        case .auth: return "Authentifizierung, Login"
+        case .performance: return "Leistungs-Metriken, Timing"
+        case .general: return "Allgemeine Logik, Use Cases"
+        case .manual: return "PDF-Manual System"
+        case .viewModel: return "View-Model Layer, State"
+        case .sync: return "Synchronisations-Operationen"
+        }
+    }
+
+    private func levelName(for level: LogLevel) -> String {
+        switch level {
+        case .debug: return "Debug"
+        case .info: return "Info"
+        case .notice: return "Notice"
+        case .warning: return "Warning"
+        case .error: return "Error"
+        case .critical: return "Critical"
+        }
+    }
+}
+
+// MARK: - Preview
+
 #Preview {
-    LoggingConfigurationView()
+    NavigationStack {
+        LoggingConfigurationView()
+    }
 }

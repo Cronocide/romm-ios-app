@@ -10,14 +10,14 @@ import os
 
 // MARK: - Log Configuration
 
-enum LogLevel: Int, CaseIterable {
+enum LogLevel: Int, CaseIterable, Codable {
     case debug = 0
     case info = 1
     case notice = 2
     case warning = 3
     case error = 4
     case critical = 5
-    
+
     var emoji: String {
         switch self {
         case .debug: return "🔍"
@@ -30,7 +30,7 @@ enum LogLevel: Int, CaseIterable {
     }
 }
 
-enum LogCategory: String, CaseIterable {
+enum LogCategory: String, CaseIterable, Codable {
     case network = "Network"
     case ui = "UI"
     case data = "Data"
@@ -39,18 +39,28 @@ enum LogCategory: String, CaseIterable {
     case general = "General"
     case manual = "Manual"
     case viewModel = "ViewModel"
+    case sync = "Sync"
 }
 
 class LogConfiguration: ObservableObject {
     static let shared = LogConfiguration()
-    
+
+    /// Logging global aktivieren/deaktivieren
+    @Published var isLoggingEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(isLoggingEnabled, forKey: "logging.enabled")
+        }
+    }
+
     @Published private var categoryLevels: [LogCategory: LogLevel] = [:]
     @Published var globalMinLevel: LogLevel = .debug
     @Published var showPerformanceLogs = true
     @Published var showTimestamps = true
     @Published var includeSourceLocation = true
-    
+
     private init() {
+        // Standard: Logging deaktiviert (kann in Debug-Builds manuell aktiviert werden)
+        self.isLoggingEnabled = UserDefaults.standard.object(forKey: "logging.enabled") as? Bool ?? false
         loadConfiguration()
     }
     
@@ -64,6 +74,14 @@ class LogConfiguration: ObservableObject {
     }
     
     func shouldLog(_ level: LogLevel, for category: LogCategory) -> Bool {
+        // Erst prüfen ob Logging global aktiviert ist
+        guard isLoggingEnabled else { return false }
+
+        // Performance-Logs extra behandeln
+        if category == .performance && !showPerformanceLogs {
+            return false
+        }
+
         let categoryLevel = getLevel(for: category)
         return level.rawValue >= categoryLevel.rawValue
     }
@@ -110,41 +128,77 @@ struct Logger {
     }
     
     // MARK: - Log Levels
-    
+
     func debug(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
         guard config.shouldLog(.debug, for: category) else { return }
         let formattedMessage = formatMessage(message, level: .debug, file: file, function: function, line: line)
         logger.debug("\(formattedMessage)")
+
+        // In LogStore speichern
+        let entry = LogEntry(level: .debug, category: category, message: message, file: file, function: function, line: line)
+        Task {
+            await LogStore.shared.addEntry(entry)
+        }
     }
     
     func info(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
         guard config.shouldLog(.info, for: category) else { return }
         let formattedMessage = formatMessage(message, level: .info, file: file, function: function, line: line)
         logger.info("\(formattedMessage)")
+
+        // In LogStore speichern
+        let entry = LogEntry(level: .info, category: category, message: message, file: file, function: function, line: line)
+        Task {
+            await LogStore.shared.addEntry(entry)
+        }
     }
     
     func notice(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
         guard config.shouldLog(.notice, for: category) else { return }
         let formattedMessage = formatMessage(message, level: .notice, file: file, function: function, line: line)
         logger.notice("\(formattedMessage)")
+
+        // In LogStore speichern
+        let entry = LogEntry(level: .notice, category: category, message: message, file: file, function: function, line: line)
+        Task {
+            await LogStore.shared.addEntry(entry)
+        }
     }
     
     func warning(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
         guard config.shouldLog(.warning, for: category) else { return }
         let formattedMessage = formatMessage(message, level: .warning, file: file, function: function, line: line)
         logger.warning("\(formattedMessage)")
+
+        // In LogStore speichern
+        let entry = LogEntry(level: .warning, category: category, message: message, file: file, function: function, line: line)
+        Task {
+            await LogStore.shared.addEntry(entry)
+        }
     }
     
     func error(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
         guard config.shouldLog(.error, for: category) else { return }
         let formattedMessage = formatMessage(message, level: .error, file: file, function: function, line: line)
         logger.error("\(formattedMessage)")
+
+        // In LogStore speichern
+        let entry = LogEntry(level: .error, category: category, message: message, file: file, function: function, line: line)
+        Task {
+            await LogStore.shared.addEntry(entry)
+        }
     }
     
     func critical(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
         guard config.shouldLog(.critical, for: category) else { return }
         let formattedMessage = formatMessage(message, level: .critical, file: file, function: function, line: line)
         logger.critical("\(formattedMessage)")
+
+        // In LogStore speichern
+        let entry = LogEntry(level: .critical, category: category, message: message, file: file, function: function, line: line)
+        Task {
+            await LogStore.shared.addEntry(entry)
+        }
     }
     
     // MARK: - Convenience Methods
@@ -208,6 +262,7 @@ extension Logger {
     static let general = Logger(category: .general)
     static let manual = Logger(category: .manual)
     static let viewModel = Logger(category: .viewModel)
+    static let sync = Logger(category: .sync)
 }
 
 // MARK: - Performance Measurement Helper

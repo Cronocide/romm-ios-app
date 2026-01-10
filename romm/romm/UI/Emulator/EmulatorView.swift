@@ -11,14 +11,14 @@ import AVFoundation
 
 struct EmulatorView: View {
     let rom: Rom
-    @State private var viewModel: EmulatorViewModel
+    private let viewModel: EmulatorViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showExitConfirmation = false
     @State private var showMenu = false
 
     init(rom: Rom) {
         self.rom = rom
-        self._viewModel = State(initialValue: EmulatorViewModel(rom: rom))
+        self.viewModel = EmulatorViewModel(rom: rom)
     }
 
     var body: some View {
@@ -26,11 +26,9 @@ struct EmulatorView: View {
             ZStack {
                 // WebView - Full screen
                 if viewModel.emulatorURL != nil {
-                    ScrollView {
-                        EmulatorWebView(viewModel: viewModel)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .edgesIgnoringSafeArea(.bottom)  // Ignore bottom, navbar handles top
-                    }
+                    EmulatorWebView(viewModel: viewModel)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .edgesIgnoringSafeArea(.bottom)  // Ignore bottom, navbar handles top
                 }
 
                 // Overlay Controls (optional, for later)
@@ -201,10 +199,10 @@ struct EmulatorWebView: UIViewRepresentable {
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
-        webView.scrollView.isScrollEnabled = false
-        webView.scrollView.bounces = false
+        webView.scrollView.isScrollEnabled = true
+        webView.scrollView.bounces = true
         webView.backgroundColor = .black
-        webView.isOpaque = true
+        
 
         // Configure audio session for playback (non-simulator only)
         #if !targetEnvironment(simulator)
@@ -349,24 +347,7 @@ struct EmulatorWebView: UIViewRepresentable {
             div.sticky-bottom {
                 display: none !important;
                 visibility: hidden !important;
-            }
-
-            /* Body fullscreen */
-            body {
-                margin: 0 !important;
-                padding: 0 !important;
-                overflow: hidden !important;
-            }
-
-            /* Make EmulatorJS canvas fullscreen */
-            canvas {
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                width: 100vw !important;
-                height: 100vh !important;
-                object-fit: contain !important;
-            }
+            }            
             """
 
             let javascript = """
