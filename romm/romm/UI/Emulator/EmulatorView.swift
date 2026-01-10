@@ -11,13 +11,13 @@ import AVFoundation
 
 struct EmulatorView: View {
     let rom: Rom
-    private let viewModel: EmulatorViewModel
+    @State private var viewModel: EmulatorViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showExitConfirmation = false
 
     init(rom: Rom) {
         self.rom = rom
-        self.viewModel = EmulatorViewModel(rom: rom)
+        self._viewModel = State(initialValue: EmulatorViewModel(rom: rom))
     }
 
     var body: some View {
@@ -247,6 +247,17 @@ struct EmulatorWebView: UIViewRepresentable {
         Coordinator(viewModel: viewModel)
     }
 
+    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        // Sync cookies FROM WebView back to HTTPCookieStorage before view is destroyed
+        print("🍪 Syncing cookies from WKWebView back to HTTPCookieStorage")
+        webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { cookies in
+            for cookie in cookies {
+                HTTPCookieStorage.shared.setCookie(cookie)
+            }
+            print("🍪 Synced \(cookies.count) cookies back to HTTPCookieStorage")
+        }
+    }
+    
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         let viewModel: EmulatorViewModel
         var hasLoaded = false
