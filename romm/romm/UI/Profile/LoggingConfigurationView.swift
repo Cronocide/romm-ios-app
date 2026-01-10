@@ -22,18 +22,11 @@ struct LoggingConfigurationView: View {
                         
                         Picker("Global Level", selection: $logConfig.globalMinLevel) {
                             ForEach(LogLevel.allCases, id: \.self) { level in
-                                HStack {
-                                    Text(level.emoji)
-                                    Text(level.rawValue == 0 ? "Debug" : 
-                                         level.rawValue == 1 ? "Info" : 
-                                         level.rawValue == 2 ? "Notice" : 
-                                         level.rawValue == 3 ? "Warning" : 
-                                         level.rawValue == 4 ? "Error" : "Critical")
-                                }
-                                .tag(level)
+                                Text("\(level.emoji) \(levelName(for: level))")
+                                    .tag(level)
                             }
                         }
-                        .pickerStyle(SegmentedPickerStyle())
+                        .pickerStyle(.menu)
                         
                         Text("Logs below this level will be filtered out globally")
                             .font(.caption)
@@ -62,14 +55,11 @@ struct LoggingConfigurationView: View {
                                 set: { logConfig.setLevel($0, for: category) }
                             )) {
                                 ForEach(LogLevel.allCases, id: \.self) { level in
-                                    HStack {
-                                        Text(level.emoji)
-                                        Text(levelName(for: level))
-                                    }
-                                    .tag(level)
+                                    Text("\(level.emoji) \(levelName(for: level))")
+                                        .tag(level)
                                 }
                             }
-                            .pickerStyle(SegmentedPickerStyle())
+                            .pickerStyle(.menu)
                         }
                         .padding(.vertical, 4)
                     }
