@@ -19,6 +19,8 @@ struct SetupView: View {
     @State private var serverValidated = false
     @State private var detectedServerVersion: String?
     @State private var connectionError: String?
+    @State private var connectionErrorDetails: String?
+    @State private var isErrorExpanded = false
     @State private var isVersionWarning = false  // true if error is just a warning (incompatible but can proceed)
 
     private var connectionLogger: ConnectionLogger { ConnectionLogger.shared }
@@ -59,16 +61,6 @@ struct SetupView: View {
                                 .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
 
-                        // Verbose Mode Toggle
-                        Toggle(isOn: Bindable(connectionLogger).verboseMode) {
-                            HStack {
-                                Image(systemName: "ant.fill")
-                                    .foregroundColor(.secondary)
-                                Text("Verbose Mode")
-                                    .font(.subheadline)
-                            }
-                        }
-                        .toggleStyle(.switch)
                     }
                     .padding(.horizontal, 24)
                     .animation(.easeInOut(duration: 0.3), value: serverValidated)
@@ -206,26 +198,55 @@ struct SetupView: View {
 
             // Connection error/warning message
             if let error = connectionError {
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: isVersionWarning ? "exclamationmark.triangle.fill" : "xmark.circle.fill")
-                        .foregroundColor(isVersionWarning ? .orange : .red)
-                        .font(.caption)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(error)
-                            .font(.caption)
-                            .foregroundColor(isVersionWarning ? .orange : .red)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        // Show "Continue anyway" button for version warnings
-                        if isVersionWarning, let version = detectedServerVersion {
-                            Button("Continue anyway") {
-                                serverValidated = true
-                                connectionError = nil
-                                isVersionWarning = false
-                            }
-                            .font(.caption.weight(.medium))
-                            .foregroundColor(.orange)
+                VStack(alignment: .leading, spacing: 4) {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isErrorExpanded.toggle()
                         }
+                    } label: {
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: isVersionWarning ? "exclamationmark.triangle.fill" : "xmark.circle.fill")
+                                .foregroundColor(isVersionWarning ? .orange : .red)
+                                .font(.caption)
+
+                            Text(error)
+                                .font(.caption)
+                                .foregroundColor(isVersionWarning ? .orange : .red)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .multilineTextAlignment(.leading)
+
+                            Spacer()
+
+                            if connectionErrorDetails != nil {
+                                Image(systemName: isErrorExpanded ? "chevron.up" : "chevron.down")
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    // Expandable details
+                    if isErrorExpanded, let details = connectionErrorDetails {
+                        Text(details)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .padding(.leading, 20)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+
+                    // Show "Continue anyway" button for version warnings
+                    if isVersionWarning, detectedServerVersion != nil {
+                        Button("Continue anyway") {
+                            serverValidated = true
+                            connectionError = nil
+                            connectionErrorDetails = nil
+                            isVersionWarning = false
+                            isErrorExpanded = false
+                        }
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(.orange)
+                        .padding(.leading, 20)
                     }
                 }
                 .padding(.top, 4)
@@ -292,6 +313,8 @@ struct SetupView: View {
         hideKeyboard()
         isConnecting = true
         connectionError = nil
+        connectionErrorDetails = nil
+        isErrorExpanded = false
         isVersionWarning = false
 
         do {
@@ -304,59 +327,64 @@ struct SetupView: View {
                 connectionError = nil
             } else {
                 // Incompatible - show warning but allow to proceed
-                connectionError = "Server version \(version) is not compatible. Supported range: \(appViewModel.minSupportedServerVersion) - \(appViewModel.maxSupportedServerVersion). Some features may not work."
+                connectionError = "Server version \(version) is not compatible"
+                connectionErrorDetails = "Supported range: \(appViewModel.minSupportedServerVersion) - \(appViewModel.maxSupportedServerVersion). Some features may not work correctly."
                 isVersionWarning = true
             }
         } catch {
             // Parse error for user-friendly message
-            connectionError = parseConnectionError(error)
+            let (message, details) = parseConnectionError(error)
+            connectionError = message
+            connectionErrorDetails = details
             isVersionWarning = false
         }
 
         isConnecting = false
     }
 
-    private func parseConnectionError(_ error: Error) -> String {
+    private func parseConnectionError(_ error: Error) -> (message: String, details: String?) {
         let errorString = error.localizedDescription
 
         // Certificate errors
         if errorString.contains("certificate") || errorString.contains("SSL") || errorString.contains("TLS") {
-            return "SSL/TLS certificate error. Check if the server has a valid certificate or use http:// instead of https://"
+            return ("SSL/TLS certificate error", "Check if the server has a valid certificate or use http:// instead of https://")
         }
 
         // Connection refused
         if errorString.contains("Could not connect") || errorString.contains("Connection refused") {
-            return "Connection failed. Check if the server is running and the URL is correct."
+            return ("Connection failed", "Check if the server is running and the URL is correct.")
         }
 
         // Timeout
         if errorString.contains("timed out") || errorString.contains("timeout") {
-            return "Connection timed out. The server is not responding."
+            return ("Connection timed out", "The server did not respond in time. Check if the server is reachable.")
         }
 
         // Host not found
         if errorString.contains("host") || errorString.contains("DNS") || errorString.contains("resolve") {
-            return "Server not found. Check the URL."
+            return ("Server not found", "DNS resolution failed. Check the server URL.")
         }
 
         // Network unreachable
         if errorString.contains("network") || errorString.contains("internet") {
-            return "Network error. Check your internet connection."
+            return ("Network error", "Check your internet connection.")
         }
 
         // Invalid response (not a RomM server)
         if errorString.contains("decode") || errorString.contains("JSON") || errorString.contains("invalid") {
-            return "Invalid response. Is this a RomM server?"
+            return ("Invalid response", "The server did not return a valid RomM response. Is this a RomM server?")
         }
 
         // Generic error
-        return "Connection error: \(errorString)"
+        return ("Connection error", errorString)
     }
 
     private func resetServerValidation() {
         serverValidated = false
         detectedServerVersion = nil
         connectionError = nil
+        connectionErrorDetails = nil
+        isErrorExpanded = false
         isVersionWarning = false
         username = ""
         password = ""

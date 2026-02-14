@@ -236,7 +236,7 @@ class SetupRepository: SetupRepositoryProtocol {
         logger.debug("Request body: \(formData)")
 
         await connectionLogger.logConnecting()
-        await connectionLogger.logVerbose("POST \(tokenURL.path)")
+        await connectionLogger.log("POST \(tokenURL.path)", type: .info)
 
         do {
             logger.debug("Sending token request...")
@@ -262,7 +262,7 @@ class SetupRepository: SetupRepositoryProtocol {
             }
 
             logger.debug("HTTP Status Code: \(httpResponse.statusCode)")
-            await connectionLogger.logVerbose("Response status: \(httpResponse.statusCode)")
+            await connectionLogger.log("Response status: \(httpResponse.statusCode)", type: .info)
 
             switch httpResponse.statusCode {
             case 200...299:

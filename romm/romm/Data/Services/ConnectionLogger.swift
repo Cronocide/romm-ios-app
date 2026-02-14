@@ -59,7 +59,6 @@ class ConnectionLogger {
 
     private(set) var logs: [ConnectionLogEntry] = []
     private(set) var isConnecting: Bool = false
-    var verboseMode: Bool = false
 
     private init() {}
 
@@ -84,12 +83,6 @@ class ConnectionLogger {
         logs.append(entry)
     }
 
-    /// Log only if verbose mode is enabled
-    func logVerbose(_ message: String, type: ConnectionLogType = .info, details: String? = nil) {
-        guard verboseMode else { return }
-        log(message, type: type, details: details)
-    }
-
     /// Clear all logs
     func clear() {
         logs.removeAll()
@@ -102,7 +95,7 @@ class ConnectionLogger {
     }
 
     func logURLValidationSuccess() {
-        logVerbose("URL format is valid", type: .success)
+        log("URL format is valid", type: .success)
     }
 
     func logURLValidationError(_ error: String) {
@@ -110,7 +103,7 @@ class ConnectionLogger {
     }
 
     func logHostResolution(_ host: String) {
-        logVerbose("Resolving host: \(host)", type: .info)
+        log("Resolving host: \(host)", type: .info)
     }
 
     func logIPTypeDetected(_ ipType: String) {
@@ -122,11 +115,11 @@ class ConnectionLogger {
     }
 
     func logTLSHandshake() {
-        logVerbose("TLS handshake in progress...", type: .info)
+        log("TLS handshake in progress...", type: .info)
     }
 
     func logSelfSignedCertAccepted() {
-        logVerbose("Self-signed certificate accepted (private network)", type: .warning)
+        log("Self-signed certificate accepted (private network)", type: .warning)
     }
 
     func logAuthenticating() {
