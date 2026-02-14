@@ -15,26 +15,26 @@ class AppData: ObservableObject {
     @Published var errorMessage: String?
     @Published var currentConfiguration: AppConfiguration?
     @Published var isLoading: Bool = false
-    
+
     init() {}
-    
+
     // Update methods for AppViewModel to call
     func updateUser(_ user: User?) {
         currentUser = user
     }
-    
+
     func updateAuthState(_ authenticated: Bool) {
         isAuthenticated = authenticated
     }
-    
+
     func updateError(_ error: String?) {
         errorMessage = error
     }
-    
+
     func updateConfiguration(_ configuration: AppConfiguration?) {
         currentConfiguration = configuration
     }
-    
+
     func updateLoading(_ loading: Bool) {
         isLoading = loading
     }

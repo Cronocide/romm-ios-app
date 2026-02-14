@@ -5,9 +5,9 @@
 //  Created by Ilyas Hallak on 11.12.25.
 //
 
+import AVFoundation
 import SwiftUI
 import WebKit
-import AVFoundation
 
 struct EmulatorView: View {
     let rom: Rom
@@ -40,58 +40,61 @@ struct EmulatorView: View {
                     .transition(.opacity)
                 }
 
-            // Loading Indicator
-            if viewModel.isLoading {
-                VStack(spacing: 16) {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                    Text("Starting Emulator...")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                }
-                .padding(32)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(.black.opacity(0.7))
-                )
-            }
-
-            // Error Alert
-            if let error = viewModel.errorMessage {
-                VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 40))
-                        .foregroundColor(.red)
-
-                    Text(error)
-                        .font(.body)
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-
-                    Button("Close") {
-                        viewModel.clearError()
-                        dismiss()
+                // Loading Indicator
+                if viewModel.isLoading {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                        Text("Starting Emulator...")
+                            .font(.headline)
+                            .foregroundColor(.white)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)                    
-                    .foregroundColor(.white)
+                    .padding(32)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.black.opacity(0.7))
+                    )
                 }
-                .padding(32)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(.black.opacity(0.9))
-                )
-                .padding()
-            }
+
+                // Error Alert
+                if let error = viewModel.errorMessage {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 40))
+                            .foregroundColor(.red)
+
+                        Text(error)
+                            .font(.body)
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+
+                        Button("Close") {
+                            viewModel.clearError()
+                            dismiss()
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .foregroundColor(.white)
+                    }
+                    .padding(32)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.black.opacity(0.9))
+                    )
+                    .padding()
+                }
             }
             .navigationTitle(rom.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
-                        Button(role: .destructive, action: {
-                            showExitConfirmation = true
-                        }) {
+                        Button(
+                            role: .destructive,
+                            action: {
+                                showExitConfirmation = true
+                            }
+                        ) {
                             Label("Exit", systemImage: "xmark.circle")
                         }
 
@@ -119,7 +122,7 @@ struct EmulatorView: View {
                 dismiss()
             }
         } message: {
-            Text("Do you really want to quite the emulator?")
+            Text("Do you really want to quit the emulator?")
         }
         .task {
             // Start emulator when view appears
@@ -157,14 +160,14 @@ struct EmulatorWebView: UIViewRepresentable {
 
         // Disable zoom
         let source = """
-            var meta = document.createElement('meta');
-            meta.name = 'viewport';
-            meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-            var head = document.getElementsByTagName('head')[0];
-            if (head) {
-                head.appendChild(meta);
-            }
-        """
+                var meta = document.createElement('meta');
+                meta.name = 'viewport';
+                meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+                var head = document.getElementsByTagName('head')[0];
+                if (head) {
+                    head.appendChild(meta);
+                }
+            """
         let script = WKUserScript(
             source: source,
             injectionTime: .atDocumentEnd,
@@ -175,19 +178,19 @@ struct EmulatorWebView: UIViewRepresentable {
         // Console.log forwarding for debugging
         let consoleScript = WKUserScript(
             source: """
-            console.log = (function(oldLog) {
-                return function(message) {
-                    oldLog.apply(console, arguments);
-                    window.webkit.messageHandlers.consoleLog.postMessage(String(message));
-                };
-            })(console.log);
-            console.error = (function(oldError) {
-                return function(message) {
-                    oldError.apply(console, arguments);
-                    window.webkit.messageHandlers.consoleError.postMessage(String(message));
-                };
-            })(console.error);
-            """,
+                console.log = (function(oldLog) {
+                    return function(message) {
+                        oldLog.apply(console, arguments);
+                        window.webkit.messageHandlers.consoleLog.postMessage(String(message));
+                    };
+                })(console.log);
+                console.error = (function(oldError) {
+                    return function(message) {
+                        oldError.apply(console, arguments);
+                        window.webkit.messageHandlers.consoleError.postMessage(String(message));
+                    };
+                })(console.error);
+                """,
             injectionTime: .atDocumentStart,
             forMainFrameOnly: false
         )
@@ -202,24 +205,24 @@ struct EmulatorWebView: UIViewRepresentable {
         webView.scrollView.isScrollEnabled = true
         webView.scrollView.bounces = true
         webView.backgroundColor = .black
-        
 
         // Configure audio session for playback (non-simulator only)
         #if !targetEnvironment(simulator)
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
-            try AVAudioSession.sharedInstance().setActive(true)
-            print("🔊 Audio session activated for playback")
-        } catch {
-            print("⚠️ Failed to activate audio session: \(error)")
-        }
+            do {
+                try AVAudioSession.sharedInstance().setCategory(
+                    .playback, mode: .default, options: [])
+                try AVAudioSession.sharedInstance().setActive(true)
+                print("🔊 Audio session activated for playback")
+            } catch {
+                print("⚠️ Failed to activate audio session: \(error)")
+            }
         #endif
 
         // Enable inspection in iOS Simulator
         #if DEBUG
-        if #available(iOS 16.4, *) {
-            webView.isInspectable = true
-        }
+            if #available(iOS 16.4, *) {
+                webView.isInspectable = true
+            }
         #endif
 
         return webView
@@ -227,7 +230,8 @@ struct EmulatorWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         guard let emulatorURL = viewModel.emulatorURL,
-              context.coordinator.hasLoaded == false else {
+            context.coordinator.hasLoaded == false
+        else {
             return
         }
 
@@ -264,7 +268,7 @@ struct EmulatorWebView: UIViewRepresentable {
             print("🍪 Synced \(cookies.count) cookies back to HTTPCookieStorage")
         }
     }
-    
+
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         let viewModel: EmulatorViewModel
         var hasLoaded = false
@@ -298,13 +302,16 @@ struct EmulatorWebView: UIViewRepresentable {
             // Copy each relevant cookie to WKWebView
             for cookie in relevantCookies {
                 await webView.configuration.websiteDataStore.httpCookieStore.setCookie(cookie)
-                logger.info("   ✅ Synced: \(cookie.name) (domain: \(cookie.domain), expires: \(cookie.expiresDate?.description ?? "session"))")
+                logger.info(
+                    "   ✅ Synced: \(cookie.name) (domain: \(cookie.domain), expires: \(cookie.expiresDate?.description ?? "session"))"
+                )
             }
 
             logger.info("✅ Cookie sync complete - WKWebView should now be authenticated")
         }
 
-        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!)
+        {
             logger.info("🌐 WebView started loading navigation")
         }
 
@@ -319,7 +326,8 @@ struct EmulatorWebView: UIViewRepresentable {
             injectFullscreenCSS(webView)
 
             // Check if JavaScript is working
-            webView.evaluateJavaScript("document.body ? 'body exists' : 'no body'") { result, error in
+            webView.evaluateJavaScript("document.body ? 'body exists' : 'no body'") {
+                result, error in
                 if let error = error {
                     self.logger.error("❌ JavaScript test failed: \(error.localizedDescription)")
                 } else if let result = result {
@@ -335,33 +343,33 @@ struct EmulatorWebView: UIViewRepresentable {
         private func injectFullscreenCSS(_ webView: WKWebView) {
             // CSS to hide ROMM UI elements and make emulator fullscreen
             let css = """
-            /* Hide ROMM UI elements */
-            header.v-toolbar,
-            header.v-bottom-navigation,
-            nav.v-navigation-drawer,
-            .v-toolbar,
-            .v-navigation-drawer,
-            .v-bottom-navigation,
-            div.my-4,
-            div.mt-4.align-center > div:first-child,
-            div.sticky-bottom {
-                display: none !important;
-                visibility: hidden !important;
-            }            
-            """
+                /* Hide ROMM UI elements */
+                header.v-toolbar,
+                header.v-bottom-navigation,
+                nav.v-navigation-drawer,
+                .v-toolbar,
+                .v-navigation-drawer,
+                .v-bottom-navigation,
+                div.my-4,
+                div.mt-4.align-center > div:first-child,
+                div.sticky-bottom {
+                    display: none !important;
+                    visibility: hidden !important;
+                }            
+                """
 
             let javascript = """
-            (function() {
-                try {
-                    var style = document.createElement('style');
-                    style.textContent = `\(css)`;
-                    document.head.appendChild(style);
-                    console.log('✅ CSS injected');
-                } catch(e) {
-                    console.error('❌ CSS injection failed:', e);
-                }
-            })();
-            """
+                (function() {
+                    try {
+                        var style = document.createElement('style');
+                        style.textContent = `\(css)`;
+                        document.head.appendChild(style);
+                        console.log('✅ CSS injected');
+                    } catch(e) {
+                        console.error('❌ CSS injection failed:', e);
+                    }
+                })();
+                """
 
             webView.evaluateJavaScript(javascript) { result, error in
                 if let error = error {
@@ -372,7 +380,9 @@ struct EmulatorWebView: UIViewRepresentable {
             }
         }
 
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        func webView(
+            _ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error
+        ) {
             logger.error("❌ WebView navigation failed: \(error.localizedDescription)")
 
             // Ignore cancelled navigation (common during normal operation)
@@ -388,10 +398,14 @@ struct EmulatorWebView: UIViewRepresentable {
             }
         }
 
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        func webView(
+            _ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!,
+            withError error: Error
+        ) {
             logger.error("❌ WebView provisional navigation failed: \(error.localizedDescription)")
             Task { @MainActor in
-                viewModel.errorMessage = "Failed to connect to server: \(error.localizedDescription)"
+                viewModel.errorMessage =
+                    "Failed to connect to server: \(error.localizedDescription)"
                 viewModel.isLoading = false
             }
         }
@@ -401,19 +415,25 @@ struct EmulatorWebView: UIViewRepresentable {
             logger.error("⚠️ WebView process terminated - likely memory issue or crash")
 
             Task { @MainActor in
-                viewModel.errorMessage = "Emulator crashed. This might be caused by:\n• ROM file too large\n• Not enough memory\n• Corrupted ROM\n\nTry restarting or use a smaller ROM."
+                viewModel.errorMessage =
+                    "Emulator crashed. This might be caused by:\n• ROM file too large\n• Not enough memory\n• Corrupted ROM\n\nTry restarting or use a smaller ROM."
                 viewModel.isLoading = false
             }
         }
 
-        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        func webView(
+            _ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+            decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+        ) {
             if let url = navigationAction.request.url {
                 logger.info("📍 Navigation request: \(url.absoluteString)")
             }
             decisionHandler(.allow)
         }
 
-        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        func userContentController(
+            _ userContentController: WKUserContentController, didReceive message: WKScriptMessage
+        ) {
             logger.info("📨 Received message from WebView: \(message.name)")
 
             switch message.name {

@@ -58,6 +58,10 @@ protocol RommAPIClientProtocol {
     func getPlatforms() async throws -> [PlatformSchema]
     func addPlatform(name: String, slug: String) async throws -> PlatformSchema
     func deletePlatform(id: Int) async throws -> String
+
+    // Heartbeat API Wrapper methods
+    func getHeartbeat() async throws -> HeartbeatResponse
+    func getHeartbeat(from serverURL: String) async throws -> HeartbeatResponse
 }
 
 enum APIClientError: LocalizedError {
@@ -115,6 +119,11 @@ class RommAPIClient: RommAPIClientProtocol {
             let configuration = URLSessionConfiguration.default
             configuration.timeoutIntervalForRequest = 30.0
             configuration.timeoutIntervalForResource = 60.0
+            // Optimized network settings for VPN and local network connections
+            configuration.waitsForConnectivity = true
+            configuration.allowsCellularAccess = true
+            configuration.allowsExpensiveNetworkAccess = true
+            configuration.allowsConstrainedNetworkAccess = true
             self.urlSession = URLSession(configuration: configuration, delegate: sessionDelegate, delegateQueue: nil)
         }
 
@@ -801,6 +810,42 @@ extension RommAPIClient {
     func deletePlatform(id: Int) async throws -> String {
         setupAPIConfiguration()
         return try await PlatformsAPI.deletePlatformApiPlatformsIdDelete(id: id)
+    }
+}
+
+// MARK: - Heartbeat API Wrapper
+extension RommAPIClient {
+    func getHeartbeat() async throws -> HeartbeatResponse {
+        setupAPIConfiguration()
+        return try await SystemAPI.heartbeatApiHeartbeatGet()
+    }
+
+    /// Get heartbeat from a specific server URL (for setup flow before login)
+    func getHeartbeat(from serverURL: String) async throws -> HeartbeatResponse {
+        let cleanURL = serverURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard let url = URL(string: "\(cleanURL)/api/heartbeat") else {
+            throw APIClientError.invalidURL("\(cleanURL)/api/heartbeat")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = 30.0
+
+        logger.debug("Fetching heartbeat from: \(url.absoluteString)")
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIClientError.networkError(URLError(.badServerResponse))
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw APIClientError.invalidResponse(httpResponse.statusCode, errorMessage)
+        }
+
+        return try JSONDecoder().decode(HeartbeatResponse.self, from: data)
     }
 }
 

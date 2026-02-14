@@ -21,6 +21,7 @@ class MockDependencyFactory: DependencyFactoryProtocol {
     var sftpRepository: SFTPRepositoryProtocol
     var fileSystemRepository: FileSystemRepositoryProtocol
     var statsRepository: StatsRepositoryProtocol
+    var heartbeatRepository: HeartbeatRepositoryProtocol
 
     // Mock services
     var sftpKeychainService: SFTPKeychainServiceProtocol
@@ -52,7 +53,8 @@ class MockDependencyFactory: DependencyFactoryProtocol {
         self.setupRepository = setupRepository ?? SetupRepository()
         self.fileSystemRepository = fileSystemRepository ?? FileSystemRepository()
         self.statsRepository = statsRepository ?? StatsRepository()
-        
+        self.heartbeatRepository = HeartbeatRepository()
+
         let keychainService = sftpKeychainService ?? SFTPKeychainService()
         self.sftpKeychainService = keychainService
         self.sftpRepository = sftpRepository ?? SFTPRepository(keychainService: keychainService)
@@ -118,6 +120,22 @@ class MockDependencyFactory: DependencyFactoryProtocol {
 
     func makeGetStatsUseCase() -> GetStatsUseCase {
         GetStatsUseCase(statsRepository: statsRepository)
+    }
+
+    func makeGetHeartbeatUseCase() -> GetHeartbeatUseCase {
+        GetHeartbeatUseCase(heartbeatRepository: heartbeatRepository)
+    }
+
+    func makeCheckServerVersionUseCase() -> CheckServerVersionUseCase {
+        CheckServerVersionUseCase(heartbeatRepository: heartbeatRepository)
+    }
+
+    func makeClearServerVersionUseCase() -> ClearServerVersionUseCase {
+        ClearServerVersionUseCase(heartbeatRepository: heartbeatRepository)
+    }
+
+    func makeSaveServerVersionUseCase() -> SaveServerVersionUseCase {
+        SaveServerVersionUseCase(heartbeatRepository: heartbeatRepository)
     }
 
     func makeGetCollectionsUseCase() -> GetCollectionsUseCase {

@@ -19,7 +19,8 @@ protocol DependencyFactoryProtocol {
     var transferHistoryRepository: TransferHistoryRepositoryProtocol { get }
     var localROMRepository: LocalROMRepositoryProtocol { get }
     var statsRepository: StatsRepositoryProtocol { get }
-    
+    var heartbeatRepository: HeartbeatRepositoryProtocol { get }
+
     // Services
     var sftpKeychainService: SFTPKeychainServiceProtocol { get }
     var sftpService: SFTPServiceProtocol { get }
@@ -40,6 +41,10 @@ protocol DependencyFactoryProtocol {
     func makeGetPlatformsUseCase() -> GetPlatformsUseCase
     func makeAddPlatformUseCase() -> AddPlatformUseCase
     func makeGetStatsUseCase() -> GetStatsUseCase
+    func makeGetHeartbeatUseCase() -> GetHeartbeatUseCase
+    func makeCheckServerVersionUseCase() -> CheckServerVersionUseCase
+    func makeClearServerVersionUseCase() -> ClearServerVersionUseCase
+    func makeSaveServerVersionUseCase() -> SaveServerVersionUseCase
     func makeGetCollectionsUseCase() -> GetCollectionsUseCase
     func makeGetVirtualCollectionsUseCase() -> GetVirtualCollectionsUseCase
     func makeCreateCollectionUseCase() -> CreateCollectionUseCase
@@ -105,6 +110,7 @@ class DefaultDependencyFactory: DependencyFactoryProtocol {
     lazy var transferHistoryRepository: TransferHistoryRepositoryProtocol = TransferHistoryRepository()
     lazy var localROMRepository: LocalROMRepositoryProtocol = LocalROMRepository()
     lazy var statsRepository: StatsRepositoryProtocol = StatsRepository()
+    lazy var heartbeatRepository: HeartbeatRepositoryProtocol = HeartbeatRepository()
     
     // MARK: - Services (Singletons)
     
@@ -178,6 +184,22 @@ class DefaultDependencyFactory: DependencyFactoryProtocol {
 
     func makeGetStatsUseCase() -> GetStatsUseCase {
         GetStatsUseCase(statsRepository: statsRepository)
+    }
+
+    func makeGetHeartbeatUseCase() -> GetHeartbeatUseCase {
+        GetHeartbeatUseCase(heartbeatRepository: heartbeatRepository)
+    }
+
+    func makeCheckServerVersionUseCase() -> CheckServerVersionUseCase {
+        CheckServerVersionUseCase(heartbeatRepository: heartbeatRepository)
+    }
+
+    func makeClearServerVersionUseCase() -> ClearServerVersionUseCase {
+        ClearServerVersionUseCase(heartbeatRepository: heartbeatRepository)
+    }
+
+    func makeSaveServerVersionUseCase() -> SaveServerVersionUseCase {
+        SaveServerVersionUseCase(heartbeatRepository: heartbeatRepository)
     }
 
     // MARK: - Collection Use Cases

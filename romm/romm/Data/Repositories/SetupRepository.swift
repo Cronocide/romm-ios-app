@@ -142,53 +142,81 @@ class SetupRepository: SetupRepositoryProtocol {
         logger.info("Token updated in JSON configuration")
     }
     
+    @MainActor
     func saveAndValidateConfiguration(serverURL: String, username: String, password: String) async throws -> SetupConfiguration {
+        let connectionLogger = ConnectionLogger.shared
+        connectionLogger.startNewConnection()
+
         logger.info("Starting configuration validation and save...")
         logger.debug("Server URL: \(serverURL)")
         logger.debug("Username: \(username)")
-        
+
         // Clean URL
         let cleanURL = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // Test API connection with Basic Auth and get token
-        let token = try await validateBasicAuthConnection(serverURL: cleanURL, username: username, password: password)
-        
-        // Create configuration with current timestamp and version
-        let setupConfig = SetupConfiguration(
-            serverURL: cleanURL,
-            username: username,
-            password: password,
-            token: token,
-            refreshToken: nil,
-            setupDate: Date(),
-            version: getCurrentAppVersion()
-        )
-        
-        // Save to storage
-        try saveSetupConfiguration(setupConfig)
-        
-        logger.info("Configuration validated and saved successfully")
-        return setupConfig
+        connectionLogger.logURLValidation(cleanURL)
+
+        // Validate URL format
+        guard URL(string: cleanURL) != nil else {
+            connectionLogger.logURLValidationError("Invalid URL format")
+            connectionLogger.finishConnection(success: false)
+            throw SetupRepositoryError.invalidData
+        }
+        connectionLogger.logURLValidationSuccess()
+
+        do {
+            // Test API connection with Basic Auth and get token
+            let token = try await validateBasicAuthConnection(serverURL: cleanURL, username: username, password: password)
+
+            // Create configuration with current timestamp and version
+            let setupConfig = SetupConfiguration(
+                serverURL: cleanURL,
+                username: username,
+                password: password,
+                token: token,
+                refreshToken: nil,
+                setupDate: Date(),
+                version: getCurrentAppVersion()
+            )
+
+            // Save to storage
+            try saveSetupConfiguration(setupConfig)
+
+            logger.info("Configuration validated and saved successfully")
+            connectionLogger.finishConnection(success: true)
+            return setupConfig
+        } catch {
+            connectionLogger.finishConnection(success: false)
+            throw error
+        }
     }
     
     // MARK: - Private Helper Methods
     
     private func validateBasicAuthConnection(serverURL: String, username: String, password: String) async throws -> String {
+        let connectionLogger = await ConnectionLogger.shared
         logger.info("Validating Basic Auth connection and getting token...")
-        
+
         // First, try to get a token via OAuth2
         guard let tokenURL = URL(string: "\(serverURL)/api/token") else {
             logger.error("Invalid token URL: \(serverURL)/api/token")
+            await connectionLogger.log("Invalid token endpoint URL", type: .error)
             throw SetupRepositoryError.invalidData
         }
-        
+
+        // Detect and log IP type
+        if let host = tokenURL.host {
+            await connectionLogger.logHostResolution(host)
+            let ipType = detectIPType(host: host)
+            await connectionLogger.logIPTypeDetected(ipType)
+        }
+
         logger.debug("Getting token from: \(tokenURL.absoluteString)")
-        
+
         var request = URLRequest(url: tokenURL)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 30.0
-        
+
         // OAuth2 form parameters
         let formParameters = [
             "grant_type=password",
@@ -199,59 +227,132 @@ class SetupRepository: SetupRepositoryProtocol {
         let formData = formParameters.joined(separator: "&")
         guard let httpBody = formData.data(using: .utf8) else {
             logger.error("Failed to encode form data")
+            await connectionLogger.log("Failed to encode request", type: .error)
             throw SetupRepositoryError.invalidData
         }
         request.httpBody = httpBody
-        
+
         logger.debug("Request headers: \(request.allHTTPHeaderFields ?? [:])")
         logger.debug("Request body: \(formData)")
-        
+
+        await connectionLogger.logConnecting()
+        await connectionLogger.logVerbose("POST \(tokenURL.path)")
+
         do {
             logger.debug("Sending token request...")
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
+            await connectionLogger.logTLSHandshake()
+
+            // Use URLSession with private network delegate for self-signed certs
+            let sessionDelegate = PrivateNetworkURLSessionDelegate()
+            let configuration = URLSessionConfiguration.default
+            configuration.timeoutIntervalForRequest = 30.0
+            configuration.waitsForConnectivity = true
+            let session = URLSession(configuration: configuration, delegate: sessionDelegate, delegateQueue: nil)
+
+            let (data, response) = try await session.data(for: request)
+
             logger.debug("Response received")
             logger.debug("Response data size: \(data.count) bytes")
             logger.debug("Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
-            
+
             guard let httpResponse = response as? HTTPURLResponse else {
                 logger.error("Not an HTTP response")
+                await connectionLogger.log("Invalid response from server", type: .error)
                 throw SetupRepositoryError.dataNotFound
             }
-            
+
             logger.debug("HTTP Status Code: \(httpResponse.statusCode)")
-            
+            await connectionLogger.logVerbose("Response status: \(httpResponse.statusCode)")
+
             switch httpResponse.statusCode {
             case 200...299:
                 // Parse token response
                 guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let accessToken = json["access_token"] as? String else {
                     logger.error("No access token in response")
+                    await connectionLogger.log("Invalid response format", type: .error, details: "No access_token in response")
                     throw SetupRepositoryError.invalidData
                 }
-                
+
                 logger.info("Token received successfully")
                 logger.debug("Token length: \(accessToken.count)")
+                await connectionLogger.logAuthSuccess()
                 return accessToken
-                
+
             case 401:
                 logger.error("Authentication failed - invalid credentials")
+                await connectionLogger.logAuthFailed("Invalid username or password")
                 throw SetupRepositoryError.invalidData
-                
+
+            case 403:
+                logger.error("Authentication failed - forbidden")
+                await connectionLogger.logAuthFailed("Access forbidden")
+                throw SetupRepositoryError.invalidData
+
+            case 404:
+                logger.error("API endpoint not found")
+                await connectionLogger.log("API endpoint not found", type: .error, details: "Is this a RomM server?")
+                throw SetupRepositoryError.dataNotFound
+
             default:
                 logger.error("Token request failed with status: \(httpResponse.statusCode)")
+                let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
+                await connectionLogger.log("Server error (\(httpResponse.statusCode))", type: .error, details: errorBody)
                 throw SetupRepositoryError.dataNotFound
             }
-            
+
         } catch let error as URLError {
             logger.error("URLError: \(error.localizedDescription)")
+            await connectionLogger.logNetworkError(error)
             throw SetupRepositoryError.dataNotFound
         } catch let error as SetupRepositoryError {
             throw error
         } catch {
             logger.error("Unexpected error: \(error)")
+            await connectionLogger.logNetworkError(error)
             throw SetupRepositoryError.dataNotFound
         }
+    }
+
+    private func detectIPType(host: String) -> String {
+        // Check for localhost
+        if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+            return "Localhost"
+        }
+
+        // Check for Tailscale (100.64.0.0/10 - CGNAT range)
+        if host.hasPrefix("100.") {
+            let parts = host.split(separator: ".")
+            if parts.count >= 2, let second = Int(parts[1]), second >= 64 && second <= 127 {
+                return "Tailscale VPN"
+            }
+        }
+
+        // Check for private Class A (10.0.0.0/8)
+        if host.hasPrefix("10.") {
+            return "Private Network (Class A)"
+        }
+
+        // Check for private Class B (172.16.0.0/12)
+        if host.hasPrefix("172.") {
+            let parts = host.split(separator: ".")
+            if parts.count >= 2, let second = Int(parts[1]), second >= 16 && second <= 31 {
+                return "Private Network (Class B)"
+            }
+        }
+
+        // Check for private Class C (192.168.0.0/16)
+        if host.hasPrefix("192.168.") {
+            return "Private Network (Class C)"
+        }
+
+        // Check for IPv6 link-local (fe80::/10)
+        if host.lowercased().hasPrefix("fe80:") {
+            return "IPv6 Link-Local"
+        }
+
+        // Otherwise, assume public
+        return "Public Server"
     }
     
     private func getCurrentAppVersion() -> String {

@@ -5,10 +5,10 @@
 //  Created by Ilyas Hallak on 08.08.25.
 //
 
-import Foundation
 import Combine
-import os
+import Foundation
 import Observation
+import os
 
 enum AppState {
     case loading
@@ -21,26 +21,34 @@ enum AppState {
 @MainActor
 class AppViewModel {
     var appState: AppState = .loading
-    
+
     private let logger = Logger.viewModel
-    
+
     // Shared data for environment
     let appData = AppData()
-    
+
     // Use Cases
     private let saveSetupConfigurationUseCase: SaveSetupConfigurationUseCaseProtocol
     private let getSetupConfigurationUseCase: GetSetupConfigurationUseCaseProtocol
     private let clearSetupConfigurationUseCase: ClearSetupConfigurationUseCaseProtocol
-    
+    private let checkServerVersionUseCase: CheckServerVersionUseCase
+    private let clearServerVersionUseCase: ClearServerVersionUseCase
+    private let saveServerVersionUseCase: SaveServerVersionUseCase
+    private let getHeartbeatUseCase: GetHeartbeatUseCase
+
     private let factory: DependencyFactoryProtocol
-    
+
     private var cancellables = Set<AnyCancellable>()
-    
+
     init(factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared) {
         self.factory = factory
         self.saveSetupConfigurationUseCase = factory.makeSaveSetupConfigurationUseCase()
         self.getSetupConfigurationUseCase = factory.makeGetSetupConfigurationUseCase()
         self.clearSetupConfigurationUseCase = factory.makeClearSetupConfigurationUseCase()
+        self.checkServerVersionUseCase = factory.makeCheckServerVersionUseCase()
+        self.clearServerVersionUseCase = factory.makeClearServerVersionUseCase()
+        self.saveServerVersionUseCase = factory.makeSaveServerVersionUseCase()
+        self.getHeartbeatUseCase = factory.makeGetHeartbeatUseCase()
 
         // Listen for restart setup requests
         NotificationCenter.default.addObserver(
@@ -64,14 +72,14 @@ class AppViewModel {
             }
         }
     }
-    
+
     // MARK: - Public Methods
-    
+
     func checkInitialState() async {
         logger.debug("Checking initial state...")
-        
+
         let config = try? getSetupConfigurationUseCase.execute()
-        
+
         if let config, config.token != nil {
             logger.info("Authentication state: \(appData.isAuthenticated)")
             updateAppConfig(config)
@@ -80,11 +88,10 @@ class AppViewModel {
             logger.info("Setup not complete, showing setup")
             appState = .setup
         }
-        
     }
-    
+
     // MARK: - Setup Methods
-    
+
     func saveConfiguration(serverURL: String, username: String, password: String) async {
         logger.debug("Save configuration requested")
         appState = .loading
@@ -93,10 +100,10 @@ class AppViewModel {
             appData.updateError("Please fill in all required fields")
             return
         }
-        
+
         appData.updateLoading(true)
         appData.updateError(nil)
-        
+
         do {
             logger.debug("Calling save setup configuration use case...")
             let setupConfig = try await saveSetupConfigurationUseCase.execute(
@@ -104,7 +111,7 @@ class AppViewModel {
                 username: username,
                 password: password
             )
-            
+
             updateAppConfig(setupConfig)
             logger.info("Setup configuration saved successfully")
             appData.updateLoading(false)
@@ -116,13 +123,14 @@ class AppViewModel {
             appState = .setup
         }
     }
-    
+
     func restartSetup() {
         logger.debug("Restarting setup...")
-        
+
         do {
             try clearSetupConfigurationUseCase.execute()
             resetAuthenticationState()
+            clearServerVersionUseCase.execute()
             appData.updateConfiguration(nil)
             appState = .loading
         } catch {
@@ -130,18 +138,21 @@ class AppViewModel {
             appData.updateError(error.localizedDescription)
         }
     }
-    
+
     private func updateAppConfig(_ config: SetupConfiguration) {
-        appData.updateConfiguration(.init(serverURL: config.serverURL, username: config.username, password: "", token: config.token, refreshToken: config.refreshToken))
+        appData.updateConfiguration(
+            .init(
+                serverURL: config.serverURL, username: config.username, password: "",
+                token: config.token, refreshToken: config.refreshToken))
     }
-    
+
     private func resetAuthenticationState() {
         logger.debug("Resetting authentication state")
         appData.updateAuthState(false)
         appData.updateUser(nil)
         appData.updateError(nil)
     }
-    
+
     func clearError() {
         appData.updateError(nil)
     }
@@ -151,6 +162,7 @@ class AppViewModel {
     private func handleRestartSetupRequest() {
         logger.info("Handling restart setup request from notification")
         resetAuthenticationState()
+        clearServerVersionUseCase.execute()
         appData.updateConfiguration(nil)
         appState = .setup
     }
@@ -168,6 +180,7 @@ class AppViewModel {
         do {
             try clearSetupConfigurationUseCase.execute()
             resetAuthenticationState()
+            clearServerVersionUseCase.execute()
             appData.updateConfiguration(nil)
             appData.updateError("Your session has expired. Please login again.")
             appState = .setup
@@ -178,4 +191,78 @@ class AppViewModel {
         }
     }
 
+    // MARK: - Server Version Check
+
+    /// Check server version on app foreground. Handles errors and logs out if needed.
+    func checkServerVersionOnForeground() async {
+        // Only check if authenticated
+        guard appState == .authenticated else {
+            logger.debug("Skipping version check - not authenticated")
+            return
+        }
+
+        // Check throttle via use case
+        if checkServerVersionUseCase.shouldThrottle() {
+            logger.debug("Skipping version check - throttled")
+            return
+        }
+
+        logger.info("Checking server version on foreground...")
+
+        do {
+            _ = try await checkServerVersionUseCase.execute()
+            logger.info("Server version check passed")
+        } catch let error as HeartbeatError {
+            handleHeartbeatError(error)
+        } catch {
+            // Network errors should not trigger logout
+            logger.warning("Version check failed (network error): \(error.localizedDescription)")
+        }
+    }
+
+    /// Handle HeartbeatError by logging out and showing appropriate message
+    private func handleHeartbeatError(_ error: HeartbeatError) {
+        logger.warning("Heartbeat error: \(error.localizedDescription)")
+
+        do {
+            try clearSetupConfigurationUseCase.execute()
+            resetAuthenticationState()
+            clearServerVersionUseCase.execute()
+            appData.updateConfiguration(nil)
+            appData.updateError(error.localizedDescription)
+            appState = .setup
+            logger.info("User logged out due to heartbeat error")
+        } catch {
+            logger.error("Failed to handle heartbeat error: \(error)")
+            appData.updateError("Error - please restart the app")
+        }
+    }
+
+    // MARK: - Version Check Helpers (for SetupView)
+
+    /// Check if a server version is compatible
+    func isVersionCompatible(_ serverVersion: String) -> Bool {
+        checkServerVersionUseCase.isVersionCompatible(serverVersion)
+    }
+
+    /// Get minimum supported server version
+    var minSupportedServerVersion: String {
+        checkServerVersionUseCase.minSupportedServerVersion
+    }
+
+    /// Get maximum supported server version
+    var maxSupportedServerVersion: String {
+        checkServerVersionUseCase.maxSupportedServerVersion
+    }
+
+    /// Save server version after successful login
+    func saveServerVersion(_ version: String) {
+        saveServerVersionUseCase.execute(version: version)
+    }
+
+    /// Fetch server version from a specific URL (for setup flow before login)
+    func fetchServerVersion(from serverURL: String) async throws -> String {
+        let heartbeat = try await getHeartbeatUseCase.execute(from: serverURL)
+        return heartbeat.version
+    }
 }
