@@ -1,8 +1,8 @@
-app_identifier("de.ilyashallak.rommanagerplus") # The bundle identifier of your app
-apple_id("ilyashallak@gmail.com") # Your Apple Developer Portal username
+app_identifier('de.ilyashallak.rommanagerplus')
 
-itc_team_id("8J69P655GN") # App Store Connect Team ID
-team_id("8J69P655GN") # Developer Portal Team ID
+# Keep team values from project settings for automatic signing resolution.
+itc_team_id('8J69P655GN')
+team_id('8J69P655GN')
 
-# For more information about the Appfile, see:
-#     https://docs.fastlane.tools/advanced/#appfile
+# Optional fallback when not using App Store Connect API key authentication.
+apple_id(ENV['FASTLANE_APPLE_ID']) if ENV['FASTLANE_APPLE_ID'].to_s.strip != ''

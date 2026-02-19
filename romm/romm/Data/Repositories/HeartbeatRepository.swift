@@ -13,7 +13,7 @@ class HeartbeatRepository: HeartbeatRepositoryProtocol {
     // MARK: - Constants
 
     let minSupportedServerVersion = "4.1.0"
-    let maxSupportedServerVersion = "4.4.0"
+    let maxSupportedServerVersion = "4.5.0"
     let versionCheckThrottleSeconds: TimeInterval = 30
 
     // MARK: - UserDefaults Keys

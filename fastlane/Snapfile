@@ -1,39 +1,24 @@
-# Snapfile for romm App Store Screenshots
+# Snapshot configuration for deterministic marketing screenshots
 
-# A list of devices you want to take the screenshots from
 devices([
-  "iPhone 16 Pro"
+  'iPhone 16 Pro'
 ])
 
 languages([
-  "en-US"
+  'en-US'
 ])
 
-# Project/Workspace path
-workspace("romm/romm.xcodeproj/project.xcworkspace")
+project('romm/romm.xcodeproj')
+scheme('romm')
 
-# The name of the scheme which contains the UI Tests
-scheme("romm")
-
-# Where should the resulting screenshots be stored?
-output_directory("./fastlane/screenshots")
-
-# Clear previous screenshots
-clear_previous_screenshots(true)
-
-# Disable animations for cleaner screenshots
 override_status_bar(true)
-
-# Erase simulator before running
+clear_previous_screenshots(true)
 erase_simulator(true)
-
-# Reinstall app before running
 reinstall_app(true)
+stop_after_first_error(true)
 
-# Arguments to pass to the app on launch
-launch_arguments([
-  "-FASTLANE_SNAPSHOT YES"
-])
+# Run only the dedicated screenshot test
+only_testing(['rommUITests/testTakeScreenshots'])
 
-# For more information about all available options run
-# fastlane action snapshot
+# Snapshot helper already injects -FASTLANE_SNAPSHOT / -ui_testing
+output_directory('./fastlane/screenshots')

@@ -10,53 +10,34 @@ import XCTest
 final class rommUITests: XCTestCase {
 
     override func setUpWithError() throws {
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-    }
-
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
     @MainActor
     func testTakeScreenshots() throws {
-        let app = XCUIApplication()
-        setupSnapshot(app)
-        app.launch()
+        let loginApp = XCUIApplication()
+        setupSnapshot(loginApp)
+        loginApp.launchArguments += [
+            "-ui_testing_force_setup",
+            "-ui_testing_show_login"
+        ]
+        loginApp.launch()
 
-        // Wait for app to load
-        sleep(2)
+        XCTAssertTrue(loginApp.buttons["Login"].waitForExistence(timeout: 10))
+        snapshot("01_Login", timeWaitingForIdle: 0)
+        loginApp.terminate()
 
-        // Take main screen screenshot
-        snapshot("01-Home")
+        let settingsApp = XCUIApplication()
+        setupSnapshot(settingsApp)
+        settingsApp.launchArguments += [
+            "-ui_testing_force_authenticated"
+        ]
+        settingsApp.launch()
 
-        // Navigate to Profile/Settings tab
-        let tabBar = app.tabBars.firstMatch
-        if tabBar.waitForExistence(timeout: 5) {
-            // Try to find the profile/settings tab button
-            let profileButton = tabBar.buttons.element(boundBy: 1) // Usually second tab
-            if profileButton.exists {
-                profileButton.tap()
-                sleep(1)
-                snapshot("02-Profile")
-            }
-        }
-    }
-
-    @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
-        let app = XCUIApplication()
-        app.launch()
-
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-    }
-
-    @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
-        }
+        let settingsTab = settingsApp.tabBars.buttons["Settings"]
+        XCTAssertTrue(settingsTab.waitForExistence(timeout: 10))
+        settingsTab.tap()
+        XCTAssertTrue(settingsApp.navigationBars["Settings"].waitForExistence(timeout: 10))
+        snapshot("02_Settings", timeWaitingForIdle: 0)
     }
 }

@@ -7,7 +7,6 @@ struct PlatformROMsListView: View {
     let onDelete: (DownloadedROM) -> Void
 
     @State private var selectedRomForEmulator: DownloadedROM?
-    @State private var showingEmulator = false
 
     var body: some View {
         List {
@@ -16,7 +15,6 @@ struct PlatformROMsListView: View {
                     // Tap to play (if supported)
                     if isPlatformSupported(rom.platformSlug) {
                         selectedRomForEmulator = rom
-                        showingEmulator = true
                     }
                 } label: {
                     ROMInfoView(rom: rom, isPlayable: isPlatformSupported(rom.platformSlug))
@@ -36,12 +34,12 @@ struct PlatformROMsListView: View {
         }
         .navigationTitle(platformName)
         .navigationBarTitleDisplayMode(.inline)
-        .overlay {
-            if showingEmulator, let downloadedRom = selectedRomForEmulator {
-                // Convert DownloadedROM to Rom for EmulatorView
-                EmulatorView(rom: downloadedRom.toRom())
-                    .ignoresSafeArea()
-            }
+        .fullScreenCover(item: $selectedRomForEmulator, onDismiss: {
+            OrientationLock.set(.portrait, rotateTo: .portrait)
+        }) { downloadedRom in
+            // Convert DownloadedROM to Rom for EmulatorView
+            EmulatorView(rom: downloadedRom.toRom())
+                .ignoresSafeArea()
         }
     }
 

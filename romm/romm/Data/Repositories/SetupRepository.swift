@@ -16,6 +16,53 @@ struct SetupConfiguration: Codable {
     let refreshToken: String?
     let setupDate: Date
     let version: String
+    let allowIncompatibleVersionLogin: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case serverURL
+        case username
+        case password
+        case token
+        case refreshToken
+        case setupDate
+        case version
+        case allowIncompatibleVersionLogin
+    }
+
+    init(
+        serverURL: String,
+        username: String,
+        password: String?,
+        token: String?,
+        refreshToken: String?,
+        setupDate: Date,
+        version: String,
+        allowIncompatibleVersionLogin: Bool = false
+    ) {
+        self.serverURL = serverURL
+        self.username = username
+        self.password = password
+        self.token = token
+        self.refreshToken = refreshToken
+        self.setupDate = setupDate
+        self.version = version
+        self.allowIncompatibleVersionLogin = allowIncompatibleVersionLogin
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        serverURL = try container.decode(String.self, forKey: .serverURL)
+        username = try container.decode(String.self, forKey: .username)
+        password = try container.decodeIfPresent(String.self, forKey: .password)
+        token = try container.decodeIfPresent(String.self, forKey: .token)
+        refreshToken = try container.decodeIfPresent(String.self, forKey: .refreshToken)
+        setupDate = try container.decode(Date.self, forKey: .setupDate)
+        version = try container.decode(String.self, forKey: .version)
+        allowIncompatibleVersionLogin = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .allowIncompatibleVersionLogin
+        ) ?? false
+    }
 }
 
 // MARK: - Setup Repository Protocol
@@ -25,7 +72,12 @@ protocol SetupRepositoryProtocol {
     func isSetupComplete() -> Bool
     func clearSetupConfiguration() throws
     func updateToken(_ token: String) throws
-    func saveAndValidateConfiguration(serverURL: String, username: String, password: String) async throws -> SetupConfiguration
+    func saveAndValidateConfiguration(
+        serverURL: String,
+        username: String,
+        password: String,
+        allowIncompatibleVersionLogin: Bool
+    ) async throws -> SetupConfiguration
 }
 
 // MARK: - Setup Repository Implementation
@@ -51,6 +103,7 @@ class SetupRepository: SetupRepositoryProtocol {
         logger.debug("Has Password: \(config.password != nil)")
         logger.debug("Has Token: \(config.token != nil)")
         logger.debug("Has Refresh Token: \(config.refreshToken != nil)")
+        logger.debug("Allow Incompatible Version Login: \(config.allowIncompatibleVersionLogin)")
         
         do {
             let jsonData = try JSONEncoder().encode(config)
@@ -90,6 +143,7 @@ class SetupRepository: SetupRepositoryProtocol {
             logger.debug("Has Password: \(config.password != nil)")
             logger.debug("Has Access Token: \(config.token != nil)")
             logger.debug("Has Refresh Token: \(config.refreshToken != nil)")
+            logger.debug("Allow Incompatible Version Login: \(config.allowIncompatibleVersionLogin)")
             logger.debug("Setup Date: \(config.setupDate)")
             logger.debug("Version: \(config.version)")
             
@@ -134,7 +188,8 @@ class SetupRepository: SetupRepositoryProtocol {
             token: token,
             refreshToken: config.refreshToken,
             setupDate: config.setupDate,
-            version: config.version
+            version: config.version,
+            allowIncompatibleVersionLogin: config.allowIncompatibleVersionLogin
         )
         
         // Save updated configuration
@@ -143,13 +198,19 @@ class SetupRepository: SetupRepositoryProtocol {
     }
     
     @MainActor
-    func saveAndValidateConfiguration(serverURL: String, username: String, password: String) async throws -> SetupConfiguration {
+    func saveAndValidateConfiguration(
+        serverURL: String,
+        username: String,
+        password: String,
+        allowIncompatibleVersionLogin: Bool
+    ) async throws -> SetupConfiguration {
         let connectionLogger = ConnectionLogger.shared
         connectionLogger.startNewConnection()
 
         logger.info("Starting configuration validation and save...")
         logger.debug("Server URL: \(serverURL)")
         logger.debug("Username: \(username)")
+        logger.debug("Allow Incompatible Version Login: \(allowIncompatibleVersionLogin)")
 
         // Clean URL
         let cleanURL = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -175,7 +236,8 @@ class SetupRepository: SetupRepositoryProtocol {
                 token: token,
                 refreshToken: nil,
                 setupDate: Date(),
-                version: getCurrentAppVersion()
+                version: getCurrentAppVersion(),
+                allowIncompatibleVersionLogin: allowIncompatibleVersionLogin
             )
 
             // Save to storage

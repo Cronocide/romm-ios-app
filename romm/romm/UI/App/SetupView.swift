@@ -22,8 +22,11 @@ struct SetupView: View {
     @State private var connectionErrorDetails: String?
     @State private var isErrorExpanded = false
     @State private var isVersionWarning = false  // true if error is just a warning (incompatible but can proceed)
+    @State private var didAcceptIncompatibleVersion = false
 
     private var connectionLogger: ConnectionLogger { ConnectionLogger.shared }
+    private let launchArguments = ProcessInfo.processInfo.arguments
+    private var shouldShowLoginForUITests: Bool { launchArguments.contains("-ui_testing_show_login") }
 
     var body: some View {
         NavigationView {
@@ -109,6 +112,9 @@ struct SetupView: View {
             }
             .navigationTitle("Setup")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                seedUITestLoginStateIfNeeded()
+            }
             .onTapGesture {
                 hideKeyboard()
             }
@@ -243,6 +249,7 @@ struct SetupView: View {
                             connectionErrorDetails = nil
                             isVersionWarning = false
                             isErrorExpanded = false
+                            didAcceptIncompatibleVersion = true
                         }
                         .font(.caption.weight(.medium))
                         .foregroundColor(.orange)
@@ -316,6 +323,7 @@ struct SetupView: View {
         connectionErrorDetails = nil
         isErrorExpanded = false
         isVersionWarning = false
+        didAcceptIncompatibleVersion = false
 
         do {
             let version = try await appViewModel.fetchServerVersion(from: serverURL)
@@ -325,6 +333,7 @@ struct SetupView: View {
                 // Compatible - proceed
                 serverValidated = true
                 connectionError = nil
+                didAcceptIncompatibleVersion = false
             } else {
                 // Incompatible - show warning but allow to proceed
                 connectionError = "Server version \(version) is not compatible"
@@ -337,6 +346,7 @@ struct SetupView: View {
             connectionError = message
             connectionErrorDetails = details
             isVersionWarning = false
+            didAcceptIncompatibleVersion = false
         }
 
         isConnecting = false
@@ -386,6 +396,7 @@ struct SetupView: View {
         connectionErrorDetails = nil
         isErrorExpanded = false
         isVersionWarning = false
+        didAcceptIncompatibleVersion = false
         username = ""
         password = ""
     }
@@ -395,7 +406,11 @@ struct SetupView: View {
         if let version = detectedServerVersion {
             appViewModel.saveServerVersion(version)
         }
-        await appViewModel.saveConfiguration(serverURL: serverURL, username: username, password: password)
+        await appViewModel.saveConfiguration(
+            serverURL: serverURL,
+            username: username,
+            password: password
+        )
     }
 
     private func hideKeyboard() {
@@ -404,6 +419,30 @@ struct SetupView: View {
 
     private func insertText(_ text: String) {
         serverURL += text
+    }
+
+    private func seedUITestLoginStateIfNeeded() {
+        guard shouldShowLoginForUITests else {
+            return
+        }
+
+        if serverURL.isEmpty {
+            serverURL = "https://demo.romm.app"
+        }
+
+        if username.isEmpty {
+            username = "snapshot-user"
+        }
+
+        if password.isEmpty {
+            password = "snapshot-password"
+        }
+
+        detectedServerVersion = "3.0.0"
+        serverValidated = true
+        connectionError = nil
+        connectionErrorDetails = nil
+        isVersionWarning = false
     }
 }
 

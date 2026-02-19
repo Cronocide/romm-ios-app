@@ -33,7 +33,11 @@ class RomsRepository: RomsRepositoryProtocol {
                 filters: .empty // No filter parameters - keep it simple
             )
             
-            let domainRoms = romsPage.items.mapToDomain()
+            let domainRoms = sanitizeRomsForPlatform(
+                roms: romsPage.items.mapToDomain(),
+                requestedPlatformId: platformId,
+                context: "legacy"
+            )
             
             let paginatedResponse = PaginatedRomsResponse(
                 roms: domainRoms,
@@ -79,7 +83,11 @@ class RomsRepository: RomsRepositoryProtocol {
                 filters: filters
             )
             
-            let domainRoms = romsPage.items.mapToDomain()
+            let domainRoms = sanitizeRomsForPlatform(
+                roms: romsPage.items.mapToDomain(),
+                requestedPlatformId: platformId,
+                context: "filtered"
+            )
             
             let paginatedResponse = PaginatedRomsResponse(
                 roms: domainRoms,
@@ -95,6 +103,33 @@ class RomsRepository: RomsRepositoryProtocol {
             logger.error("❌ Error getting filtered ROMs: \(error)")
             throw RomError.networkError
         }
+    }
+
+    private func sanitizeRomsForPlatform(
+        roms: [Rom],
+        requestedPlatformId: Int?,
+        context: String
+    ) -> [Rom] {
+        guard let requestedPlatformId else { return roms }
+
+        let mismatchedRoms = roms.filter { $0.platformId != requestedPlatformId }
+        guard !mismatchedRoms.isEmpty else { return roms }
+
+        logger.warning(
+            "⚠️ Platform mismatch in \(context) ROM response. Requested platformId=\(requestedPlatformId), mismatched=\(mismatchedRoms.count)"
+        )
+
+        for rom in mismatchedRoms.prefix(5) {
+            logger.warning(
+                "⚠️ Mismatched ROM id=\(rom.id), name=\(rom.name), platformId=\(rom.platformId), requested=\(requestedPlatformId)"
+            )
+        }
+
+        if mismatchedRoms.count > 5 {
+            logger.warning("⚠️ ... and \(mismatchedRoms.count - 5) additional mismatched ROMs")
+        }
+
+        return roms.filter { $0.platformId == requestedPlatformId }
     }
     
     func getRomDetails(id: Int) async throws -> RomDetails {

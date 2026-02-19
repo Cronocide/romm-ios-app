@@ -23,6 +23,7 @@ class AppViewModel {
     var appState: AppState = .loading
 
     private let logger = Logger.viewModel
+    private let launchArguments = ProcessInfo.processInfo.arguments
 
     // Shared data for environment
     let appData = AppData()
@@ -39,6 +40,9 @@ class AppViewModel {
     private let factory: DependencyFactoryProtocol
 
     private var cancellables = Set<AnyCancellable>()
+    private var isUITesting: Bool { launchArguments.contains("-ui_testing") || launchArguments.contains("-FASTLANE_SNAPSHOT") }
+    private var shouldForceSetupForUITests: Bool { launchArguments.contains("-ui_testing_force_setup") }
+    private var shouldForceAuthenticatedForUITests: Bool { launchArguments.contains("-ui_testing_force_authenticated") }
 
     init(factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared) {
         self.factory = factory
@@ -78,6 +82,19 @@ class AppViewModel {
     func checkInitialState() async {
         logger.debug("Checking initial state...")
 
+        if shouldForceSetupForUITests {
+            resetAuthenticationState()
+            appData.updateConfiguration(nil)
+            appState = .setup
+            return
+        }
+
+        if shouldForceAuthenticatedForUITests {
+            seedUITestAuthenticatedState()
+            appState = .authenticated
+            return
+        }
+
         let config = try? getSetupConfigurationUseCase.execute()
 
         if let config, config.token != nil {
@@ -109,7 +126,8 @@ class AppViewModel {
             let setupConfig = try await saveSetupConfigurationUseCase.execute(
                 serverURL: serverURL,
                 username: username,
-                password: password
+                password: password,
+                allowIncompatibleVersionLogin: true
             )
 
             updateAppConfig(setupConfig)
@@ -195,6 +213,11 @@ class AppViewModel {
 
     /// Check server version on app foreground. Handles errors and logs out if needed.
     func checkServerVersionOnForeground() async {
+        if isUITesting {
+            logger.debug("Skipping version check in UI testing mode")
+            return
+        }
+
         // Only check if authenticated
         guard appState == .authenticated else {
             logger.debug("Skipping version check - not authenticated")
@@ -264,5 +287,29 @@ class AppViewModel {
     func fetchServerVersion(from serverURL: String) async throws -> String {
         let heartbeat = try await getHeartbeatUseCase.execute(from: serverURL)
         return heartbeat.version
+    }
+
+    private func seedUITestAuthenticatedState() {
+        appData.updateAuthState(true)
+        appData.updateError(nil)
+        appData.updateConfiguration(
+            AppConfiguration(
+                serverURL: "https://demo.romm.app",
+                username: "snapshot-user",
+                password: nil,
+                token: "snapshot-token",
+                refreshToken: nil
+            )
+        )
+        appData.updateUser(
+            User(
+                id: 1,
+                username: "snapshot-user",
+                email: "snapshot@example.com",
+                role: .admin,
+                avatarPath: nil,
+                enabled: true
+            )
+        )
     }
 }

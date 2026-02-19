@@ -1,180 +1,122 @@
 default_platform(:ios)
 
-# Fix locale for UTF-8 encoding
 ENV['LC_ALL'] = 'en_US.UTF-8'
 ENV['LANG'] = 'en_US.UTF-8'
 
+PROJECT_PATH = 'romm/romm.xcodeproj'
+DEFAULT_SCHEME = 'romm'
+DEFAULT_TARGET = 'romm'
+
+private_lane :ensure_required_env_vars! do |options|
+  required_keys = options[:keys] || []
+  missing_keys = required_keys.select { |key| ENV[key].to_s.strip.empty? }
+
+  return if missing_keys.empty?
+
+  UI.user_error!("Missing required environment variables: #{missing_keys.join(', ')}")
+end
+
+private_lane :resolve_app_store_api_key do
+  ensure_required_env_vars!(
+    keys: %w[
+      APP_STORE_CONNECT_API_KEY_KEY_ID
+      APP_STORE_CONNECT_API_KEY_ISSUER_ID
+    ]
+  )
+
+  key_content = ENV['APP_STORE_CONNECT_API_KEY_KEY_CONTENT'].to_s.strip
+  key_filepath = ENV['APP_STORE_CONNECT_API_KEY_KEY_FILEPATH'].to_s.strip
+
+  if key_content.empty? && key_filepath.empty?
+    UI.user_error!('Set APP_STORE_CONNECT_API_KEY_KEY_CONTENT or APP_STORE_CONNECT_API_KEY_KEY_FILEPATH')
+  end
+
+  key_config = {
+    key_id: ENV['APP_STORE_CONNECT_API_KEY_KEY_ID'],
+    issuer_id: ENV['APP_STORE_CONNECT_API_KEY_ISSUER_ID'],
+    duration: 1200,
+    in_house: false
+  }
+
+  unless key_content.empty?
+    key_config[:key_content] = key_content
+    key_config[:is_key_content_base64] = ENV['APP_STORE_CONNECT_API_KEY_IS_BASE64'].to_s.downcase == 'true'
+  end
+
+  key_config[:key_filepath] = key_filepath unless key_filepath.empty?
+
+  app_store_connect_api_key(**key_config)
+end
+
+private_lane :release_changelog do
+  changelog_from_git_commits(
+    pretty: '- %s',
+    commits_count: 15,
+    merge_commit_filtering: 'exclude_merges'
+  )
+end
+
 platform :ios do
-  desc "Increment build number"
-  lane :bump_build do
-    increment_build_number(
-      xcodeproj: "romm/romm.xcodeproj"
-    )
-  end
-
-  desc "Generate release notes from recent commits"
-  lane :release_notes do
-    changelog = changelog_from_git_commits(
-      commits_count: 10,
-      pretty: "- %s",
-      date_format: "short",
-      match_lightweight_tag: false,
-      merge_commit_filtering: "exclude_merges"
-    )
-
-    UI.message("📝 Release Notes:")
-    UI.message(changelog)
-
-    changelog
-  end
-
-  desc "Capture screenshots for the App Store"
-  lane :screenshots do
-    snapshot
-  end
-
-  desc "Build and upload beta to TestFlight"
-  lane :beta do
-    # Ensure we're on main or prompt to merge
+  desc 'Increment build number, archive and upload to TestFlight, then tag the release'
+  lane :deploy_testflight do
     ensure_git_status_clean
 
-    current_branch = git_branch
+    scheme = ENV['IOS_SCHEME'].to_s.strip
+    scheme = DEFAULT_SCHEME if scheme.empty?
 
-    if current_branch != "main"
-      UI.important("⚠️  Currently on branch: #{current_branch}")
+    target = ENV['IOS_APP_TARGET'].to_s.strip
+    target = DEFAULT_TARGET if target.empty?
 
-      if UI.confirm("Do you want to merge #{current_branch} into main?")
-        # Switch to main
-        sh("git checkout main")
-        sh("git pull origin main")
+    api_key = resolve_app_store_api_key
 
-        # Merge current branch
-        sh("git merge #{current_branch} --no-edit")
+    build_number = increment_build_number(xcodeproj: PROJECT_PATH)
+    version_number = get_version_number(xcodeproj: PROJECT_PATH, target: target)
+    changelog = release_changelog
 
-        UI.success("✅ Merged #{current_branch} into main")
-      else
-        UI.user_error!("❌ Beta release must be done from main branch")
-      end
-    end
-    
-    # Capture screenshots
-    screenshots
-
-    # Increment build number
-    UI.message("🔢 Incrementing build number...")
-    build_number = increment_build_number(
-      xcodeproj: "romm/romm.xcodeproj"
-    )
-
-    # Get marketing version
-    version_number = get_version_number(
-      xcodeproj: "romm/romm.xcodeproj",
-      target: "romm"
-    )
-
-    # Generate changelog
-    changelog = release_notes
-
-    # Commit version bump
+    commit_message = "chore(release): bump iOS build to #{build_number}"
     git_commit(
-      path: ["romm/romm.xcodeproj/project.pbxproj"],
-      message: "Bump build number to #{build_number}"
+      path: ['romm/romm.xcodeproj/project.pbxproj'],
+      message: commit_message
     )
 
-    # Create beta tag
-    beta_tag = "v#{version_number}-beta.#{build_number}"
-    add_git_tag(
-      tag: beta_tag,
-      message: "Beta release #{beta_tag}\n\n#{changelog}"
-    )
-
-    UI.success("🏷️  Created tag: #{beta_tag}")
-
-    # Build the app
-    UI.message("🔨 Building app...")
-    gym(
-      workspace: "romm/romm.xcodeproj/project.xcworkspace",
-      scheme: "romm",
-      export_method: "app-store",
+    build_app(
+      project: PROJECT_PATH,
+      scheme: scheme,
+      configuration: 'Release',
       clean: true,
-      output_directory: "./build"
+      export_method: 'app-store',
+      output_directory: 'build',
+      output_name: 'romm.ipa'
     )
 
-    # Upload to TestFlight
-    UI.message("📤 Uploading to TestFlight...")
-    pilot(
-      skip_waiting_for_build_processing: true,
+    upload_to_testflight(
+      api_key: api_key,
       changelog: changelog,
+      skip_waiting_for_build_processing: false,
       distribute_external: false,
       notify_external_testers: false
     )
 
-    # Push tags to remote
-    if UI.confirm("Push tags and commits to remote?")
-      push_to_git_remote(
-        tags: true
-      )
-      UI.success("✅ Pushed to remote")
+    tag_name = "ios/v#{version_number}-b#{build_number}"
+    add_git_tag(
+      tag: tag_name,
+      message: "TestFlight upload #{tag_name}"
+    )
+
+    if ENV['FASTLANE_PUSH_AFTER_DEPLOY'].to_s.downcase == 'true'
+      push_to_git_remote(tags: true)
     end
 
-    UI.success("🎉 Beta release #{beta_tag} completed successfully!")
+    UI.success("Upload complete. Created commit and tag #{tag_name}")
   end
 
-  desc "Quick beta without merge confirmation (when already on main)"
-  lane :quick_beta do
-    ensure_git_status_clean
-    ensure_git_branch(branch: "main")
+  desc 'Convenience alias for deploy_testflight'
+  lane :deploy do
+    deploy_testflight
+  end
 
-    # Increment build number
-    UI.message("🔢 Incrementing build number...")
-    build_number = increment_build_number(
-      xcodeproj: "romm/romm.xcodeproj"
-    )
-
-    # Get marketing version
-    version_number = get_version_number(
-      xcodeproj: "romm/romm.xcodeproj",
-      target: "romm"
-    )
-
-    # Generate changelog
-    changelog = release_notes
-
-    # Commit version bump
-    git_commit(
-      path: ["romm/romm.xcodeproj/project.pbxproj"],
-      message: "Bump build number to #{build_number}"
-    )
-
-    # Create beta tag
-    beta_tag = "v#{version_number}-beta.#{build_number}"
-    add_git_tag(
-      tag: beta_tag,
-      message: "Beta release #{beta_tag}\n\n#{changelog}"
-    )
-
-    UI.success("🏷️  Created tag: #{beta_tag}")
-
-    # Build the app
-    UI.message("🔨 Building app...")
-    gym(
-      workspace: "romm/romm.xcodeproj/project.xcworkspace",
-      scheme: "romm",
-      export_method: "app-store",
-      clean: true,
-      output_directory: "./build"
-    )
-
-    # Upload to TestFlight
-    UI.message("📤 Uploading to TestFlight...")
-    pilot(
-      skip_waiting_for_build_processing: true,
-      changelog: changelog
-    )
-
-    # Push everything
-    push_to_git_remote(tags: true)
-
-    UI.success("🎉 Beta release #{beta_tag} completed successfully!")
+  desc 'Create App Store screenshots (Login + Settings) via snapshot'
+  lane :screenshots do
+    snapshot
   end
 end

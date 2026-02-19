@@ -124,11 +124,16 @@ struct EmulatorView: View {
         } message: {
             Text("Do you really want to quit the emulator?")
         }
+        .onAppear {
+            print("🎮 EmulatorView appeared - enabling landscape + portrait")
+            OrientationLock.set([.portrait, .landscapeLeft, .landscapeRight])
+        }
         .task {
             // Start emulator when view appears
             viewModel.startEmulator()
         }
         .onDisappear {
+            print("🎮 EmulatorView disappeared - running cleanup")
             viewModel.cleanup()
         }
     }
@@ -272,6 +277,7 @@ struct EmulatorWebView: UIViewRepresentable {
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         let viewModel: EmulatorViewModel
         var hasLoaded = false
+        private var didRetryAfterProcessTermination = false
         weak var webView: WKWebView?
         private let logger = Logger.viewModel
 
@@ -321,6 +327,7 @@ struct EmulatorWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             logger.info("✅ WebView finished loading navigation")
+            didRetryAfterProcessTermination = false
 
             // Inject CSS to hide ROMM UI and make emulator fullscreen
             injectFullscreenCSS(webView)
@@ -412,12 +419,26 @@ struct EmulatorWebView: UIViewRepresentable {
 
         // Handle WebView process termination (memory crash)
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-            logger.error("⚠️ WebView process terminated - likely memory issue or crash")
+            logger.error("⚠️ WebView process terminated")
+
+            guard !didRetryAfterProcessTermination else {
+                Task { @MainActor in
+                    viewModel.errorMessage =
+                        "Emulator crashed. This might be caused by:\n• ROM file too large\n• Not enough memory\n• Corrupted ROM\n\nTry restarting or use a smaller ROM."
+                    viewModel.isLoading = false
+                }
+                return
+            }
 
             Task { @MainActor in
-                viewModel.errorMessage =
-                    "Emulator crashed. This might be caused by:\n• ROM file too large\n• Not enough memory\n• Corrupted ROM\n\nTry restarting or use a smaller ROM."
-                viewModel.isLoading = false
+                viewModel.errorMessage = nil
+                viewModel.isLoading = true
+            }
+
+            didRetryAfterProcessTermination = true
+            logger.warning("↻ Retrying web content load once after termination")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                webView.reload()
             }
         }
 

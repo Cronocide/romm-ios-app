@@ -414,6 +414,9 @@ extension RommAPIClient {
         orderDir: String? = nil,
         filters: RomFilters
     ) async throws -> CustomLimitOffsetPageSimpleRomSchema {
+        // Avoid cross-platform merges when a concrete platform is requested.
+        let shouldGroupByMetaId = platformId == nil
+
         return try await RomsAPI.getRomsApiRomsGet(
             withCharIndex: withCharIndex,
             searchTerm: searchTerm,
@@ -426,7 +429,7 @@ extension RommAPIClient {
             missing: filters.missing,
             hasRa: filters.hasRa,
             verified: filters.verified,
-            groupByMetaId: true, // Always group by meta ID like the old implementation
+            groupByMetaId: shouldGroupByMetaId,
             selectedGenre: filters.selectedGenre,
             selectedFranchise: filters.selectedFranchise,
             selectedCollection: filters.selectedCollection,
@@ -848,4 +851,3 @@ extension RommAPIClient {
         return try JSONDecoder().decode(HeartbeatResponse.self, from: data)
     }
 }
-

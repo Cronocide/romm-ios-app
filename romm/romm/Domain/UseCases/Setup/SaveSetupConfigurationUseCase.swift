@@ -9,7 +9,12 @@ import Foundation
 import os
 
 protocol SaveSetupConfigurationUseCaseProtocol {
-    func execute(serverURL: String, username: String, password: String) async throws -> SetupConfiguration
+    func execute(
+        serverURL: String,
+        username: String,
+        password: String,
+        allowIncompatibleVersionLogin: Bool
+    ) async throws -> SetupConfiguration
 }
 
 class SaveSetupConfigurationUseCase: SaveSetupConfigurationUseCaseProtocol {
@@ -20,7 +25,12 @@ class SaveSetupConfigurationUseCase: SaveSetupConfigurationUseCaseProtocol {
         self.setupRepository = setupRepository
     }
     
-    func execute(serverURL: String, username: String, password: String) async throws -> SetupConfiguration {
+    func execute(
+        serverURL: String,
+        username: String,
+        password: String,
+        allowIncompatibleVersionLogin: Bool
+    ) async throws -> SetupConfiguration {
         logger.info("Starting setup configuration save...")
         
         // Validate input
@@ -37,7 +47,8 @@ class SaveSetupConfigurationUseCase: SaveSetupConfigurationUseCaseProtocol {
             let setupConfig = try await setupRepository.saveAndValidateConfiguration(
                 serverURL: serverURL,
                 username: username,
-                password: password
+                password: password,
+                allowIncompatibleVersionLogin: allowIncompatibleVersionLogin
             )
             
             logger.info("Setup configuration saved successfully")
@@ -60,4 +71,3 @@ class SaveSetupConfigurationUseCase: SaveSetupConfigurationUseCaseProtocol {
         return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
     }
 }
-
