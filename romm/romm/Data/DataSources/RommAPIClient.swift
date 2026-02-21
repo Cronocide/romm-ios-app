@@ -11,6 +11,7 @@ import os
 protocol RommAPIClientProtocol {
     func makeRequest<T: Codable>(path: String, method: HTTPMethod, body: Data?, responseType: T.Type) async throws -> T
     func makeRequest(path: String, method: HTTPMethod, body: Data?) async throws -> Data
+    func downloadFile(path: String, progressHandler: ((Int64, Int64) -> Void)?) async throws -> URL
     func get<T: Codable>(_ path: String, responseType: T.Type) async throws -> T
     func get(_ path: String) async throws -> Data
     func post<RequestBody: Codable, ResponseType: Codable>(_ path: String, body: RequestBody, responseType: ResponseType.Type) async throws -> ResponseType
@@ -302,6 +303,120 @@ class RommAPIClient: RommAPIClientProtocol {
             throw APIClientError.networkError(error)
         }
     }
+
+    func downloadFile(path: String, progressHandler: ((Int64, Int64) -> Void)? = nil) async throws -> URL {
+        let measurement = PerformanceMeasurement(operation: "DOWNLOAD \(path)")
+        logger.logNetworkRequest(method: HTTPMethod.get.rawValue, url: path)
+
+        // Keep OpenAPI client configuration in sync with latest credentials.
+        setupAPIConfiguration()
+
+        let url = try buildURL(path: path)
+
+        guard let username = tokenProvider.getUsername(),
+              let password = tokenProvider.getPassword() else {
+            logger.error("No authentication credentials available for download")
+            throw APIClientError.noCredentials
+        }
+
+        let loginString = "\(username):\(password)"
+        guard let loginData = loginString.data(using: .utf8) else {
+            logger.error("Failed to encode credentials for download")
+            throw APIClientError.authenticationRequired
+        }
+        let base64LoginString = loginData.base64EncodedString()
+
+        var request = URLRequest(url: url)
+        request.httpMethod = HTTPMethod.get.rawValue
+        request.setValue("Basic \(base64LoginString)", forHTTPHeaderField: "Authorization")
+        request.setValue("*/*", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = 60.0
+
+        logger.debug("Download URL: \(url.absoluteString)")
+        logger.debug("Using Basic Auth for user: \(username)")
+
+        return try await withCheckedThrowingContinuation { continuation in
+            var progressObservation: NSKeyValueObservation?
+            var downloadTask: URLSessionDownloadTask?
+
+            downloadTask = urlSession.downloadTask(with: request) { [weak self] tempURL, response, error in
+                progressObservation?.invalidate()
+
+                if let error = error as? URLError {
+                    self?.logger.logNetworkError(method: HTTPMethod.get.rawValue, url: path, error: error)
+                    continuation.resume(throwing: APIClientError.networkError(error))
+                    return
+                }
+
+                if let error {
+                    self?.logger.logNetworkError(method: HTTPMethod.get.rawValue, url: path, error: error)
+                    continuation.resume(throwing: APIClientError.networkError(error))
+                    return
+                }
+
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    self?.logger.error("Invalid download response type")
+                    continuation.resume(throwing: APIClientError.networkError(URLError(.badServerResponse)))
+                    return
+                }
+
+                self?.logger.logNetworkRequest(method: HTTPMethod.get.rawValue, url: path, statusCode: httpResponse.statusCode)
+
+                switch httpResponse.statusCode {
+                case 200...299:
+                    guard let tempURL else {
+                        self?.logger.error("Download completed without temporary file")
+                        continuation.resume(throwing: APIClientError.networkError(URLError(.cannotCreateFile)))
+                        return
+                    }
+
+                    let downloadedBytes = downloadTask?.progress.completedUnitCount ?? 0
+                    let totalBytes = downloadTask?.progress.totalUnitCount ?? 0
+                    let normalizedTotal = totalBytes > 0 ? totalBytes : downloadedBytes
+                    progressHandler?(downloadedBytes, normalizedTotal)
+
+                    measurement.end()
+                    continuation.resume(returning: tempURL)
+
+                case 401:
+                    self?.logger.warning("Authentication failed during download")
+                    NotificationCenter.default.post(name: .sessionExpired, object: nil)
+                    continuation.resume(throwing: APIClientError.authenticationRequired)
+
+                case 400...599:
+                    let message: String
+                    if let tempURL,
+                       let data = try? Data(contentsOf: tempURL),
+                       let serverMessage = String(data: data.prefix(500), encoding: .utf8),
+                       !serverMessage.isEmpty {
+                        message = serverMessage
+                    } else {
+                        message = "Download request failed"
+                    }
+                    self?.logger.error("Download failed (\(httpResponse.statusCode)): \(message)")
+                    continuation.resume(throwing: APIClientError.invalidResponse(httpResponse.statusCode, message))
+
+                default:
+                    let message = "Unexpected status code: \(httpResponse.statusCode)"
+                    self?.logger.error(message)
+                    continuation.resume(throwing: APIClientError.invalidResponse(httpResponse.statusCode, message))
+                }
+            }
+
+            guard let downloadTask else {
+                continuation.resume(throwing: APIClientError.networkError(URLError(.unknown)))
+                return
+            }
+
+            progressObservation = downloadTask.progress.observe(\.completedUnitCount, options: [.new]) { progress, _ in
+                let downloadedBytes = progress.completedUnitCount
+                let totalBytes = progress.totalUnitCount > 0 ? progress.totalUnitCount : 0
+                progressHandler?(downloadedBytes, totalBytes)
+            }
+
+            downloadTask.resume()
+        }
+    }
     
     private func buildURL(path: String) throws -> URL {
         guard let serverURL = tokenProvider.getServerURL() else {
@@ -414,8 +529,9 @@ extension RommAPIClient {
         orderDir: String? = nil,
         filters: RomFilters
     ) async throws -> CustomLimitOffsetPageSimpleRomSchema {
-        // Avoid cross-platform merges when a concrete platform is requested.
-        let shouldGroupByMetaId = platformId == nil
+        // Keep grouped ROM lists by default so different revisions/versions
+        // of the same title do not appear as separate entries.
+        let shouldGroupByMetaId = true
 
         return try await RomsAPI.getRomsApiRomsGet(
             withCharIndex: withCharIndex,

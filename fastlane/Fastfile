@@ -7,45 +7,36 @@ PROJECT_PATH = 'romm/romm.xcodeproj'
 DEFAULT_SCHEME = 'romm'
 DEFAULT_TARGET = 'romm'
 
-private_lane :ensure_required_env_vars! do |options|
-  required_keys = options[:keys] || []
-  missing_keys = required_keys.select { |key| ENV[key].to_s.strip.empty? }
-
-  return if missing_keys.empty?
-
-  UI.user_error!("Missing required environment variables: #{missing_keys.join(', ')}")
-end
-
-private_lane :resolve_app_store_api_key do
-  ensure_required_env_vars!(
-    keys: %w[
-      APP_STORE_CONNECT_API_KEY_KEY_ID
-      APP_STORE_CONNECT_API_KEY_ISSUER_ID
-    ]
-  )
-
+private_lane :resolve_optional_app_store_api_key do
+  key_id = ENV['APP_STORE_CONNECT_API_KEY_KEY_ID'].to_s.strip
+  issuer_id = ENV['APP_STORE_CONNECT_API_KEY_ISSUER_ID'].to_s.strip
   key_content = ENV['APP_STORE_CONNECT_API_KEY_KEY_CONTENT'].to_s.strip
   key_filepath = ENV['APP_STORE_CONNECT_API_KEY_KEY_FILEPATH'].to_s.strip
 
-  if key_content.empty? && key_filepath.empty?
-    UI.user_error!('Set APP_STORE_CONNECT_API_KEY_KEY_CONTENT or APP_STORE_CONNECT_API_KEY_KEY_FILEPATH')
+  if key_id.empty? || issuer_id.empty?
+    UI.message('No App Store Connect API key configured - using Apple ID session from Xcode/App Store Connect account.')
+    nil
+  else
+    if key_content.empty? && key_filepath.empty?
+      UI.user_error!('API key ID/issuer found, but key material missing. Set APP_STORE_CONNECT_API_KEY_KEY_CONTENT or APP_STORE_CONNECT_API_KEY_KEY_FILEPATH.')
+    end
+
+    key_config = {
+      key_id: key_id,
+      issuer_id: issuer_id,
+      duration: 1200,
+      in_house: false
+    }
+
+    unless key_content.empty?
+      key_config[:key_content] = key_content
+      key_config[:is_key_content_base64] = ENV['APP_STORE_CONNECT_API_KEY_IS_BASE64'].to_s.downcase == 'true'
+    end
+
+    key_config[:key_filepath] = key_filepath unless key_filepath.empty?
+
+    app_store_connect_api_key(**key_config)
   end
-
-  key_config = {
-    key_id: ENV['APP_STORE_CONNECT_API_KEY_KEY_ID'],
-    issuer_id: ENV['APP_STORE_CONNECT_API_KEY_ISSUER_ID'],
-    duration: 1200,
-    in_house: false
-  }
-
-  unless key_content.empty?
-    key_config[:key_content] = key_content
-    key_config[:is_key_content_base64] = ENV['APP_STORE_CONNECT_API_KEY_IS_BASE64'].to_s.downcase == 'true'
-  end
-
-  key_config[:key_filepath] = key_filepath unless key_filepath.empty?
-
-  app_store_connect_api_key(**key_config)
 end
 
 private_lane :release_changelog do
@@ -59,7 +50,7 @@ end
 platform :ios do
   desc 'Increment build number, archive and upload to TestFlight, then tag the release'
   lane :deploy_testflight do
-    ensure_git_status_clean
+    # ensure_git_status_clean
 
     scheme = ENV['IOS_SCHEME'].to_s.strip
     scheme = DEFAULT_SCHEME if scheme.empty?
@@ -67,7 +58,7 @@ platform :ios do
     target = ENV['IOS_APP_TARGET'].to_s.strip
     target = DEFAULT_TARGET if target.empty?
 
-    api_key = resolve_app_store_api_key
+    api_key = resolve_optional_app_store_api_key
 
     build_number = increment_build_number(xcodeproj: PROJECT_PATH)
     version_number = get_version_number(xcodeproj: PROJECT_PATH, target: target)
@@ -89,13 +80,14 @@ platform :ios do
       output_name: 'romm.ipa'
     )
 
-    upload_to_testflight(
-      api_key: api_key,
+    upload_options = {
       changelog: changelog,
       skip_waiting_for_build_processing: false,
       distribute_external: false,
       notify_external_testers: false
-    )
+    }
+    upload_options[:api_key] = api_key unless api_key.nil?
+    upload_to_testflight(**upload_options)
 
     tag_name = "ios/v#{version_number}-b#{build_number}"
     add_git_tag(

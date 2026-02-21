@@ -125,31 +125,74 @@ Beginne mit der Analyse!
 
 ## Phase 2: Ergebnis der Analyse
 
-<!-- Hier die Ergebnisse der Analyse einfügen -->
-
 ### Zusammenfassung
-- API-Klassen: ?/16 verwendet
-- Models: ?/73 verwendet
-- Support-Dateien: ?/12 erforderlich
+- API-Klassen: 9/16 verwendet
+- Models: 55/73 erforderlich (transitiv über verwendete APIs/Models)
+- Support-Dateien: 12/12 erforderlich
+
+Stand der Bereinigung: 2026-02-21 (statische Analyse + direkte Entfernung ungenutzter Dateien)
 
 ### Liste A: VERWENDET (behalten)
 
 #### API-Klassen
-<!-- Ergebnisse hier -->
+- [x] AuthAPI.swift (verwendet in `romm/romm/Data/DataSources/RommAPIClient.swift`)
+- [x] RomsAPI.swift (verwendet in `romm/romm/Data/DataSources/RommAPIClient.swift`)
+- [x] CollectionsAPI.swift (verwendet in `romm/romm/Data/DataSources/RommAPIClient.swift`)
+- [x] PlatformsAPI.swift (verwendet in `romm/romm/Data/DataSources/RommAPIClient.swift`)
+- [x] UsersAPI.swift (verwendet in `romm/romm/Data/DataSources/RommAPIClient.swift`)
+- [x] SystemAPI.swift (verwendet in `romm/romm/Data/DataSources/RommAPIClient.swift`)
+- [x] StatsAPI.swift (verwendet in `romm/romm/Data/Repositories/StatsRepository.swift`)
+- [x] SavesAPI.swift (verwendet in `romm/romm/UI/RomDetail/RomDetailViewModel.swift`)
+- [x] StatesAPI.swift (verwendet in `romm/romm/UI/RomDetail/RomDetailViewModel.swift`)
 
 #### Models
-<!-- Ergebnisse hier -->
+- [x] 55 Model-Dateien transitive required (Closure aus direkten Verwendungen + Modellabhängigkeiten)
+- [x] Kernmodelle: `DetailedRomSchema`, `SimpleRomSchema`, `CustomLimitOffsetPageSimpleRomSchema`, `UserSchema`, `CollectionSchema`, `PlatformSchema`, `RomUserSchema`, `SaveSchema`, `StateSchema`, `StatsReturn`, `HeartbeatResponse`
 
 #### Support-Dateien
-<!-- Ergebnisse hier -->
+- [x] APIs.swift
+- [x] Models.swift
+- [x] Configuration.swift
+- [x] APIHelper.swift
+- [x] CodableHelper.swift
+- [x] URLSessionImplementations.swift
+- [x] JSONDataEncoding.swift
+- [x] JSONEncodingHelper.swift
+- [x] Extensions.swift
+- [x] Validation.swift
+- [x] OpenISO8601DateFormatter.swift
+- [x] SynchronizedDictionary.swift
 
 ### Liste B: NICHT VERWENDET (entfernen)
 
 #### API-Klassen
-<!-- Ergebnisse hier -->
+- [x] ConfigAPI.swift
+- [x] FeedsAPI.swift
+- [x] FirmwareAPI.swift
+- [x] RawAPI.swift
+- [x] ScreenshotsAPI.swift
+- [x] SearchAPI.swift
+- [x] TasksAPI.swift
 
 #### Models
-<!-- Ergebnisse hier -->
+- [x] AddFirmwareResponse.swift
+- [x] ConfigResponse.swift
+- [x] HTTPValidationError.swift
+- [x] JobStatus.swift
+- [x] SearchCoverSchema.swift
+- [x] SearchRomSchema.swift
+- [x] TaskExecutionResponse.swift
+- [x] TaskInfo.swift
+- [x] TaskStatusResponse.swift
+- [x] TinfoilFeedFileSchema.swift
+- [x] TinfoilFeedSchema.swift
+- [x] TinfoilFeedTitleDBSchema.swift
+- [x] ValidationError.swift
+- [x] ValidationErrorLocInner.swift
+- [x] WebrcadeFeedCategorySchema.swift
+- [x] WebrcadeFeedItemPropsSchema.swift
+- [x] WebrcadeFeedItemSchema.swift
+- [x] WebrcadeFeedSchema.swift
 
 ---
 
@@ -157,8 +200,8 @@ Beginne mit der Analyse!
 
 ### Schritt 1: Ungenutzte Dateien entfernen
 - [ ] Backup erstellen
-- [ ] Ungenutzte API-Klassen löschen
-- [ ] Ungenutzte Models löschen
+- [x] Ungenutzte API-Klassen löschen
+- [x] Ungenutzte Models löschen
 - [ ] Build testen
 
 ### Schritt 2: Code vereinfachen

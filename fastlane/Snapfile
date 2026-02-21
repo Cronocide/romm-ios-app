@@ -1,7 +1,7 @@
 # Snapshot configuration for deterministic marketing screenshots
 
 devices([
-  'iPhone 16 Pro'
+  'iPhone 17 Pro'
 ])
 
 languages([

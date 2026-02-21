@@ -40,16 +40,13 @@ class LocalROMDownloadService: LocalROMDownloadServiceProtocol {
 
     private let apiClient: RommAPIClientProtocol
     private let repository: LocalROMRepositoryProtocol
-    private let tokenProvider: TokenProviderProtocol
     private let fileManager = FileManager.default
 
     init(
         apiClient: RommAPIClientProtocol,
-        repository: LocalROMRepositoryProtocol = LocalROMRepository(),
-        tokenProvider: TokenProviderProtocol = TokenProvider()
+        repository: LocalROMRepositoryProtocol = LocalROMRepository()
     ) {
         self.apiClient = apiClient
-        self.tokenProvider = tokenProvider
         self.repository = repository
     }
 
@@ -186,45 +183,16 @@ class LocalROMDownloadService: LocalROMDownloadServiceProtocol {
         expectedSize: Int64,
         progressHandler: @escaping (Int64) -> Void
     ) async throws {
-        // Get server URL from token provider
-        guard let serverURL = tokenProvider.getServerURL() else {
-            throw LocalROMDownloadError.downloadFailed("No server URL configured")
-        }
+        let encodedFileName = encodePathComponent(fileName)
+        let path = "api/roms/\(romId)/content/\(encodedFileName)"
 
-        // Build download URL
-        let cleanServerURL = serverURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        let downloadURLString = "\(cleanServerURL)/api/roms/\(romId)/content/\(fileName)"
-
-        guard let downloadURL = URL(string: downloadURLString) else {
-            throw LocalROMDownloadError.downloadFailed("Invalid download URL")
-        }
-
-        print("📡 Downloading from: \(downloadURL.absoluteString)")
-
-        // Create URL request
-        var request = URLRequest(url: downloadURL)
-        request.httpMethod = "GET"
-
-        // Add authentication (Basic Auth)
-        if let username = tokenProvider.getUsername(),
-           let password = tokenProvider.getPassword() {
-            let loginString = "\(username):\(password)"
-            if let loginData = loginString.data(using: .utf8) {
-                let base64LoginString = loginData.base64EncodedString()
-                request.setValue("Basic \(base64LoginString)", forHTTPHeaderField: "Authorization")
+        let tempFileURL: URL
+        do {
+            tempFileURL = try await apiClient.downloadFile(path: path) { downloadedBytes, _ in
+                progressHandler(downloadedBytes)
             }
-        }
-
-        // Create download task
-        let session = URLSession.shared
-        let (tempFileURL, response) = try await session.download(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw LocalROMDownloadError.downloadFailed("Invalid response")
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw LocalROMDownloadError.downloadFailed("HTTP \(httpResponse.statusCode)")
+        } catch {
+            throw LocalROMDownloadError.downloadFailed(error.localizedDescription)
         }
 
         // Move file to destination
@@ -237,6 +205,15 @@ class LocalROMDownloadService: LocalROMDownloadServiceProtocol {
         // Report final progress
         let attributes = try fileManager.attributesOfItem(atPath: destinationURL.path)
         let actualSize = attributes[.size] as? Int64 ?? 0
+        if expectedSize > 0, actualSize <= 0 {
+            throw LocalROMDownloadError.fileValidationFailed("Downloaded file is empty")
+        }
         progressHandler(actualSize)
+    }
+
+    private func encodePathComponent(_ value: String) -> String {
+        var allowedCharacterSet = CharacterSet.urlPathAllowed
+        allowedCharacterSet.remove(charactersIn: "/")
+        return value.addingPercentEncoding(withAllowedCharacters: allowedCharacterSet) ?? value
     }
 }

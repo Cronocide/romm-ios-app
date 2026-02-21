@@ -476,162 +476,91 @@ class SFTPUploadViewModel {
         preparedBytes = 0
         prepareMessage = "Downloading \(fileInfo.fileName)..."
         
+        defer {
+            isPreparing = false
+        }
+        
         // Check available storage before download
         try checkStorageCapacity()
-        
-        let romDownloadURL = try await getRomDownloadURL(for: fileInfo)
-        
-        // Create authenticated download request
-        var request = URLRequest(url: romDownloadURL)
-        request.httpMethod = "GET"
-        
-        // Add authentication (same as API client)
-        let tokenProvider = TokenProvider()
-        guard let username = tokenProvider.getUsername(),
-              let password = tokenProvider.getPassword() else {
-            print("❌ Debug: No credentials found")
-            isPreparing = false
-            throw SFTPError.authenticationFailed
-        }
-        
-        let loginString = "\(username):\(password)"
-        guard let loginData = loginString.data(using: .utf8) else {
-            isPreparing = false
-            throw SFTPError.authenticationFailed
-        }
-        let base64LoginString = loginData.base64EncodedString()
-        request.setValue("Basic \(base64LoginString)", forHTTPHeaderField: "Authorization")
-        
-        print("🔍 Debug: Making download request with auth for user: \(username)")
-        print("🔍 Debug: Request URL: \(request.url?.absoluteString ?? "nil")")
-        print("🔍 Debug: Request method: \(request.httpMethod ?? "nil")")
-        print("🔍 Debug: Request headers: \(request.allHTTPHeaderFields ?? [:])")
-        
-        return try await withCheckedThrowingContinuation { continuation in
-            let downloadTask = URLSession.shared.downloadTask(with: request) { [weak self] tempURL, response, error in
-                DispatchQueue.main.async {
-                    self?.isPreparing = false
-                }
-                
-                if let error = error {
-                    print("❌ Debug: Download error: \(error)")
-                    continuation.resume(throwing: error)
-                    return
-                }
-                
-                guard let tempURL = tempURL else {
-                    print("❌ Debug: No temporary URL")
-                    continuation.resume(throwing: SFTPError.downloadFailed)
-                    return
-                }
-                
-                do {
-                    let data = try Data(contentsOf: tempURL)
-                    print("🔍 Debug: Downloaded data size: \(data.count) bytes")
-                    
-                    // Validate download response
-                    guard let response = response as? HTTPURLResponse else {
-                        print("❌ Debug: Invalid HTTP response")
-                        continuation.resume(throwing: SFTPError.networkError("Invalid HTTP response"))
-                        return
-                    }
-                    
-                    print("🔍 Debug: HTTP status code: \(response.statusCode)")
-                    
-                    // Check HTTP status
-                    switch response.statusCode {
-                    case 200...299:
-                        // Success - check if we got actual ROM data
-                        if data.count == 0 {
-                            print("❌ Debug: Downloaded file is empty")
-                            continuation.resume(throwing: SFTPError.fileValidationFailed("Downloaded file is empty"))
-                            return
-                        }
-                        
-                        // Basic content validation - check if it looks like HTML (error page)
-                        if let dataString = String(data: data.prefix(100), encoding: .utf8),
-                           dataString.contains("<!DOCTYPE") || dataString.contains("<html") {
-                            print("❌ Debug: Got HTML response instead of ROM file")
-                            print("❌ Debug: Response content: \(dataString)")
-                            continuation.resume(throwing: SFTPError.fileValidationFailed("Received HTML error page instead of ROM file"))
-                            return
-                        }
-                        
-                        // Write to local file
-                        try data.write(to: URL(fileURLWithPath: localPath))
-                        print("✅ Debug: ROM file saved successfully (\(data.count) bytes)")
-                        continuation.resume(returning: localPath)
-                        
-                    case 404:
-                        print("❌ Debug: ROM file not found (404)")
-                        if let responseString = String(data: data, encoding: .utf8) {
-                            print("❌ Debug: 404 response body: \(responseString)")
-                        }
-                        print("❌ Debug: Response headers: \(response.allHeaderFields)")
-                        continuation.resume(throwing: SFTPError.pathNotFound)
-                        
-                    case 401, 403:
-                        print("❌ Debug: Authentication failed (\(response.statusCode))")
-                        continuation.resume(throwing: SFTPError.authenticationFailed)
-                        
-                    default:
-                        print("❌ Debug: HTTP error \(response.statusCode)")
-                        continuation.resume(throwing: SFTPError.networkError("HTTP \(response.statusCode)"))
-                    }
-                    
-                } catch {
-                    print("❌ Debug: Error processing download: \(error)")
-                    continuation.resume(throwing: error)
-                }
-            }
-            
-            // Set up progress observation
-            _ = downloadTask.progress.observe(\.fractionCompleted) { [weak self] progress, _ in
-                DispatchQueue.main.async {
+
+        let encodedFileName = encodePathComponent(fileInfo.fileName)
+        let path = "api/roms/\(rom.id)/content/\(encodedFileName)"
+
+        do {
+            let tempURL = try await apiClient.downloadFile(path: path) { [weak self] downloadedBytes, totalBytes in
+                Task { @MainActor in
                     guard let self = self, self.isPreparing else { return }
-                    self.prepareProgress = progress.fractionCompleted
-                    self.preparedBytes = progress.completedUnitCount
-                    
-                    if progress.fractionCompleted < 0.1 {
-                        self.prepareMessage = "Connecting to server..."
-                    } else if progress.fractionCompleted < 1.0 {
-                        self.prepareMessage = "Downloading ROM file... \(Int(progress.fractionCompleted * 100))%"
+
+                    self.preparedBytes = downloadedBytes
+
+                    if totalBytes > 0 {
+                        let progress = min(max(Double(downloadedBytes) / Double(totalBytes), 0.0), 1.0)
+                        self.prepareProgress = progress
+
+                        if progress < 0.1 {
+                            self.prepareMessage = "Connecting to server..."
+                        } else if progress < 1.0 {
+                            self.prepareMessage = "Downloading ROM file... \(Int(progress * 100))%"
+                        } else {
+                            self.prepareMessage = "Processing file..."
+                        }
                     } else {
-                        self.prepareMessage = "Processing file..."
+                        self.prepareMessage = "Downloading ROM file..."
                     }
                 }
             }
-            
-            downloadTask.resume()
+
+            let destinationURL = URL(fileURLWithPath: localPath)
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                try FileManager.default.removeItem(at: destinationURL)
+            }
+            try FileManager.default.moveItem(at: tempURL, to: destinationURL)
+
+            let downloadedSize = try getFileSize(at: localPath)
+            guard downloadedSize > 0 else {
+                throw SFTPError.fileValidationFailed("Downloaded file is empty")
+            }
+
+            print("✅ Debug: ROM file saved successfully (\(downloadedSize) bytes)")
+            return localPath
+
+        } catch let apiError as APIClientError {
+            let mappedError = mapDownloadError(apiError)
+            print("❌ Debug: API client download error: \(apiError)")
+            throw mappedError
+        } catch {
+            print("❌ Debug: Download error: \(error)")
+            throw SFTPError.networkError(error.localizedDescription)
         }
     }
-    
-    private func getRomDownloadURL(for fileInfo: RomFileInfo) async throws -> URL {
-        print("🔍 Debug: Building ROM download URL")
-        print("🔍 Debug: ROM ID: \(rom.id)")
-        print("🔍 Debug: ROM name: \(rom.name)")
-        print("🔍 Debug: ROM fileName: \(rom.fileName ?? "nil")")
-        print("🔍 Debug: FileInfo fileName: \(fileInfo.fileName)")
-        print("🔍 Debug: FileInfo id: \(fileInfo.id)")
-        print("🔍 Debug: FileInfo size: \(fileInfo.fileSizeBytes) bytes")
-        
-        // Build the direct download URL for the specific file
-        guard let serverURL = TokenProvider().getServerURL() else {
-            print("❌ Debug: No server URL configured")
-            throw SFTPError.networkError("No server URL configured")
+
+    private func encodePathComponent(_ value: String) -> String {
+        var allowedCharacterSet = CharacterSet.urlPathAllowed
+        allowedCharacterSet.remove(charactersIn: "/")
+        return value.addingPercentEncoding(withAllowedCharacters: allowedCharacterSet) ?? value
+    }
+
+    private func mapDownloadError(_ error: APIClientError) -> SFTPError {
+        switch error {
+        case .authenticationRequired, .noCredentials:
+            return .authenticationFailed
+        case .noConfiguration:
+            return .networkError("No server URL configured")
+        case .invalidURL(let url):
+            return .networkError("Invalid download URL: \(url)")
+        case .networkError(let networkError):
+            return .networkError(networkError.localizedDescription)
+        case .invalidResponse(let statusCode, _):
+            if statusCode == 404 {
+                return .pathNotFound
+            }
+            if statusCode == 401 || statusCode == 403 {
+                return .authenticationFailed
+            }
+            return .networkError("HTTP \(statusCode)")
+        case .decodingError:
+            return .downloadFailed
         }
-        
-        print("🔍 Debug: Server URL: \(serverURL)")
-        
-        let downloadURLString = "\(serverURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/api/roms/\(rom.id)/content/\(fileInfo.fileName)"
-        print("🔍 Debug: Constructed download URL: \(downloadURLString)")
-        
-        guard let url = URL(string: downloadURLString) else {
-            print("❌ Debug: Failed to create URL from string: \(downloadURLString)")
-            throw SFTPError.downloadFailed
-        }
-        
-        return url
     }
     
     private func checkStorageCapacity() throws {

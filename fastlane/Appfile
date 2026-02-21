@@ -1,8 +1,8 @@
 app_identifier('de.ilyashallak.rommanagerplus')
 
-# Keep team values from project settings for automatic signing resolution.
-itc_team_id('8J69P655GN')
-team_id('8J69P655GN')
+# App Store Connect team selected for Fastlane upload/login.
+itc_team_id('127993783')
+team_id('127993783')
 
-# Optional fallback when not using App Store Connect API key authentication.
-apple_id(ENV['FASTLANE_APPLE_ID']) if ENV['FASTLANE_APPLE_ID'].to_s.strip != ''
+# Uses the same account as configured in Xcode/App Store Connect.
+apple_id('hi@ilyashallak.de')
