@@ -5,7 +5,7 @@ struct SFTPUploadView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showingDeviceManagement = false
 
-    init(rom: Rom, factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared) {
+    init(rom: Rom, factory: PDependencyFactory = DefaultDependencyFactory.shared) {
         self._viewModel = State(initialValue: factory.makeSFTPUploadViewModel(rom: rom))
     }
     

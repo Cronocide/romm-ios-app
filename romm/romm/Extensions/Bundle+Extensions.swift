@@ -16,4 +16,10 @@ extension Bundle {
         return false
         #endif
     }
+
+    /// Returns true if the app was installed via TestFlight (sandbox receipt)
+    var isTestFlightBuild: Bool {
+        guard let receiptURL = Bundle.main.appStoreReceiptURL else { return false }
+        return receiptURL.lastPathComponent == "sandboxReceipt"
+    }
 }

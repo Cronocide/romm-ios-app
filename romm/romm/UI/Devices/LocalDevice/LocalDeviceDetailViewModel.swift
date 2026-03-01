@@ -12,9 +12,9 @@ class LocalDeviceDetailViewModel {
     var showingDeleteConfirmation = false
     var romToDelete: DownloadedROM?
 
-    private let repository: LocalROMRepositoryProtocol
+    private let repository: PLocalROMRepository
 
-    init(factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared) {
+    init(factory: PDependencyFactory = DefaultDependencyFactory.shared) {
         self.repository = factory.localROMRepository
         // Don't load automatically - prevents UI blocking during navigation
         // View will trigger loading via .task modifier

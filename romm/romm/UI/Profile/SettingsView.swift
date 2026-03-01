@@ -12,6 +12,7 @@ struct SettingsView: View {
     private let logger = Logger.ui
     @EnvironmentObject var appData: AppData
     @State private var profileViewModel = ProfileViewModel()
+    @StateObject private var experimentalSettings = ExperimentalFeatureSettings.shared
     @State private var showingLogoutAlert = false
     @State private var showingResetAlert = false
     
@@ -115,6 +116,29 @@ struct SettingsView: View {
                         Image(systemName: "photo.stack")
                         Text("Image Cache Settings")
                     }
+                }
+            }
+
+            // Experimental Features Section (TestFlight & Debug only)
+            if Bundle.main.isTestFlightBuild || Bundle.main.isDebugBuild {
+                Section {
+                    Toggle(isOn: $experimentalSettings.isEmulatorEnabled) {
+                        HStack {
+                            Image(systemName: "gamecontroller")
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("In-App Emulator")
+                                Text("Plays ROMs directly in the app via EmulatorJS")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Experimental Features")
+                } footer: {
+                    Text("These features are experimental and may be unstable. Only available in TestFlight builds.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
         }

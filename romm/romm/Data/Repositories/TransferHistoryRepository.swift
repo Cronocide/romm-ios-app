@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 /// Repository implementation for managing transfer history using Core Data
-class TransferHistoryRepository: TransferHistoryRepositoryProtocol {
+class TransferHistoryRepository: PTransferHistoryRepository {
 
     private let persistenceController: PersistenceController
 

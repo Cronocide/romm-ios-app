@@ -1,6 +1,6 @@
 import Foundation
 
-protocol LocalROMRepositoryProtocol {
+protocol PLocalROMRepository {
     /// Gets all downloaded ROMs from local storage
     func getAllDownloadedROMs() throws -> [DownloadedROM]
 
@@ -26,7 +26,7 @@ protocol LocalROMRepositoryProtocol {
     var romsBaseURL: URL { get }
 }
 
-class LocalROMRepository: LocalROMRepositoryProtocol {
+class LocalROMRepository: PLocalROMRepository {
 
     private let fileManager = FileManager.default
     private let metadataFileName = ".metadata.json"

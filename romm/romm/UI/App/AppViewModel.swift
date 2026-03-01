@@ -29,22 +29,22 @@ class AppViewModel {
     let appData = AppData()
 
     // Use Cases
-    private let saveSetupConfigurationUseCase: SaveSetupConfigurationUseCaseProtocol
-    private let getSetupConfigurationUseCase: GetSetupConfigurationUseCaseProtocol
-    private let clearSetupConfigurationUseCase: ClearSetupConfigurationUseCaseProtocol
+    private let saveSetupConfigurationUseCase: PSaveSetupConfigurationUseCase
+    private let getSetupConfigurationUseCase: PGetSetupConfigurationUseCase
+    private let clearSetupConfigurationUseCase: PClearSetupConfigurationUseCase
     private let checkServerVersionUseCase: CheckServerVersionUseCase
     private let clearServerVersionUseCase: ClearServerVersionUseCase
     private let saveServerVersionUseCase: SaveServerVersionUseCase
     private let getHeartbeatUseCase: GetHeartbeatUseCase
 
-    private let factory: DependencyFactoryProtocol
+    private let factory: PDependencyFactory
 
     private var cancellables = Set<AnyCancellable>()
     private var isUITesting: Bool { launchArguments.contains("-ui_testing") || launchArguments.contains("-FASTLANE_SNAPSHOT") }
     private var shouldForceSetupForUITests: Bool { launchArguments.contains("-ui_testing_force_setup") }
     private var shouldForceAuthenticatedForUITests: Bool { launchArguments.contains("-ui_testing_force_authenticated") }
 
-    init(factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared) {
+    init(factory: PDependencyFactory = DefaultDependencyFactory.shared) {
         self.factory = factory
         self.saveSetupConfigurationUseCase = factory.makeSaveSetupConfigurationUseCase()
         self.getSetupConfigurationUseCase = factory.makeGetSetupConfigurationUseCase()
@@ -232,11 +232,15 @@ class AppViewModel {
 
         logger.info("Checking server version on foreground...")
 
+        // Get current configuration to check allowIncompatibleVersionLogin flag
+        let config = try? getSetupConfigurationUseCase.execute()
+        let allowIncompatibleVersion = config?.allowIncompatibleVersionLogin ?? false
+
         do {
-            _ = try await checkServerVersionUseCase.execute()
+            _ = try await checkServerVersionUseCase.execute(allowIncompatibleVersion: allowIncompatibleVersion)
             logger.info("Server version check passed")
         } catch let error as HeartbeatError {
-            handleHeartbeatError(error)
+            handleHeartbeatError(error, allowIncompatibleVersion: allowIncompatibleVersion)
         } catch {
             // Network errors should not trigger logout
             logger.warning("Version check failed (network error): \(error.localizedDescription)")
@@ -244,8 +248,14 @@ class AppViewModel {
     }
 
     /// Handle HeartbeatError by logging out and showing appropriate message
-    private func handleHeartbeatError(_ error: HeartbeatError) {
+    private func handleHeartbeatError(_ error: HeartbeatError, allowIncompatibleVersion: Bool) {
         logger.warning("Heartbeat error: \(error.localizedDescription)")
+
+        // If user allowed incompatible versions and error is serverVersionTooHigh, don't log out
+        if allowIncompatibleVersion, case .serverVersionTooHigh = error {
+            logger.info("User allowed incompatible version login - not logging out for serverVersionTooHigh")
+            return
+        }
 
         do {
             try clearSetupConfigurationUseCase.execute()

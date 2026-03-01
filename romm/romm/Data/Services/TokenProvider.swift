@@ -8,7 +8,7 @@
 import Foundation
 
 // MARK: - Token Provider Protocol
-protocol TokenProviderProtocol {
+protocol PTokenProvider {
     func getAuthToken() -> String?
     func getServerURL() -> String?
     func getUsername() -> String?
@@ -17,13 +17,13 @@ protocol TokenProviderProtocol {
 }
 
 // MARK: - Token Provider Implementation
-class TokenProvider: TokenProviderProtocol {
+class TokenProvider: PTokenProvider {
     
-    private let setupRepository: SetupRepositoryProtocol
+    private let setupRepository: PSetupRepository
     private let configurationService: ConfigurationService
     private let logger = Logger.auth
     
-    init(setupRepository: SetupRepositoryProtocol = SetupRepository(),
+    init(setupRepository: PSetupRepository = SetupRepository(),
          configurationService: ConfigurationService = DefaultConfigurationService.shared) {
         self.setupRepository = setupRepository
         self.configurationService = configurationService
@@ -143,7 +143,7 @@ class TokenProvider: TokenProviderProtocol {
 }
 
 // MARK: - Mock Token Provider for Testing
-class MockTokenProvider: TokenProviderProtocol {
+class MockTokenProvider: PTokenProvider {
     var mockToken: String?
     var mockServerURL: String?
     var mockUsername: String?

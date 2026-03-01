@@ -18,7 +18,7 @@ class PlatformsViewModel {
     private let getPlatformsUseCase: GetPlatformsUseCase
     private let addPlatformUseCase: AddPlatformUseCase
     
-    init(factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared) {
+    init(factory: PDependencyFactory = DefaultDependencyFactory.shared) {
         self.getPlatformsUseCase = factory.makeGetPlatformsUseCase()
         self.addPlatformUseCase = factory.makeAddPlatformUseCase()
 

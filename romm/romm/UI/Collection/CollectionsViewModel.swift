@@ -54,7 +54,7 @@ class CollectionsViewModel {
     // Task management to prevent cancellations
     private var loadTask: Task<Void, Never>?
     
-    init(factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared) {
+    init(factory: PDependencyFactory = DefaultDependencyFactory.shared) {
         self.getCollectionsUseCase = factory.makeGetCollectionsUseCase()
         self.getVirtualCollectionsUseCase = factory.makeGetVirtualCollectionsUseCase()
         self.deleteCollectionUseCase = factory.makeDeleteCollectionUseCase()

@@ -8,11 +8,11 @@
 import Foundation
 
 /// Use case to check if a platform is supported for emulation
-protocol CheckEmulatorSupportUseCaseProtocol {
+protocol PCheckEmulatorSupportUseCase {
     func execute(platformSlug: String) -> Bool
 }
 
-class CheckEmulatorSupportUseCase: CheckEmulatorSupportUseCaseProtocol {
+class CheckEmulatorSupportUseCase: PCheckEmulatorSupportUseCase {
 
     // Supported platforms based on what EmulatorJS provides
     // This maps platform slugs/names to whether they are supported

@@ -8,9 +8,9 @@
 import Foundation
 
 class LoadManualUseCase {
-    private let manualRepository: ManualRepositoryProtocol
+    private let manualRepository: PManualRepository
     
-    init(manualRepository: ManualRepositoryProtocol = ManualRepository()) {
+    init(manualRepository: PManualRepository = ManualRepository()) {
         self.manualRepository = manualRepository
     }
     

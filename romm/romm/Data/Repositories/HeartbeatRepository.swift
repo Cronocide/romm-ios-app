@@ -5,7 +5,7 @@
 
 import Foundation
 
-class HeartbeatRepository: HeartbeatRepositoryProtocol {
+class HeartbeatRepository: PHeartbeatRepository {
     private let logger = Logger.data
     private let apiClient: RommAPIClient
     private let userDefaults: UserDefaults
@@ -91,6 +91,54 @@ class HeartbeatRepository: HeartbeatRepositoryProtocol {
                 serverVersion: serverVersion,
                 maxSupported: maxSupportedServerVersion
             )
+        }
+
+        // Update stored version
+        saveServerVersion(serverVersion)
+        logger.info("Server version check passed: \(serverVersion)")
+
+        return heartbeat
+    }
+
+    func checkServerVersion(allowIncompatibleVersion: Bool) async throws -> Heartbeat {
+        let heartbeat = try await getHeartbeat()
+        let serverVersion = heartbeat.version
+
+        // Check if version changed since last known
+        if let lastKnown = getLastKnownServerVersion(), lastKnown != serverVersion {
+            logger.warning("Server version changed from \(lastKnown) to \(serverVersion)")
+            throw HeartbeatError.serverVersionChanged(from: lastKnown, to: serverVersion)
+        }
+
+        // If user allowed incompatible versions, only check minimum (not maximum)
+        if allowIncompatibleVersion {
+            logger.info("Incompatible version login allowed - skipping maximum version check")
+            
+            // Only check minimum version (critical incompatibility)
+            if compareVersions(serverVersion, minSupportedServerVersion) < 0 {
+                logger.warning("Server version \(serverVersion) is below minimum \(minSupportedServerVersion)")
+                throw HeartbeatError.serverVersionTooLow(
+                    serverVersion: serverVersion,
+                    minRequired: minSupportedServerVersion
+                )
+            }
+        } else {
+            // Standard checks for both minimum and maximum
+            if compareVersions(serverVersion, minSupportedServerVersion) < 0 {
+                logger.warning("Server version \(serverVersion) is below minimum \(minSupportedServerVersion)")
+                throw HeartbeatError.serverVersionTooLow(
+                    serverVersion: serverVersion,
+                    minRequired: minSupportedServerVersion
+                )
+            }
+
+            if compareVersions(serverVersion, maxSupportedServerVersion) > 0 {
+                logger.warning("Server version \(serverVersion) is above maximum \(maxSupportedServerVersion)")
+                throw HeartbeatError.serverVersionTooHigh(
+                    serverVersion: serverVersion,
+                    maxSupported: maxSupportedServerVersion
+                )
+            }
         }
 
         // Update stored version

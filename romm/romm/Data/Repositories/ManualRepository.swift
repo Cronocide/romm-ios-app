@@ -7,11 +7,11 @@
 
 import Foundation
 
-class ManualRepository: ManualRepositoryProtocol {
-    private let apiClient: RommAPIClientProtocol
+class ManualRepository: PManualRepository {
+    private let apiClient: PRommAPIClient
     private let logger = Logger.data
     
-    init(apiClient: RommAPIClientProtocol = RommAPIClient.shared) {
+    init(apiClient: PRommAPIClient = RommAPIClient.shared) {
         self.apiClient = apiClient
     }
     

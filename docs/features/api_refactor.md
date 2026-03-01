@@ -202,12 +202,13 @@ Stand der Bereinigung: 2026-02-21 (statische Analyse + direkte Entfernung ungenu
 - [ ] Backup erstellen
 - [x] Ungenutzte API-Klassen löschen
 - [x] Ungenutzte Models löschen
-- [ ] Build testen
+- [x] Build testen
 
 ### Schritt 2: Code vereinfachen
 - [ ] RequestBuilder-Pattern evaluieren (brauchen wir das noch?)
 - [ ] Support-Dateien auf das Minimum reduzieren
 - [ ] Unnötige Protokolle entfernen
+- [x] Multipart-Request für Favorites von `RomsRepository` in `RommAPIClient` zentralisiert (Auth/SSL/Error-Handling vereinheitlicht)
 
 ### Schritt 3: Manuelle Struktur aufbauen
 - [ ] Eigene API-Schicht designen

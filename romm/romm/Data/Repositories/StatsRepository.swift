@@ -7,11 +7,11 @@
 
 import Foundation
 
-class StatsRepository: StatsRepositoryProtocol {
+class StatsRepository: PStatsRepository {
     private let logger = Logger.data
-    private let apiClient: RommAPIClientProtocol
+    private let apiClient: PRommAPIClient
 
-    init(apiClient: RommAPIClientProtocol = RommAPIClient.shared) {
+    init(apiClient: PRommAPIClient = RommAPIClient.shared) {
         self.apiClient = apiClient
     }
 
@@ -19,7 +19,7 @@ class StatsRepository: StatsRepositoryProtocol {
         logger.info("Getting stats from API...")
 
         do {
-            let apiStats = try await StatsAPI.statsApiStatsGet()
+            let apiStats = try await apiClient.getStats()
             let domainStats = StatsMapper.mapFromAPI(apiStats)
 
             logger.info("Retrieved stats: \(domainStats.roms) ROMs, \(domainStats.platforms) platforms")

@@ -40,7 +40,7 @@ enum ConnectionStatus: String, CaseIterable, Codable {
     }
 }
 
-struct SFTPConnection: DeviceProtocol, Identifiable, Codable, Equatable {
+struct SFTPConnection: PDevice, Identifiable, Codable, Equatable {
     let id: UUID
     var name: String
     var host: String
@@ -53,7 +53,7 @@ struct SFTPConnection: DeviceProtocol, Identifiable, Codable, Equatable {
     var createdAt: Date
     var updatedAt: Date
 
-    // DeviceProtocol conformance
+    // PDevice conformance
     var deviceType: DeviceType {
         return .sftp
     }

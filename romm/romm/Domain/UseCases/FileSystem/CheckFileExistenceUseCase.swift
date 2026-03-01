@@ -8,9 +8,9 @@
 import Foundation
 
 class CheckFileExistenceUseCase {
-    private let fileSystemRepository: FileSystemRepositoryProtocol
+    private let fileSystemRepository: PFileSystemRepository
     
-    init(fileSystemRepository: FileSystemRepositoryProtocol) {
+    init(fileSystemRepository: PFileSystemRepository) {
         self.fileSystemRepository = fileSystemRepository
     }
     

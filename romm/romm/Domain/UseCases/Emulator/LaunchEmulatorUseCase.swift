@@ -38,18 +38,18 @@ enum EmulatorLaunchError: LocalizedError {
 }
 
 /// Use case to perform pre-flight checks before launching the emulator
-protocol LaunchEmulatorUseCaseProtocol {
+protocol PLaunchEmulatorUseCase {
     func execute(rom: Rom) async -> EmulatorLaunchResult
 }
 
-class LaunchEmulatorUseCase: LaunchEmulatorUseCaseProtocol {
-    private let tokenProvider: TokenProviderProtocol
-    private let checkEmulatorSupport: CheckEmulatorSupportUseCaseProtocol
+class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
+    private let tokenProvider: PTokenProvider
+    private let checkEmulatorSupport: PCheckEmulatorSupportUseCase
     private let logger = Logger.viewModel
 
     init(
-        tokenProvider: TokenProviderProtocol = TokenProvider(),
-        checkEmulatorSupport: CheckEmulatorSupportUseCaseProtocol = CheckEmulatorSupportUseCase()
+        tokenProvider: PTokenProvider = TokenProvider(),
+        checkEmulatorSupport: PCheckEmulatorSupportUseCase = CheckEmulatorSupportUseCase()
     ) {
         self.tokenProvider = tokenProvider
         self.checkEmulatorSupport = checkEmulatorSupport

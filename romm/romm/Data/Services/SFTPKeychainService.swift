@@ -1,6 +1,6 @@
 import Foundation
 
-protocol SFTPKeychainServiceProtocol {
+protocol PSFTPKeychainService {
     func savePassword(for connectionId: UUID, password: String) throws
     func getPassword(for connectionId: UUID) -> String?
     func saveSSHKey(for connectionId: UUID, privateKey: String, passphrase: String?) throws
@@ -8,7 +8,7 @@ protocol SFTPKeychainServiceProtocol {
     func deleteCredentials(for connectionId: UUID) throws
 }
 
-class SFTPKeychainService: SFTPKeychainServiceProtocol {
+class SFTPKeychainService: PSFTPKeychainService {
     private let keychain = KeychainService.sftp
     private let logger = Logger.data
     

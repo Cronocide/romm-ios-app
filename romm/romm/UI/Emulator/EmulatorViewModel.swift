@@ -20,12 +20,12 @@ class EmulatorViewModel {
 
     // Dependencies
     private let rom: Rom
-    private let tokenProvider: TokenProviderProtocol
+    private let tokenProvider: PTokenProvider
     private let logger = Logger.viewModel
 
     init(
         rom: Rom,
-        tokenProvider: TokenProviderProtocol = TokenProvider()
+        tokenProvider: PTokenProvider = TokenProvider()
     ) {
         self.rom = rom
         self.tokenProvider = tokenProvider

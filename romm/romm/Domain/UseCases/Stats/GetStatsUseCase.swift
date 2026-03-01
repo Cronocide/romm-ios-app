@@ -8,9 +8,9 @@
 import Foundation
 
 class GetStatsUseCase {
-    private let statsRepository: StatsRepositoryProtocol
+    private let statsRepository: PStatsRepository
 
-    init(statsRepository: StatsRepositoryProtocol) {
+    init(statsRepository: PStatsRepository) {
         self.statsRepository = statsRepository
     }
 

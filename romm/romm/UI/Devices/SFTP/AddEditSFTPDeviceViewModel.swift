@@ -50,7 +50,7 @@ class AddEditSFTPDeviceViewModel {
 
     init(
         connection: SFTPConnection? = nil,
-        factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared
+        factory: PDependencyFactory = DefaultDependencyFactory.shared
     ) {
         self.getCredentialsUseCase = factory.makeGetCredentialsUseCase()
         self.testConnectionUseCase = factory.makeTestConnectionUseCase()

@@ -7,7 +7,7 @@
 
 import Foundation
 
-class FileSystemRepository: FileSystemRepositoryProtocol {
+class FileSystemRepository: PFileSystemRepository {
     
     // MARK: - File Operations
     

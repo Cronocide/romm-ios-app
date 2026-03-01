@@ -8,9 +8,9 @@
 import Foundation
 
 class GetRomsUseCase {
-    private let romsRepository: RomsRepositoryProtocol
+    private let romsRepository: PRomsRepository
     
-    init(romsRepository: RomsRepositoryProtocol) {
+    init(romsRepository: PRomsRepository) {
         self.romsRepository = romsRepository
     }
     
@@ -20,9 +20,9 @@ class GetRomsUseCase {
 }
 
 class GetRomsWithFiltersUseCase {
-    private let romsRepository: RomsRepositoryProtocol
+    private let romsRepository: PRomsRepository
     
-    init(romsRepository: RomsRepositoryProtocol) {
+    init(romsRepository: PRomsRepository) {
         self.romsRepository = romsRepository
     }
     

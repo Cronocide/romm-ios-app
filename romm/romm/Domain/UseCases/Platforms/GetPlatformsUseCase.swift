@@ -8,9 +8,9 @@
 import Foundation
 
 class GetPlatformsUseCase {
-    private let platformsRepository: PlatformsRepositoryProtocol
+    private let platformsRepository: PPlatformsRepository
     
-    init(platformsRepository: PlatformsRepositoryProtocol) {
+    init(platformsRepository: PPlatformsRepository) {
         self.platformsRepository = platformsRepository
     }
     

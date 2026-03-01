@@ -34,7 +34,7 @@ class CollectionDetailViewModel {
         case error(String)
     }
     
-    init(collectionId: Int, factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared) {
+    init(collectionId: Int, factory: PDependencyFactory = DefaultDependencyFactory.shared) {
         self.collectionId = collectionId
         self.getRomsUseCase = factory.makeGetRomsUseCase()
     }

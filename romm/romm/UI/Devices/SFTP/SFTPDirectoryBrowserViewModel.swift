@@ -18,7 +18,7 @@ class SFTPDirectoryBrowserViewModel {
 
     init(
         connection: SFTPConnection,
-        factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared
+        factory: PDependencyFactory = DefaultDependencyFactory.shared
     ) {
         self.connection = connection
         self.listDirectoryUseCase = factory.makeListDirectoryUseCase()

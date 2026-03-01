@@ -13,52 +13,77 @@ class SearchViewModel {
     var searchResults: [Rom] = []
     var isLoading = false
     var errorMessage: String?
-    
+
     private let searchRomsUseCase: SearchRomsUseCase
-    
-    init(factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared) {
+    private var searchTask: Task<Void, Never>?
+
+    init(factory: PDependencyFactory = DefaultDependencyFactory.shared) {
         self.searchRomsUseCase = factory.makeSearchRomsUseCase()
     }
-    
-    func search(query: String) async {
+
+    // Debounced search – call from onChange
+    func scheduleSearch(query: String) {
+        searchTask?.cancel()
+
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            searchResults = []
+            clearResults()
             return
         }
-        
+
+        searchTask = Task {
+            do {
+                try await Task.sleep(for: .milliseconds(300))
+            } catch {
+                return
+            }
+            await execute(query: query)
+        }
+    }
+
+    // Immediate search – call from onSubmit
+    func search(query: String) {
+        searchTask?.cancel()
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        searchTask = Task { await execute(query: trimmed) }
+    }
+
+    func cancelAllTasks() {
+        searchTask?.cancel()
+        searchTask = nil
+        isLoading = false
+    }
+
+    func clearError() {
+        errorMessage = nil
+    }
+
+    func clearResults() {
+        searchTask?.cancel()
+        searchTask = nil
+        searchResults = []
+        errorMessage = nil
+        isLoading = false
+    }
+
+    private func execute(query: String) async {
         isLoading = true
         errorMessage = nil
-        
+        defer { isLoading = false }
+
         do {
-            print("🔍 Starting search for: '\(query)'")
-            // Use the direct API approach
-            let results = try await searchRomsUseCase.execute(query: query)
-            print("🔍 Search results: \(results.count) ROMs found")
-            searchResults = results
+            searchResults = try await searchRomsUseCase.execute(query: query)
+        } catch is CancellationError {
+            // Search was cancelled – leave results unchanged
         } catch {
-            print("❌ Search failed, trying legacy method: \(error)")
-            // Fallback to legacy method if direct API fails
             do {
-                let factory = DefaultDependencyFactory.shared
-                let results = try await factory.romsRepository.searchRomsLegacy(query: query)
-                print("🔍 Legacy Search results: \(results.count) ROMs found")
-                searchResults = results
+                searchResults = try await DefaultDependencyFactory.shared.romsRepository.searchRomsLegacy(query: query)
+            } catch is CancellationError {
+                // Search was cancelled – leave results unchanged
             } catch let legacyError {
-                print("❌ Both search methods failed: \(legacyError)")
                 errorMessage = "Suche fehlgeschlagen: \(legacyError.localizedDescription)"
                 searchResults = []
             }
         }
-        
-        isLoading = false
-    }
-    
-    func clearError() {
-        errorMessage = nil
-    }
-    
-    func clearResults() {
-        searchResults = []
-        errorMessage = nil
     }
 }

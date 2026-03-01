@@ -8,42 +8,42 @@
 
 // MARK: - Mock Factory for Testing
 
-class MockDependencyFactory: DependencyFactoryProtocol {
-    var transferHistoryRepository: TransferHistoryRepositoryProtocol
-    var localROMRepository: LocalROMRepositoryProtocol
+class MockDependencyFactory: PDependencyFactory {
+    var transferHistoryRepository: PTransferHistoryRepository
+    var localROMRepository: PLocalROMRepository
 
     // Mock repositories can be injected for testing
-    var authRepository: AuthRepositoryProtocol
-    var romsRepository: RomsRepositoryProtocol
-    var platformsRepository: PlatformsRepositoryProtocol
-    var collectionsRepository: CollectionsRepositoryProtocol
-    var setupRepository: SetupRepositoryProtocol
-    var sftpRepository: SFTPRepositoryProtocol
-    var fileSystemRepository: FileSystemRepositoryProtocol
-    var statsRepository: StatsRepositoryProtocol
-    var heartbeatRepository: HeartbeatRepositoryProtocol
+    var authRepository: PAuthRepository
+    var romsRepository: PRomsRepository
+    var platformsRepository: PPlatformsRepository
+    var collectionsRepository: PCollectionsRepository
+    var setupRepository: PSetupRepository
+    var sftpRepository: PSFTPRepository
+    var fileSystemRepository: PFileSystemRepository
+    var statsRepository: PStatsRepository
+    var heartbeatRepository: PHeartbeatRepository
 
     // Mock services
-    var sftpKeychainService: SFTPKeychainServiceProtocol
-    var sftpService: SFTPServiceProtocol
+    var sftpKeychainService: PSFTPKeychainService
+    var sftpService: PSFTPService
     var sftpConnectionManager: SFTPConnectionManager
-    var apiClient: RommAPIClientProtocol
-    var fileValidationService: FileValidationServiceProtocol
+    var apiClient: PRommAPIClient
+    var fileValidationService: PFileValidationService
     
     init(
-        authRepository: AuthRepositoryProtocol? = nil,
-        romsRepository: RomsRepositoryProtocol? = nil,
-        platformsRepository: PlatformsRepositoryProtocol? = nil,
-        collectionsRepository: CollectionsRepositoryProtocol? = nil,
-        setupRepository: SetupRepositoryProtocol? = nil,
-        sftpRepository: SFTPRepositoryProtocol? = nil,
-        fileSystemRepository: FileSystemRepositoryProtocol? = nil,
-        statsRepository: StatsRepositoryProtocol? = nil,
-        sftpKeychainService: SFTPKeychainServiceProtocol? = nil,
-        sftpService: SFTPServiceProtocol? = nil,
+        authRepository: PAuthRepository? = nil,
+        romsRepository: PRomsRepository? = nil,
+        platformsRepository: PPlatformsRepository? = nil,
+        collectionsRepository: PCollectionsRepository? = nil,
+        setupRepository: PSetupRepository? = nil,
+        sftpRepository: PSFTPRepository? = nil,
+        fileSystemRepository: PFileSystemRepository? = nil,
+        statsRepository: PStatsRepository? = nil,
+        sftpKeychainService: PSFTPKeychainService? = nil,
+        sftpService: PSFTPService? = nil,
         sftpConnectionManager: SFTPConnectionManager? = nil,
-        apiClient: RommAPIClientProtocol? = nil,
-        fileValidationService: FileValidationServiceProtocol? = nil
+        apiClient: PRommAPIClient? = nil,
+        fileValidationService: PFileValidationService? = nil
     ) {
         // Use provided mocks or default to real implementations
         self.authRepository = authRepository ?? AuthRepository()
@@ -158,21 +158,21 @@ class MockDependencyFactory: DependencyFactoryProtocol {
         DeleteCollectionUseCase(collectionsRepository: collectionsRepository)
     }
     
-    func makeSaveSetupConfigurationUseCase() -> SaveSetupConfigurationUseCaseProtocol {
+    func makeSaveSetupConfigurationUseCase() -> PSaveSetupConfigurationUseCase {
         SaveSetupConfigurationUseCase(
             setupRepository: setupRepository
         )
     }
     
-    func makeGetSetupConfigurationUseCase() -> GetSetupConfigurationUseCaseProtocol {
+    func makeGetSetupConfigurationUseCase() -> PGetSetupConfigurationUseCase {
         GetSetupConfigurationUseCase(setupRepository: setupRepository)
     }
     
-    func makeCheckSetupStatusUseCase() -> CheckSetupStatusUseCaseProtocol {
+    func makeCheckSetupStatusUseCase() -> PCheckSetupStatusUseCase {
         CheckSetupStatusUseCase(setupRepository: setupRepository)
     }
     
-    func makeClearSetupConfigurationUseCase() -> ClearSetupConfigurationUseCaseProtocol {
+    func makeClearSetupConfigurationUseCase() -> PClearSetupConfigurationUseCase {
         ClearSetupConfigurationUseCase(
             setupRepository: setupRepository,
             configurationService: DefaultConfigurationService.shared
@@ -231,11 +231,11 @@ class MockDependencyFactory: DependencyFactoryProtocol {
     
     // MARK: - UI Use Cases
     
-    func makeGetViewModeUseCase() -> GetViewModeUseCaseProtocol {
+    func makeGetViewModeUseCase() -> PGetViewModeUseCase {
         GetViewModeUseCase()
     }
     
-    func makeSaveViewModeUseCase() -> SaveViewModeUseCaseProtocol {
+    func makeSaveViewModeUseCase() -> PSaveViewModeUseCase {
         SaveViewModeUseCase()
     }
     
@@ -282,11 +282,11 @@ class MockDependencyFactory: DependencyFactoryProtocol {
         .init(repository: transferHistoryRepository)
     }
     
-    func makeCheckEmulatorSupportUseCase() -> CheckEmulatorSupportUseCaseProtocol {
+    func makeCheckEmulatorSupportUseCase() -> PCheckEmulatorSupportUseCase {
         CheckEmulatorSupportUseCase()
     }
 
-    func makeLaunchEmulatorUseCase() -> LaunchEmulatorUseCaseProtocol {
+    func makeLaunchEmulatorUseCase() -> PLaunchEmulatorUseCase {
         LaunchEmulatorUseCase(
             tokenProvider: TokenProvider(),
             checkEmulatorSupport: makeCheckEmulatorSupportUseCase()

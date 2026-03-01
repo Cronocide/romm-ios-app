@@ -8,7 +8,7 @@
 import Foundation
 import os
 
-protocol SaveSetupConfigurationUseCaseProtocol {
+protocol PSaveSetupConfigurationUseCase {
     func execute(
         serverURL: String,
         username: String,
@@ -17,11 +17,11 @@ protocol SaveSetupConfigurationUseCaseProtocol {
     ) async throws -> SetupConfiguration
 }
 
-class SaveSetupConfigurationUseCase: SaveSetupConfigurationUseCaseProtocol {
+class SaveSetupConfigurationUseCase: PSaveSetupConfigurationUseCase {
     private let logger = Logger.general
-    private let setupRepository: SetupRepositoryProtocol
+    private let setupRepository: PSetupRepository
     
-    init(setupRepository: SetupRepositoryProtocol) {
+    init(setupRepository: PSetupRepository) {
         self.setupRepository = setupRepository
     }
     

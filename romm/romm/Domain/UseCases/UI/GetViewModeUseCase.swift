@@ -7,11 +7,11 @@
 
 import Foundation
 
-protocol GetViewModeUseCaseProtocol {
+protocol PGetViewModeUseCase {
     func execute() -> ViewMode
 }
 
-class GetViewModeUseCase: GetViewModeUseCaseProtocol {
+class GetViewModeUseCase: PGetViewModeUseCase {
     
     func execute() -> ViewMode {
         if let savedViewMode = UserDefaults.standard.string(forKey: "selectedViewMode"),

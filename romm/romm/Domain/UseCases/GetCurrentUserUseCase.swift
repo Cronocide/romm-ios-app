@@ -8,9 +8,9 @@
 import Foundation
 
 class GetCurrentUserUseCase {
-    private let authRepository: AuthRepositoryProtocol
+    private let authRepository: PAuthRepository
     
-    init(authRepository: AuthRepositoryProtocol) {
+    init(authRepository: PAuthRepository) {
         self.authRepository = authRepository
     }
     

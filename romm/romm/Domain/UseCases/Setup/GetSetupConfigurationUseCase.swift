@@ -7,15 +7,15 @@
 
 import Foundation
 
-protocol GetSetupConfigurationUseCaseProtocol {
+protocol PGetSetupConfigurationUseCase {
     func execute() throws -> SetupConfiguration?
 }
 
-class GetSetupConfigurationUseCase: GetSetupConfigurationUseCaseProtocol {
+class GetSetupConfigurationUseCase: PGetSetupConfigurationUseCase {
     private let logger = Logger.general
-    private let setupRepository: SetupRepositoryProtocol
+    private let setupRepository: PSetupRepository
     
-    init(setupRepository: SetupRepositoryProtocol) {
+    init(setupRepository: PSetupRepository) {
         self.setupRepository = setupRepository
     }
     
@@ -36,15 +36,15 @@ class GetSetupConfigurationUseCase: GetSetupConfigurationUseCaseProtocol {
     }
 }
 
-protocol CheckSetupStatusUseCaseProtocol {
+protocol PCheckSetupStatusUseCase {
     func execute() -> Bool
 }
 
-class CheckSetupStatusUseCase: CheckSetupStatusUseCaseProtocol {
+class CheckSetupStatusUseCase: PCheckSetupStatusUseCase {
     private let logger = Logger.general
-    private let setupRepository: SetupRepositoryProtocol
+    private let setupRepository: PSetupRepository
     
-    init(setupRepository: SetupRepositoryProtocol) {
+    init(setupRepository: PSetupRepository) {
         self.setupRepository = setupRepository
     }
     
@@ -55,16 +55,16 @@ class CheckSetupStatusUseCase: CheckSetupStatusUseCaseProtocol {
     }
 }
 
-protocol ClearSetupConfigurationUseCaseProtocol {
+protocol PClearSetupConfigurationUseCase {
     func execute() throws
 }
 
-class ClearSetupConfigurationUseCase: ClearSetupConfigurationUseCaseProtocol {
+class ClearSetupConfigurationUseCase: PClearSetupConfigurationUseCase {
     private let logger = Logger.general
-    private let setupRepository: SetupRepositoryProtocol
+    private let setupRepository: PSetupRepository
     private let configurationService: ConfigurationService
     
-    init(setupRepository: SetupRepositoryProtocol, configurationService: ConfigurationService) {
+    init(setupRepository: PSetupRepository, configurationService: ConfigurationService) {
         self.setupRepository = setupRepository
         self.configurationService = configurationService
     }

@@ -6,15 +6,15 @@
 import Foundation
 
 class CheckServerVersionUseCase {
-    private let heartbeatRepository: HeartbeatRepositoryProtocol
+    private let heartbeatRepository: PHeartbeatRepository
 
-    init(heartbeatRepository: HeartbeatRepositoryProtocol) {
+    init(heartbeatRepository: PHeartbeatRepository) {
         self.heartbeatRepository = heartbeatRepository
     }
 
     /// Check server version with throttling. Returns heartbeat if check passes.
     /// Throws HeartbeatError.serverVersionChanged or HeartbeatError.serverVersionIncompatible
-    func execute() async throws -> Heartbeat {
+    func execute(allowIncompatibleVersion: Bool = false) async throws -> Heartbeat {
         // Throttle check
         if heartbeatRepository.shouldThrottleVersionCheck() {
             // Return cached version if throttled
@@ -23,7 +23,7 @@ class CheckServerVersionUseCase {
             }
         }
 
-        return try await heartbeatRepository.checkServerVersion()
+        return try await heartbeatRepository.checkServerVersion(allowIncompatibleVersion: allowIncompatibleVersion)
     }
 
     /// Check if throttling should be applied

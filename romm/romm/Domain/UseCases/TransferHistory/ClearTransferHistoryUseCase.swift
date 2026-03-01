@@ -3,9 +3,9 @@ import Foundation
 /// Use case for clearing transfer history
 class ClearTransferHistoryUseCase {
 
-    private let repository: TransferHistoryRepositoryProtocol
+    private let repository: PTransferHistoryRepository
 
-    init(repository: TransferHistoryRepositoryProtocol) {
+    init(repository: PTransferHistoryRepository) {
         self.repository = repository
     }
 

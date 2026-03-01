@@ -27,7 +27,7 @@ struct FavoriteDirectory: Identifiable, Codable, Equatable {
 }
 
 extension SFTPConnection {
-    func credentials(from repository: SFTPRepositoryProtocol) -> SFTPCredentials? {
+    func credentials(from repository: PSFTPRepository) -> SFTPCredentials? {
         return repository.getCredentials(for: id)
     }
 }

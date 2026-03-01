@@ -101,11 +101,11 @@ class SFTPUploadViewModel {
     private let manageDefaultConnectionUseCase: ManageDefaultConnectionUseCase
     private let uploadFileUseCase: UploadFileUseCase
     private let listDirectoryUseCase: ListDirectoryUseCase
-    private let apiClient: RommAPIClientProtocol
+    private let apiClient: PRommAPIClient
 
     init(
         rom: Rom,
-        factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared
+        factory: PDependencyFactory = DefaultDependencyFactory.shared
     ) {
         print("🔍 Debug: SFTPUploadViewModel init with ROM:")
         print("🔍 Debug: ROM ID: \(rom.id)")

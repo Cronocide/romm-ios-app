@@ -22,7 +22,7 @@ enum LocalROMDownloadError: LocalizedError {
     }
 }
 
-protocol LocalROMDownloadServiceProtocol {
+protocol PLocalROMDownloadService {
     /// Downloads ROM files to local device storage
     /// - Parameters:
     ///   - rom: The ROM to download
@@ -36,15 +36,15 @@ protocol LocalROMDownloadServiceProtocol {
     ) async throws -> DownloadedROM
 }
 
-class LocalROMDownloadService: LocalROMDownloadServiceProtocol {
+class LocalROMDownloadService: PLocalROMDownloadService {
 
-    private let apiClient: RommAPIClientProtocol
-    private let repository: LocalROMRepositoryProtocol
+    private let apiClient: PRommAPIClient
+    private let repository: PLocalROMRepository
     private let fileManager = FileManager.default
 
     init(
-        apiClient: RommAPIClientProtocol,
-        repository: LocalROMRepositoryProtocol = LocalROMRepository()
+        apiClient: PRommAPIClient,
+        repository: PLocalROMRepository = LocalROMRepository()
     ) {
         self.apiClient = apiClient
         self.repository = repository

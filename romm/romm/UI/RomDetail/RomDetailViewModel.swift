@@ -30,18 +30,22 @@ class RomDetailViewModel {
     // Emulator
     var showingEmulator: Bool = false
     var canPlayEmulator: Bool = false
+    var showingEmulatorFeatureHint: Bool = false
 
     private let logger = Logger.viewModel
-    
+
+    private let apiClient: PRommAPIClient
     private let getRomDetailsUseCase: GetRomDetailsUseCase
     private let toggleRomFavoriteUseCase: ToggleRomFavoriteUseCase
     private let checkRomFavoriteStatusUseCase: CheckRomFavoriteStatusUseCase
     private let loadManualUseCase: LoadManualUseCase
     private let getCollectionsUseCase: GetCollectionsUseCase
-    private let checkEmulatorSupportUseCase: CheckEmulatorSupportUseCaseProtocol
-    private let launchEmulatorUseCase: LaunchEmulatorUseCaseProtocol
+    private let checkEmulatorSupportUseCase: PCheckEmulatorSupportUseCase
+    private let launchEmulatorUseCase: PLaunchEmulatorUseCase
 
-    init(factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared) {
+    init(factory: PDependencyFactory = DefaultDependencyFactory.shared,
+         apiClient: PRommAPIClient = RommAPIClient.shared) {
+        self.apiClient = apiClient
         self.getRomDetailsUseCase = factory.makeGetRomDetailsUseCase()
         self.toggleRomFavoriteUseCase = factory.makeToggleRomFavoriteUseCase()
         self.checkRomFavoriteStatusUseCase = factory.makeCheckRomFavoriteStatusUseCase()
@@ -189,7 +193,7 @@ class RomDetailViewModel {
         isLoadingSaves = true
         
         do {
-            saves = try await SavesAPI.getSavesApiSavesGet(romId: romId)
+            saves = try await apiClient.getSaves(romId: romId)
             isLoadingSaves = false
             logger.info("Loaded \(saves.count) saves for ROM \(romId)")
         } catch {
@@ -205,7 +209,7 @@ class RomDetailViewModel {
         isLoadingStates = true
         
         do {
-            states = try await StatesAPI.getStatesApiStatesGet(romId: romId)
+            states = try await apiClient.getStates(romId: romId)
             isLoadingStates = false
             logger.info("Loaded \(states.count) states for ROM \(romId)")
         } catch {
@@ -288,12 +292,17 @@ class RomDetailViewModel {
             return
         }
 
-        // Use dedicated UseCase for platform support check
         canPlayEmulator = checkEmulatorSupportUseCase.execute(platformSlug: platformSlug)
         logger.debug("Emulator support for '\(platformSlug)': \(canPlayEmulator)")
     }
 
     func launchEmulator(rom: Rom) async {
+        // Check if experimental feature is enabled first
+        guard ExperimentalFeatureSettings.shared.isEmulatorEnabled else {
+            showingEmulatorFeatureHint = true
+            return
+        }
+
         // Use dedicated UseCase for pre-flight checks
         let result = await launchEmulatorUseCase.execute(rom: rom)
 

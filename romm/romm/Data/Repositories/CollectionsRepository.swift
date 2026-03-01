@@ -7,11 +7,11 @@
 
 import Foundation
 
-class CollectionsRepository: CollectionsRepositoryProtocol {
-    private let apiClient: RommAPIClientProtocol
+class CollectionsRepository: PCollectionsRepository {
+    private let apiClient: PRommAPIClient
     private let logger = Logger.data
     
-    init(apiClient: RommAPIClientProtocol = RommAPIClient.shared) {
+    init(apiClient: PRommAPIClient = RommAPIClient.shared) {
         self.apiClient = apiClient
     }
     

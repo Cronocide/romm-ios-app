@@ -7,11 +7,11 @@
 
 import Foundation
 
-protocol SaveViewModeUseCaseProtocol {
+protocol PSaveViewModeUseCase {
     func execute(_ viewMode: ViewMode)
 }
 
-class SaveViewModeUseCase: SaveViewModeUseCaseProtocol {
+class SaveViewModeUseCase: PSaveViewModeUseCase {
     
     func execute(_ viewMode: ViewMode) {
         UserDefaults.standard.set(viewMode.rawValue, forKey: "selectedViewMode")

@@ -8,9 +8,9 @@
 import Foundation
 
 class GetCredentialsUseCase {
-    private let repository: SFTPRepositoryProtocol
+    private let repository: PSFTPRepository
     
-    init(repository: SFTPRepositoryProtocol) {
+    init(repository: PSFTPRepository) {
         self.repository = repository
     }
     

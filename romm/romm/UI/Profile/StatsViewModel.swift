@@ -37,7 +37,7 @@ class StatsViewModel {
     private let getStatsUseCase: GetStatsUseCase
     private let getPlatformsUseCase: GetPlatformsUseCase
 
-    init(factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared) {
+    init(factory: PDependencyFactory = DefaultDependencyFactory.shared) {
         self.getStatsUseCase = factory.makeGetStatsUseCase()
         self.getPlatformsUseCase = factory.makeGetPlatformsUseCase()
     }

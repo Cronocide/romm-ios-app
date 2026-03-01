@@ -8,13 +8,13 @@
 import Foundation
 import CryptoKit
 
-protocol FileValidationServiceProtocol {
+protocol PFileValidationService {
     func validateFile(at path: String, expectedSize: Int64?, expectedChecksum: String?) -> FileValidationResult
     func calculateChecksum(at path: String) throws -> String
     func getFileSize(at path: String) throws -> Int64
 }
 
-class FileValidationService: FileValidationServiceProtocol {
+class FileValidationService: PFileValidationService {
     
     func validateFile(at path: String, expectedSize: Int64? = nil, expectedChecksum: String? = nil) -> FileValidationResult {
         do {

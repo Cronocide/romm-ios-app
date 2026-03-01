@@ -14,9 +14,9 @@ import Observation
 class ProfileViewModel {
     private let logger = Logger.viewModel
     private let logoutUseCase: LogoutUseCase
-    private let clearSetupConfigurationUseCase: ClearSetupConfigurationUseCaseProtocol
+    private let clearSetupConfigurationUseCase: PClearSetupConfigurationUseCase
     
-    init(factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared) {
+    init(factory: PDependencyFactory = DefaultDependencyFactory.shared) {
         self.logoutUseCase = factory.makeLogoutUseCase()
         self.clearSetupConfigurationUseCase = factory.makeClearSetupConfigurationUseCase()
     }

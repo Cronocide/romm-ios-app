@@ -188,7 +188,7 @@ struct SFTPDirectoryItem: Identifiable {
     let modificationDate: Date?
 }
 
-protocol SFTPServiceProtocol {
+protocol PSFTPService {
     func testConnection(_ connection: SFTPConnection) async throws -> Bool
     func testConnectionWithCredentials(_ connection: SFTPConnection, credentials: SFTPCredentials) async throws -> Bool
     func listDirectory(at path: String, connection: SFTPConnection) async throws -> [SFTPDirectoryItem]
@@ -198,10 +198,10 @@ protocol SFTPServiceProtocol {
     func deleteFile(at path: String, connection: SFTPConnection) async throws
 }
 
-class SFTPService: SFTPServiceProtocol {
-    private let repository: SFTPRepositoryProtocol
+class SFTPService: PSFTPService {
+    private let repository: PSFTPRepository
     
-    init(repository: SFTPRepositoryProtocol = SFTPRepository()) {
+    init(repository: PSFTPRepository = SFTPRepository()) {
         self.repository = repository
     }
     

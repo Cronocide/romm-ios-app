@@ -30,7 +30,7 @@ func withTimeout<T: Sendable>(_ timeout: TimeInterval, operation: @escaping () a
 class SFTPConnectionManager: ObservableObject {
     static let shared = SFTPConnectionManager()
 
-    private var sftpService: SFTPServiceProtocol?
+    private var sftpService: PSFTPService?
     private var connectionStatusCache = [UUID: (status: ConnectionStatus, lastChecked: Date)]()
     // OPTIMIZED: Long cache validity to prevent repeated tests on screen switches
     private let cacheValidityDuration: TimeInterval = 300 // 5 minutes for better UX
@@ -43,7 +43,7 @@ class SFTPConnectionManager: ObservableObject {
         // Service will be injected later to avoid circular dependency
     }
 
-    func configure(with sftpService: SFTPServiceProtocol) {
+    func configure(with sftpService: PSFTPService) {
         self.sftpService = sftpService
     }
     

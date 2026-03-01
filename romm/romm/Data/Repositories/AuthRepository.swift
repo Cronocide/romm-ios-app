@@ -7,14 +7,14 @@
 
 import Foundation
 
-class AuthRepository: AuthRepositoryProtocol {
+class AuthRepository: PAuthRepository {
     private let logger = Logger.data
     @Published private(set) var isAuthenticated: Bool = false
     @Published private(set) var currentUser: User?
     
-    private let apiClient: RommAPIClientProtocol
+    private let apiClient: PRommAPIClient
     
-    init(apiClient: RommAPIClientProtocol = RommAPIClient.shared) {
+    init(apiClient: PRommAPIClient = RommAPIClient.shared) {
         self.apiClient = apiClient
     }
     

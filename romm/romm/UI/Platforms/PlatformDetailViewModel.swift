@@ -40,8 +40,8 @@ class PlatformDetailViewModel {
     private let logger = Logger.viewModel
     private let romsUseCase: GetRomsUseCase
     private let romsWithFiltersUseCase: GetRomsWithFiltersUseCase
-    private let getViewModeUseCase: GetViewModeUseCaseProtocol
-    private let saveViewModeUseCase: SaveViewModeUseCaseProtocol
+    private let getViewModeUseCase: PGetViewModeUseCase
+    private let saveViewModeUseCase: PSaveViewModeUseCase
     private var currentOffset = 0
     private let pageSize = 72
     private var hasMoreRoms = true
@@ -51,7 +51,7 @@ class PlatformDetailViewModel {
     var currentOrderBy: String = "name"
     var currentOrderDir: String = "asc"
 
-    init(factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared) {
+    init(factory: PDependencyFactory = DefaultDependencyFactory.shared) {
         self.romsUseCase = factory.makeGetRomsUseCase()
         self.romsWithFiltersUseCase = factory.makeGetRomsWithFiltersUseCase()
         self.getViewModeUseCase = factory.makeGetViewModeUseCase()

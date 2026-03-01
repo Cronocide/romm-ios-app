@@ -7,11 +7,11 @@
 
 import Foundation
 
-class PlatformsRepository: PlatformsRepositoryProtocol {
+class PlatformsRepository: PPlatformsRepository {
     private let logger = Logger.data
-    private let apiClient: RommAPIClientProtocol
+    private let apiClient: PRommAPIClient
     
-    init(apiClient: RommAPIClientProtocol = RommAPIClient.shared) {
+    init(apiClient: PRommAPIClient = RommAPIClient.shared) {
         self.apiClient = apiClient
     }
     

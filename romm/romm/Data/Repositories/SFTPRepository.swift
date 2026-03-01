@@ -1,17 +1,17 @@
 import Foundation
 import Combine
 
-class SFTPRepository: SFTPRepositoryProtocol {
+class SFTPRepository: PSFTPRepository {
     private let logger = Logger.data
     private let userDefaults = UserDefaults.standard
-    private let keychainService: SFTPKeychainServiceProtocol
+    private let keychainService: PSFTPKeychainService
     
     private let connectionsKey = "sftp_connections"
     private let favoritesKeyPrefix = "sftp_favorites_"
     
     private var connections: [SFTPConnection] = []
     
-    init(keychainService: SFTPKeychainServiceProtocol = SFTPKeychainService()) {
+    init(keychainService: PSFTPKeychainService = SFTPKeychainService()) {
         self.keychainService = keychainService
         loadConnections()
     }

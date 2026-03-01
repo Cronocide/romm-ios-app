@@ -10,7 +10,7 @@ struct SFTPDirectoryBrowserView: View {
     let onPathSelected: (String) -> Void
     private let romName: String?
     
-    init(connection: SFTPConnection, romName: String? = nil, dependencyFactory: DependencyFactoryProtocol = DefaultDependencyFactory.shared, onPathSelected: @escaping (String) -> Void) {
+    init(connection: SFTPConnection, romName: String? = nil, dependencyFactory: PDependencyFactory = DefaultDependencyFactory.shared, onPathSelected: @escaping (String) -> Void) {
         self._viewModel = State(wrappedValue: dependencyFactory.makeSFTPDirectoryBrowserViewModel(connection: connection))
         self.onPathSelected = onPathSelected
         self.romName = romName

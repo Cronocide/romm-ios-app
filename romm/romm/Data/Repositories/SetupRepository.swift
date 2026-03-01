@@ -66,7 +66,7 @@ struct SetupConfiguration: Codable {
 }
 
 // MARK: - Setup Repository Protocol
-protocol SetupRepositoryProtocol {
+protocol PSetupRepository {
     func saveSetupConfiguration(_ config: SetupConfiguration) throws
     func getSetupConfiguration() -> SetupConfiguration?
     func isSetupComplete() -> Bool
@@ -81,7 +81,7 @@ protocol SetupRepositoryProtocol {
 }
 
 // MARK: - Setup Repository Implementation
-class SetupRepository: SetupRepositoryProtocol {
+class SetupRepository: PSetupRepository {
     
     // MARK: - Properties
     private let logger = Logger.data

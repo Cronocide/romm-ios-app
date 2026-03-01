@@ -3,9 +3,9 @@ import Foundation
 /// Use case for retrieving transfer history grouped by platform
 class GetTransferHistoryGroupedByPlatformUseCase {
 
-    private let repository: TransferHistoryRepositoryProtocol
+    private let repository: PTransferHistoryRepository
 
-    init(repository: TransferHistoryRepositoryProtocol) {
+    init(repository: PTransferHistoryRepository) {
         self.repository = repository
     }
 

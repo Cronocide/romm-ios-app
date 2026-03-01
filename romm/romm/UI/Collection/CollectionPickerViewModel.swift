@@ -23,7 +23,7 @@ class CollectionPickerViewModel {
     private let getCollectionsUseCase: GetCollectionsUseCase
     private let updateCollectionUseCase: UpdateCollectionUseCase
     
-    init(factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared) {
+    init(factory: PDependencyFactory = DefaultDependencyFactory.shared) {
         self.getCollectionsUseCase = factory.makeGetCollectionsUseCase()
         self.updateCollectionUseCase = factory.makeUpdateCollectionUseCase()
     }

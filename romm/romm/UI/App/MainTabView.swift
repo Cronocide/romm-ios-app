@@ -9,9 +9,9 @@ import SwiftUI
 
 struct MainTabView: View {
     @EnvironmentObject var appData: AppData
-    private let dependencyFactory: DependencyFactoryProtocol
+    private let dependencyFactory: PDependencyFactory
     
-    init(dependencyFactory: DependencyFactoryProtocol = DefaultDependencyFactory.shared) {
+    init(dependencyFactory: PDependencyFactory = DefaultDependencyFactory.shared) {
         self.dependencyFactory = dependencyFactory
     }
     

@@ -6,9 +6,9 @@
 import Foundation
 
 class ClearServerVersionUseCase {
-    private let heartbeatRepository: HeartbeatRepositoryProtocol
+    private let heartbeatRepository: PHeartbeatRepository
 
-    init(heartbeatRepository: HeartbeatRepositoryProtocol) {
+    init(heartbeatRepository: PHeartbeatRepository) {
         self.heartbeatRepository = heartbeatRepository
     }
 

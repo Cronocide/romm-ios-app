@@ -7,26 +7,26 @@
 
 import Foundation
 
-protocol DependencyFactoryProtocol {
+protocol PDependencyFactory {
     // Repositories
-    var authRepository: AuthRepositoryProtocol { get }
-    var romsRepository: RomsRepositoryProtocol { get }
-    var platformsRepository: PlatformsRepositoryProtocol { get }
-    var collectionsRepository: CollectionsRepositoryProtocol { get }
-    var setupRepository: SetupRepositoryProtocol { get }
-    var sftpRepository: SFTPRepositoryProtocol { get }
-    var fileSystemRepository: FileSystemRepositoryProtocol { get }
-    var transferHistoryRepository: TransferHistoryRepositoryProtocol { get }
-    var localROMRepository: LocalROMRepositoryProtocol { get }
-    var statsRepository: StatsRepositoryProtocol { get }
-    var heartbeatRepository: HeartbeatRepositoryProtocol { get }
+    var authRepository: PAuthRepository { get }
+    var romsRepository: PRomsRepository { get }
+    var platformsRepository: PPlatformsRepository { get }
+    var collectionsRepository: PCollectionsRepository { get }
+    var setupRepository: PSetupRepository { get }
+    var sftpRepository: PSFTPRepository { get }
+    var fileSystemRepository: PFileSystemRepository { get }
+    var transferHistoryRepository: PTransferHistoryRepository { get }
+    var localROMRepository: PLocalROMRepository { get }
+    var statsRepository: PStatsRepository { get }
+    var heartbeatRepository: PHeartbeatRepository { get }
 
     // Services
-    var sftpKeychainService: SFTPKeychainServiceProtocol { get }
-    var sftpService: SFTPServiceProtocol { get }
+    var sftpKeychainService: PSFTPKeychainService { get }
+    var sftpService: PSFTPService { get }
     var sftpConnectionManager: SFTPConnectionManager { get }
-    var apiClient: RommAPIClientProtocol { get }
-    var fileValidationService: FileValidationServiceProtocol { get }
+    var apiClient: PRommAPIClient { get }
+    var fileValidationService: PFileValidationService { get }
     
     // Use Cases
     func makeLogoutUseCase() -> LogoutUseCase
@@ -52,10 +52,10 @@ protocol DependencyFactoryProtocol {
     func makeDeleteCollectionUseCase() -> DeleteCollectionUseCase
     
     // Setup Use Cases
-    func makeSaveSetupConfigurationUseCase() -> SaveSetupConfigurationUseCaseProtocol
-    func makeGetSetupConfigurationUseCase() -> GetSetupConfigurationUseCaseProtocol
-    func makeCheckSetupStatusUseCase() -> CheckSetupStatusUseCaseProtocol
-    func makeClearSetupConfigurationUseCase() -> ClearSetupConfigurationUseCaseProtocol
+    func makeSaveSetupConfigurationUseCase() -> PSaveSetupConfigurationUseCase
+    func makeGetSetupConfigurationUseCase() -> PGetSetupConfigurationUseCase
+    func makeCheckSetupStatusUseCase() -> PCheckSetupStatusUseCase
+    func makeClearSetupConfigurationUseCase() -> PClearSetupConfigurationUseCase
     
     // SFTP Use Cases
     func makeGetAllConnectionsUseCase() -> GetAllConnectionsUseCase
@@ -78,12 +78,12 @@ protocol DependencyFactoryProtocol {
     func makeClearTransferHistoryUseCase() -> ClearTransferHistoryUseCase
     
     // UI Use Cases
-    func makeGetViewModeUseCase() -> GetViewModeUseCaseProtocol
-    func makeSaveViewModeUseCase() -> SaveViewModeUseCaseProtocol
+    func makeGetViewModeUseCase() -> PGetViewModeUseCase
+    func makeSaveViewModeUseCase() -> PSaveViewModeUseCase
 
     // Emulator Use Cases
-    func makeCheckEmulatorSupportUseCase() -> CheckEmulatorSupportUseCaseProtocol
-    func makeLaunchEmulatorUseCase() -> LaunchEmulatorUseCaseProtocol
+    func makeCheckEmulatorSupportUseCase() -> PCheckEmulatorSupportUseCase
+    func makeLaunchEmulatorUseCase() -> PLaunchEmulatorUseCase
 
     // SFTP ViewModels
     @MainActor func makeSFTPDevicesViewModel() -> SFTPDevicesViewModel
@@ -92,7 +92,7 @@ protocol DependencyFactoryProtocol {
     @MainActor func makeAddEditSFTPDeviceViewModel(connection: SFTPConnection?) -> AddEditSFTPDeviceViewModel
 }
 
-class DefaultDependencyFactory: DependencyFactoryProtocol {
+class DefaultDependencyFactory: PDependencyFactory {
     func makeSFTPDevicesViewModel() -> SFTPDevicesViewModel {
         SFTPDevicesViewModel()
     }
@@ -101,32 +101,32 @@ class DefaultDependencyFactory: DependencyFactoryProtocol {
     
     // MARK: - Repositories (Singletons)
     
-    lazy var authRepository: AuthRepositoryProtocol = AuthRepository()
-    lazy var romsRepository: RomsRepositoryProtocol = RomsRepository()
-    lazy var platformsRepository: PlatformsRepositoryProtocol = PlatformsRepository()
-    lazy var collectionsRepository: CollectionsRepositoryProtocol = CollectionsRepository()
-    lazy var setupRepository: SetupRepositoryProtocol = SetupRepository()
-    lazy var fileSystemRepository: FileSystemRepositoryProtocol = FileSystemRepository()
-    lazy var transferHistoryRepository: TransferHistoryRepositoryProtocol = TransferHistoryRepository()
-    lazy var localROMRepository: LocalROMRepositoryProtocol = LocalROMRepository()
-    lazy var statsRepository: StatsRepositoryProtocol = StatsRepository()
-    lazy var heartbeatRepository: HeartbeatRepositoryProtocol = HeartbeatRepository()
+    lazy var authRepository: PAuthRepository = AuthRepository()
+    lazy var romsRepository: PRomsRepository = RomsRepository()
+    lazy var platformsRepository: PPlatformsRepository = PlatformsRepository()
+    lazy var collectionsRepository: PCollectionsRepository = CollectionsRepository()
+    lazy var setupRepository: PSetupRepository = SetupRepository()
+    lazy var fileSystemRepository: PFileSystemRepository = FileSystemRepository()
+    lazy var transferHistoryRepository: PTransferHistoryRepository = TransferHistoryRepository()
+    lazy var localROMRepository: PLocalROMRepository = LocalROMRepository()
+    lazy var statsRepository: PStatsRepository = StatsRepository()
+    lazy var heartbeatRepository: PHeartbeatRepository = HeartbeatRepository()
     
     // MARK: - Services (Singletons)
     
-    lazy var fileValidationService: FileValidationServiceProtocol = FileValidationService()
+    lazy var fileValidationService: PFileValidationService = FileValidationService()
     
     // MARK: - SFTP Services (Singletons)
     
-    lazy var sftpKeychainService: SFTPKeychainServiceProtocol = SFTPKeychainService()
-    lazy var sftpRepository: SFTPRepositoryProtocol = SFTPRepository(keychainService: sftpKeychainService)
-    lazy var sftpService: SFTPServiceProtocol = SFTPService(repository: sftpRepository)
+    lazy var sftpKeychainService: PSFTPKeychainService = SFTPKeychainService()
+    lazy var sftpRepository: PSFTPRepository = SFTPRepository(keychainService: sftpKeychainService)
+    lazy var sftpService: PSFTPService = SFTPService(repository: sftpRepository)
     lazy var sftpConnectionManager: SFTPConnectionManager = {
         let manager = SFTPConnectionManager.shared
         manager.configure(with: sftpService)
         return manager
     }()
-    lazy var apiClient: RommAPIClientProtocol = RommAPIClient.shared
+    lazy var apiClient: PRommAPIClient = RommAPIClient.shared
     
     private init() {}
     
@@ -226,21 +226,21 @@ class DefaultDependencyFactory: DependencyFactoryProtocol {
     
     // MARK: - Setup Use Cases
     
-    func makeSaveSetupConfigurationUseCase() -> SaveSetupConfigurationUseCaseProtocol {
+    func makeSaveSetupConfigurationUseCase() -> PSaveSetupConfigurationUseCase {
         SaveSetupConfigurationUseCase(
             setupRepository: setupRepository
         )
     }
     
-    func makeGetSetupConfigurationUseCase() -> GetSetupConfigurationUseCaseProtocol {
+    func makeGetSetupConfigurationUseCase() -> PGetSetupConfigurationUseCase {
         GetSetupConfigurationUseCase(setupRepository: setupRepository)
     }
     
-    func makeCheckSetupStatusUseCase() -> CheckSetupStatusUseCaseProtocol {
+    func makeCheckSetupStatusUseCase() -> PCheckSetupStatusUseCase {
         CheckSetupStatusUseCase(setupRepository: setupRepository)
     }
     
-    func makeClearSetupConfigurationUseCase() -> ClearSetupConfigurationUseCaseProtocol {
+    func makeClearSetupConfigurationUseCase() -> PClearSetupConfigurationUseCase {
         ClearSetupConfigurationUseCase(
             setupRepository: setupRepository,
             configurationService: DefaultConfigurationService.shared
@@ -317,21 +317,21 @@ class DefaultDependencyFactory: DependencyFactoryProtocol {
 
     // MARK: - UI Use Cases
 
-    func makeGetViewModeUseCase() -> GetViewModeUseCaseProtocol {
+    func makeGetViewModeUseCase() -> PGetViewModeUseCase {
         GetViewModeUseCase()
     }
 
-    func makeSaveViewModeUseCase() -> SaveViewModeUseCaseProtocol {
+    func makeSaveViewModeUseCase() -> PSaveViewModeUseCase {
         SaveViewModeUseCase()
     }
 
     // MARK: - Emulator Use Cases
 
-    func makeCheckEmulatorSupportUseCase() -> CheckEmulatorSupportUseCaseProtocol {
+    func makeCheckEmulatorSupportUseCase() -> PCheckEmulatorSupportUseCase {
         CheckEmulatorSupportUseCase()
     }
 
-    func makeLaunchEmulatorUseCase() -> LaunchEmulatorUseCaseProtocol {
+    func makeLaunchEmulatorUseCase() -> PLaunchEmulatorUseCase {
         LaunchEmulatorUseCase(
             tokenProvider: TokenProvider(),
             checkEmulatorSupport: makeCheckEmulatorSupportUseCase()

@@ -23,7 +23,7 @@ class SFTPDevicesViewModel {
     private let checkConnectionStatusUseCase: CheckConnectionStatusUseCase
     private let clearConnectionCacheUseCase: ClearConnectionCacheUseCase
     
-    init(_ factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared) {
+    init(_ factory: PDependencyFactory = DefaultDependencyFactory.shared) {
         self.getAllConnectionsUseCase = factory.makeGetAllConnectionsUseCase()
         self.saveConnectionUseCase = factory.makeSaveConnectionUseCase()
         self.deleteConnectionUseCase = factory.makeDeleteConnectionUseCase()

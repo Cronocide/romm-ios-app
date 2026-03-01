@@ -98,64 +98,64 @@ Stand: 2026-02-14
 ## Liste B: NICHT VERWENDET (entfernen)
 
 ### API-Klassen (komplett ungenutzt)
-- [ ] `ConfigAPI.swift`
-- [ ] `FeedsAPI.swift`
-- [ ] `FirmwareAPI.swift`
-- [ ] `RawAPI.swift`
-- [ ] `ScreenshotsAPI.swift`
-- [ ] `SearchAPI.swift`
-- [ ] `TasksAPI.swift`
+- [x] `ConfigAPI.swift`
+- [x] `FeedsAPI.swift`
+- [x] `FirmwareAPI.swift`
+- [x] `RawAPI.swift`
+- [x] `ScreenshotsAPI.swift`
+- [x] `SearchAPI.swift`
+- [x] `TasksAPI.swift`
 
 ### API-Methoden (teilweise ungenutzt)
-- [ ] `AuthAPI.swift`
-  - [ ] `authOpenidApiOauthOpenidGet()`
-  - [ ] `loginViaOpenidApiLoginOpenidGet()`
-  - [ ] `requestPasswordResetApiForgotPasswordPost()`
-  - [ ] `resetPasswordApiResetPasswordPost()`
-  - [ ] `tokenApiTokenPost()`
+- [x] `AuthAPI.swift`
+  - [x] `authOpenidApiOauthOpenidGet()`
+  - [x] `loginViaOpenidApiLoginOpenidGet()`
+  - [x] `requestPasswordResetApiForgotPasswordPost()`
+  - [x] `resetPasswordApiResetPasswordPost()`
+  - [x] `tokenApiTokenPost()`
 
-- [ ] `CollectionsAPI.swift`
-  - [ ] `addSmartCollectionApiCollectionsSmartPost()`
-  - [ ] `deleteSmartCollectionApiCollectionsSmartIdDelete()`
-  - [ ] `getSmartCollectionApiCollectionsSmartIdGet()`
-  - [ ] `getSmartCollectionsApiCollectionsSmartGet()`
-  - [ ] `updateSmartCollectionApiCollectionsSmartIdPut()`
+- [x] `CollectionsAPI.swift`
+  - [x] `addSmartCollectionApiCollectionsSmartPost()`
+  - [x] `deleteSmartCollectionApiCollectionsSmartIdDelete()`
+  - [x] `getSmartCollectionApiCollectionsSmartIdGet()`
+  - [x] `getSmartCollectionsApiCollectionsSmartGet()`
+  - [x] `updateSmartCollectionApiCollectionsSmartIdPut()`
 
-- [ ] `PlatformsAPI.swift`
-  - [ ] `getPlatformApiPlatformsIdGet()`
-  - [ ] `getSupportedPlatformsApiPlatformsSupportedGet()`
-  - [ ] `updatePlatformApiPlatformsIdPut()`
+- [x] `PlatformsAPI.swift`
+  - [x] `getPlatformApiPlatformsIdGet()`
+  - [x] `getSupportedPlatformsApiPlatformsSupportedGet()`
+  - [x] `updatePlatformApiPlatformsIdPut()`
 
-- [ ] `RomsAPI.swift`
-  - [ ] `addRomApiRomsPost()`
-  - [ ] `addRomManualsApiRomsIdManualsPost()`
-  - [ ] `deleteRomsApiRomsDeletePost()`
-  - [ ] `getRomContentApiRomsIdContentFileNameGet()`
-  - [ ] `getRomfileApiRomsfilesIdGet()`
-  - [ ] `getRomfileContentApiRomsfilesIdContentFileNameGet()`
-  - [ ] `headRomContentApiRomsIdContentFileNameHead()`
-  - [ ] `updateRomApiRomsIdPut()`
+- [x] `RomsAPI.swift`
+  - [x] `addRomApiRomsPost()`
+  - [x] `addRomManualsApiRomsIdManualsPost()`
+  - [x] `deleteRomsApiRomsDeletePost()`
+  - [x] `getRomContentApiRomsIdContentFileNameGet()`
+  - [x] `getRomfileApiRomsfilesIdGet()`
+  - [x] `getRomfileContentApiRomsfilesIdContentFileNameGet()`
+  - [x] `headRomContentApiRomsIdContentFileNameHead()`
+  - [x] `updateRomApiRomsIdPut()`
 
-- [ ] `SavesAPI.swift`
-  - [ ] `addSaveApiSavesPost()`
-  - [ ] `deleteSavesApiSavesDeletePost()`
-  - [ ] `getSaveApiSavesIdGet()`
-  - [ ] `updateSaveApiSavesIdPut()`
+- [x] `SavesAPI.swift`
+  - [x] `addSaveApiSavesPost()`
+  - [x] `deleteSavesApiSavesDeletePost()`
+  - [x] `getSaveApiSavesIdGet()`
+  - [x] `updateSaveApiSavesIdPut()`
 
-- [ ] `StatesAPI.swift`
-  - [ ] `addStateApiStatesPost()`
-  - [ ] `deleteStatesApiStatesDeletePost()`
-  - [ ] `getStateApiStatesIdGet()`
-  - [ ] `updateStateApiStatesIdPut()`
+- [x] `StatesAPI.swift`
+  - [x] `addStateApiStatesPost()`
+  - [x] `deleteStatesApiStatesDeletePost()`
+  - [x] `getStateApiStatesIdGet()`
+  - [x] `updateStateApiStatesIdPut()`
 
-- [ ] `UsersAPI.swift`
-  - [ ] `addUserApiUsersPost()`
-  - [ ] `createInviteLinkApiUsersInviteLinkPost()`
-  - [ ] `createUserFromInviteApiUsersRegisterPost()`
-  - [ ] `deleteUserApiUsersIdDelete()`
-  - [ ] `getUserApiUsersIdGet()`
-  - [ ] `refreshRetroAchievementsApiUsersIdRaRefreshPost()`
-  - [ ] `updateUserApiUsersIdPut()`
+- [x] `UsersAPI.swift`
+  - [x] `addUserApiUsersPost()`
+  - [x] `createInviteLinkApiUsersInviteLinkPost()`
+  - [x] `createUserFromInviteApiUsersRegisterPost()`
+  - [x] `deleteUserApiUsersIdDelete()`
+  - [x] `getUserApiUsersIdGet()`
+  - [x] `refreshRetroAchievementsApiUsersIdRaRefreshPost()`
+  - [x] `updateUserApiUsersIdPut()`
 
 ### Models
 
@@ -190,34 +190,34 @@ Stand: 2026-02-14
 - [ ] `UserNotesSchema.swift`
 
 #### Entfernen-Kandidaten (nicht direkt + nicht transitiv benötigt)
-- [ ] `AddFirmwareResponse.swift`
-- [ ] `BodyAddUserApiUsersPost.swift`
-- [ ] `BodyCreateUserFromInviteApiUsersRegisterPost.swift`
-- [ ] `BodyDeleteRomsApiRomsDeletePost.swift`
-- [ ] `BodyRequestPasswordResetApiForgotPasswordPost.swift`
-- [ ] `BodyResetPasswordApiResetPasswordPost.swift`
-- [ ] `BodyUpdatePlatformApiPlatformsIdPut.swift`
-- [ ] `BulkOperationResponse.swift`
-- [ ] `ConfigResponse.swift`
-- [ ] `HTTPValidationError.swift`
-- [ ] `InviteLinkSchema.swift`
-- [ ] `JobStatus.swift`
-- [ ] `SearchCoverSchema.swift`
-- [ ] `SearchRomSchema.swift`
-- [ ] `SmartCollectionSchema.swift`
-- [ ] `TaskExecutionResponse.swift`
-- [ ] `TaskInfo.swift`
-- [ ] `TaskStatusResponse.swift`
-- [ ] `TinfoilFeedFileSchema.swift`
-- [ ] `TinfoilFeedSchema.swift`
-- [ ] `TinfoilFeedTitleDBSchema.swift`
-- [ ] `TokenResponse.swift`
-- [ ] `ValidationError.swift`
-- [ ] `ValidationErrorLocInner.swift`
-- [ ] `WebrcadeFeedCategorySchema.swift`
-- [ ] `WebrcadeFeedItemPropsSchema.swift`
-- [ ] `WebrcadeFeedItemSchema.swift`
-- [ ] `WebrcadeFeedSchema.swift`
+- [x] `AddFirmwareResponse.swift`
+- [x] `BodyAddUserApiUsersPost.swift`
+- [x] `BodyCreateUserFromInviteApiUsersRegisterPost.swift`
+- [x] `BodyDeleteRomsApiRomsDeletePost.swift`
+- [x] `BodyRequestPasswordResetApiForgotPasswordPost.swift`
+- [x] `BodyResetPasswordApiResetPasswordPost.swift`
+- [x] `BodyUpdatePlatformApiPlatformsIdPut.swift`
+- [x] `BulkOperationResponse.swift`
+- [x] `ConfigResponse.swift`
+- [x] `HTTPValidationError.swift`
+- [x] `InviteLinkSchema.swift`
+- [x] `JobStatus.swift`
+- [x] `SearchCoverSchema.swift`
+- [x] `SearchRomSchema.swift`
+- [x] `SmartCollectionSchema.swift`
+- [x] `TaskExecutionResponse.swift`
+- [x] `TaskInfo.swift`
+- [x] `TaskStatusResponse.swift`
+- [x] `TinfoilFeedFileSchema.swift`
+- [x] `TinfoilFeedSchema.swift`
+- [x] `TinfoilFeedTitleDBSchema.swift`
+- [x] `TokenResponse.swift`
+- [x] `ValidationError.swift`
+- [x] `ValidationErrorLocInner.swift`
+- [x] `WebrcadeFeedCategorySchema.swift`
+- [x] `WebrcadeFeedItemPropsSchema.swift`
+- [x] `WebrcadeFeedItemSchema.swift`
+- [x] `WebrcadeFeedSchema.swift`
 
 ## Abhängigkeitsanalyse (Auszug)
 - `CustomLimitOffsetPageSimpleRomSchema -> SimpleRomSchema`

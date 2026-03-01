@@ -8,9 +8,9 @@
 import Foundation
 
 class ValidateFileUseCase {
-    private let fileValidationService: FileValidationServiceProtocol
+    private let fileValidationService: PFileValidationService
     
-    init(fileValidationService: FileValidationServiceProtocol) {
+    init(fileValidationService: PFileValidationService) {
         self.fileValidationService = fileValidationService
     }
     

@@ -6,7 +6,7 @@ struct AddEditSFTPDeviceView: View {
     
     let onSave: (SFTPConnection, SFTPCredentials) -> Void
     
-    init(connection: SFTPConnection? = nil, factory: DependencyFactoryProtocol = DefaultDependencyFactory.shared, onSave: @escaping (SFTPConnection, SFTPCredentials) -> Void) {
+    init(connection: SFTPConnection? = nil, factory: PDependencyFactory = DefaultDependencyFactory.shared, onSave: @escaping (SFTPConnection, SFTPCredentials) -> Void) {
         self._viewModel = State(wrappedValue: factory.makeAddEditSFTPDeviceViewModel(connection: connection))
         self.onSave = onSave
     }

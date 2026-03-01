@@ -8,7 +8,7 @@
 import Foundation
 import Security
 
-protocol KeychainServiceProtocol {
+protocol PKeychainService {
     func save(key: String, value: String) throws
     func get(key: String) -> String?
     func delete(key: String) throws
@@ -31,7 +31,7 @@ enum KeychainError: LocalizedError {
     }
 }
 
-class KeychainService: KeychainServiceProtocol {
+class KeychainService: PKeychainService {
     private let service: String
     private let logger = Logger.data
     

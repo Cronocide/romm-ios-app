@@ -8,9 +8,9 @@
 import Foundation
 
 class SearchRomsUseCase {
-    private let romsRepository: RomsRepositoryProtocol
+    private let romsRepository: PRomsRepository
     
-    init(romsRepository: RomsRepositoryProtocol) {
+    init(romsRepository: PRomsRepository) {
         self.romsRepository = romsRepository
     }
     

@@ -9,37 +9,38 @@ import SwiftUI
 
 struct SearchView: View {
     @State private var searchViewModel = SearchViewModel()
-    @EnvironmentObject var appData: AppData
     @State private var searchText = ""
-    @State private var searchTask: Task<Void, Never>?
-    @FocusState private var isSearchFieldFocused: Bool
-    
+    @Environment(\.isSearching) private var isSearching
+
     var body: some View {
         searchContentView
             .navigationTitle("Search")
             .searchable(text: $searchText, prompt: "Enter ROM-Name")
-            .focused($isSearchFieldFocused)
             .onSubmit(of: .search) {
-                performSearch()
+                searchViewModel.search(query: searchText)
             }
             .toolbar {
                 cancelToolbarItem
             }
-            .alert("Error", isPresented: .constant(searchViewModel.errorMessage != nil)) {
-                Button("OK") {
-                    searchViewModel.clearError()
-                }
+            .alert(
+                "Error",
+                isPresented: Binding(
+                    get: { searchViewModel.errorMessage != nil },
+                    set: { if !$0 { searchViewModel.clearError() } }
+                )
+            ) {
+                Button("OK") { searchViewModel.clearError() }
             } message: {
                 Text(searchViewModel.errorMessage ?? "")
             }
-            .onChange(of: searchText) { oldValue, newValue in
-                handleSearchTextChange(newValue)
+            .onChange(of: searchText) { _, newValue in
+                searchViewModel.scheduleSearch(query: newValue)
             }
             .onDisappear {
-                searchTask?.cancel()
+                searchViewModel.cancelAllTasks()
             }
     }
-    
+
     @ViewBuilder
     private var searchContentView: some View {
         VStack(spacing: 0) {
@@ -47,21 +48,21 @@ struct SearchView: View {
                 loadingView
             } else if searchText.isEmpty && searchViewModel.searchResults.isEmpty {
                 emptyStateView
-            } else if searchViewModel.searchResults.isEmpty && !searchText.isEmpty && !searchViewModel.isLoading {
+            } else if searchViewModel.searchResults.isEmpty && !searchText.isEmpty {
                 noResultsView
             } else {
                 searchResultsView
             }
         }
     }
-    
+
     @ViewBuilder
     private var loadingView: some View {
         Spacer()
         LoadingView("Searching...", fillScreen: false)
         Spacer()
     }
-    
+
     @ViewBuilder
     private var emptyStateView: some View {
         Spacer()
@@ -69,13 +70,13 @@ struct SearchView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 80))
                 .foregroundColor(.secondary)
-            
+
             VStack(spacing: 8) {
                 Text("ROM-Search")
                     .font(.title2)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
-                
+
                 Text("Use the search to find your favorite ROMs")
                     .font(.body)
                     .foregroundColor(.secondary)
@@ -84,7 +85,7 @@ struct SearchView: View {
         }
         Spacer()
     }
-    
+
     @ViewBuilder
     private var noResultsView: some View {
         Spacer()
@@ -92,18 +93,18 @@ struct SearchView: View {
             Image(systemName: "exclamationmark.magnifyingglass")
                 .font(.system(size: 80))
                 .foregroundColor(.orange)
-            
+
             VStack(spacing: 8) {
                 Text("No Results")
                     .font(.title2)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
-                
+
                 Text("No ROMs found for \"\(searchText)\"")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
-                
+
                 Text("Try it again with a different search term")
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -111,25 +112,22 @@ struct SearchView: View {
         }
         Spacer()
     }
-    
+
     @ViewBuilder
     private var searchResultsView: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 resultCountHeader
-                
-                ForEach(searchViewModel.searchResults) { rom in
-                    romResultRow(rom: rom)
+
+                let results = searchViewModel.searchResults
+                ForEach(results) { rom in
+                    SearchResultRow(rom: rom, isLast: rom.id == results.last?.id)
                 }
             }
         }
-        .simultaneousGesture(
-            DragGesture().onChanged { _ in
-                isSearchFieldFocused = false
-            }
-        )
+        .scrollDismissesKeyboard(.immediately)
     }
-    
+
     @ViewBuilder
     private var resultCountHeader: some View {
         if !searchViewModel.searchResults.isEmpty {
@@ -144,68 +142,40 @@ struct SearchView: View {
             .padding(.bottom, 4)
         }
     }
-    
-    @ViewBuilder
-    private func romResultRow(rom: Rom) -> some View {
+
+    @ToolbarContentBuilder
+    private var cancelToolbarItem: some ToolbarContent {
+        if isSearching || !searchText.isEmpty {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Abbrechen") {
+                    searchText = ""
+                    searchViewModel.clearResults()
+                }
+                .foregroundColor(.blue)
+            }
+        }
+    }
+}
+
+private struct SearchResultRow: View {
+    let rom: Rom
+    let isLast: Bool
+
+    var body: some View {
         NavigationLink(destination: RomDetailView(rom: rom)) {
             SearchRomRowView(rom: rom)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 6)
         }
         .buttonStyle(.plain)
-        
-        if rom.id != searchViewModel.searchResults.last?.id {
+
+        if !isLast {
             Divider()
                 .padding(.leading, 72)
         }
     }
-    
-    @ToolbarContentBuilder
-    private var cancelToolbarItem: some ToolbarContent {
-        if !searchText.isEmpty {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Abbrechen") {
-                    searchText = ""
-                    searchViewModel.clearResults()
-                    isSearchFieldFocused = false
-                }
-                .foregroundColor(.blue)
-            }
-        }
-    }
-    
-    private func handleSearchTextChange(_ newValue: String) {
-        // Cancel previous search task
-        searchTask?.cancel()
-        
-        if newValue.isEmpty {
-            searchViewModel.clearResults()
-            return
-        }
-        
-        // Start new search task with throttle
-        searchTask = Task {
-            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
-            
-            guard !Task.isCancelled else { return }
-            
-            await performSearch()
-        }
-    }
-    
-    private func performSearch() {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return }
-        
-        Task {
-            await searchViewModel.search(query: query)
-        }
-    }
 }
-
-
 
 #Preview {
     SearchView()
-        .environmentObject(AppData())
 }

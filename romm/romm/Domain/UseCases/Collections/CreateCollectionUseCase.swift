@@ -8,9 +8,9 @@
 import Foundation
 
 class CreateCollectionUseCase {
-    private let collectionsRepository: CollectionsRepositoryProtocol
+    private let collectionsRepository: PCollectionsRepository
     
-    init(collectionsRepository: CollectionsRepositoryProtocol) {
+    init(collectionsRepository: PCollectionsRepository) {
         self.collectionsRepository = collectionsRepository
     }
     

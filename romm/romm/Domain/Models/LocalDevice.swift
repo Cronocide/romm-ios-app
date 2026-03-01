@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 
 /// Represents the current iOS device (iPhone/iPad) as a download target
-struct LocalDevice: DeviceProtocol, Codable {
+struct LocalDevice: PDevice, Codable {
     let id: UUID
     var name: String
     var isDefault: Bool
