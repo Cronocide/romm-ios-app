@@ -13,7 +13,7 @@ class HeartbeatRepository: PHeartbeatRepository {
     // MARK: - Constants
 
     let minSupportedServerVersion = "4.1.0"
-    let maxSupportedServerVersion = "4.5.0"
+    let maxSupportedServerVersion = "4.6.1"
     let versionCheckThrottleSeconds: TimeInterval = 30
 
     // MARK: - UserDefaults Keys
@@ -77,7 +77,8 @@ class HeartbeatRepository: PHeartbeatRepository {
 
         // Check if version is below minimum
         if compareVersions(serverVersion, minSupportedServerVersion) < 0 {
-            logger.warning("Server version \(serverVersion) is below minimum \(minSupportedServerVersion)")
+            logger.warning(
+                "Server version \(serverVersion) is below minimum \(minSupportedServerVersion)")
             throw HeartbeatError.serverVersionTooLow(
                 serverVersion: serverVersion,
                 minRequired: minSupportedServerVersion
@@ -86,7 +87,8 @@ class HeartbeatRepository: PHeartbeatRepository {
 
         // Check if version is above maximum
         if compareVersions(serverVersion, maxSupportedServerVersion) > 0 {
-            logger.warning("Server version \(serverVersion) is above maximum \(maxSupportedServerVersion)")
+            logger.warning(
+                "Server version \(serverVersion) is above maximum \(maxSupportedServerVersion)")
             throw HeartbeatError.serverVersionTooHigh(
                 serverVersion: serverVersion,
                 maxSupported: maxSupportedServerVersion
@@ -113,10 +115,11 @@ class HeartbeatRepository: PHeartbeatRepository {
         // If user allowed incompatible versions, only check minimum (not maximum)
         if allowIncompatibleVersion {
             logger.info("Incompatible version login allowed - skipping maximum version check")
-            
+
             // Only check minimum version (critical incompatibility)
             if compareVersions(serverVersion, minSupportedServerVersion) < 0 {
-                logger.warning("Server version \(serverVersion) is below minimum \(minSupportedServerVersion)")
+                logger.warning(
+                    "Server version \(serverVersion) is below minimum \(minSupportedServerVersion)")
                 throw HeartbeatError.serverVersionTooLow(
                     serverVersion: serverVersion,
                     minRequired: minSupportedServerVersion
@@ -125,7 +128,8 @@ class HeartbeatRepository: PHeartbeatRepository {
         } else {
             // Standard checks for both minimum and maximum
             if compareVersions(serverVersion, minSupportedServerVersion) < 0 {
-                logger.warning("Server version \(serverVersion) is below minimum \(minSupportedServerVersion)")
+                logger.warning(
+                    "Server version \(serverVersion) is below minimum \(minSupportedServerVersion)")
                 throw HeartbeatError.serverVersionTooLow(
                     serverVersion: serverVersion,
                     minRequired: minSupportedServerVersion
@@ -133,7 +137,8 @@ class HeartbeatRepository: PHeartbeatRepository {
             }
 
             if compareVersions(serverVersion, maxSupportedServerVersion) > 0 {
-                logger.warning("Server version \(serverVersion) is above maximum \(maxSupportedServerVersion)")
+                logger.warning(
+                    "Server version \(serverVersion) is above maximum \(maxSupportedServerVersion)")
                 throw HeartbeatError.serverVersionTooHigh(
                     serverVersion: serverVersion,
                     maxSupported: maxSupportedServerVersion
