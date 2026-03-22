@@ -85,7 +85,8 @@ extension ClientTokenAuthService {
 extension ClientTokenAuthService {
 
     /// Exchanges a pairing code for a client token via the server API.
-    func exchangeCode(serverURL: String, code: String) async throws -> String {
+    /// Returns the raw token string and the token info (from the exchange response).
+    func exchangeCode(serverURL: String, code: String) async throws -> (token: String, info: ClientTokenInfo) {
         let cleanURL = serverURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let endpoint = "\(cleanURL)/api/client-tokens/exchange"
 
@@ -132,18 +133,48 @@ extension ClientTokenAuthService {
             throw ClientTokenError.exchangeFailed("HTTP \(httpResponse.statusCode): \(message)")
         }
 
-        // Expect JSON with a "token" field
-        struct ExchangeResponse: Decodable {
-            let token: String
+        // Log raw response for debugging
+        let rawResponse = String(data: data, encoding: .utf8) ?? "non-utf8"
+        logger.debug("Exchange raw response: \(rawResponse)")
+
+        // Response contains the full token object with "raw_token" field
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw ClientTokenError.exchangeFailed("Invalid response format")
         }
 
-        do {
-            let exchangeResponse = try JSONDecoder().decode(ExchangeResponse.self, from: data)
-            logger.info("Pairing code exchanged successfully")
-            return exchangeResponse.token
-        } catch {
-            throw ClientTokenError.exchangeFailed("Failed to decode token from response")
+        // The raw token string is in "raw_token"
+        guard let rawToken = json["raw_token"] as? String else {
+            throw ClientTokenError.exchangeFailed("No raw_token in response")
         }
+
+        // Parse token info from the same response
+        let tokenId = json["id"] as? Int ?? 0
+        let name = json["name"] as? String ?? "Token"
+
+        let scopes: [String]
+        if let scopesArray = json["scopes"] as? [String] {
+            scopes = scopesArray
+        } else if let scopesString = json["scopes"] as? String {
+            scopes = scopesString.components(separatedBy: " ").filter { !$0.isEmpty }
+        } else {
+            scopes = []
+        }
+
+        var expiresAt: Date?
+        if let expiresStr = json["expires_at"] as? String {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            expiresAt = formatter.date(from: expiresStr)
+            if expiresAt == nil {
+                formatter.formatOptions = [.withInternetDateTime]
+                expiresAt = formatter.date(from: expiresStr)
+            }
+        }
+
+        let info = ClientTokenInfo(tokenId: tokenId, name: name, scopes: scopes, expiresAt: expiresAt)
+
+        logger.info("Pairing code exchanged successfully: \(info.name) with \(info.scopes.count) scope(s)")
+        return (token: rawToken, info: info)
     }
 }
 
@@ -180,7 +211,11 @@ extension ClientTokenAuthService {
             throw ClientTokenError.scopeFetchFailed
         }
 
+        logger.debug("Token validation response status: \(httpResponse.statusCode)")
+
         guard (200...299).contains(httpResponse.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? "non-utf8"
+            logger.error("Token validation failed - HTTP \(httpResponse.statusCode): \(body)")
             if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
                 throw ClientTokenError.tokenInvalid
             }

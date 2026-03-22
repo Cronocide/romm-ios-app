@@ -66,17 +66,22 @@ struct QRScannerView: View {
     }
 
     private func extractPairingCode(from value: String) -> String? {
-        // Check if it's a raw 8-char alphanumeric code
-        if value.count == 8, value.allSatisfy({ $0.isLetter || $0.isNumber }) {
-            return value
+        // Codes can contain hyphens (e.g. "WMXW-4R53"), strip them for validation
+        let stripped = value.replacingOccurrences(of: "-", with: "")
+
+        // Check if it's a raw 8-char alphanumeric code (with or without hyphen)
+        if stripped.count == 8, stripped.allSatisfy({ $0.isLetter || $0.isNumber }) {
+            return value // Return original format, server handles stripping
         }
 
         // Try parsing as URL and extract "code" query parameter
         if let url = URL(string: value),
            let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-           let code = components.queryItems?.first(where: { $0.name == "code" })?.value,
-           code.count == 8, code.allSatisfy({ $0.isLetter || $0.isNumber }) {
-            return code
+           let code = components.queryItems?.first(where: { $0.name == "code" })?.value {
+            let codeStripped = code.replacingOccurrences(of: "-", with: "")
+            if codeStripped.count == 8, codeStripped.allSatisfy({ $0.isLetter || $0.isNumber }) {
+                return code
+            }
         }
 
         return nil

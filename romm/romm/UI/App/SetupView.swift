@@ -854,8 +854,7 @@ struct SetupView: View {
         clientTokenError = nil
         let service = ClientTokenAuthService()
         do {
-            let token = try await service.exchangeCode(serverURL: serverURL, code: code)
-            let tokenInfo = try await service.fetchTokenInfo(serverURL: serverURL, token: token)
+            let (token, tokenInfo) = try await service.exchangeCode(serverURL: serverURL, code: code)
             try service.saveToken(token, info: tokenInfo)
             let setupRepo = SetupRepository()
             if let version = detectedServerVersion {
