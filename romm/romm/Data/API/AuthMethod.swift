@@ -111,4 +111,20 @@ extension AuthMethod {
             return []
         }
     }
+
+    /// Returns a recommendation string based on rich auth capabilities
+    static func recommendation(for capabilities: HeartbeatRepository.AuthCapabilities) -> String {
+        if capabilities.unreachable { return "Server is unreachable" }
+        if capabilities.cloudflareBlocked { return "Server is protected and requires OIDC configuration" }
+        return "Choose your preferred authentication method"
+    }
+
+    /// Returns available methods based on rich auth capabilities
+    static func availableMethods(for capabilities: HeartbeatRepository.AuthCapabilities) -> [AuthMethod] {
+        var methods: [AuthMethod] = []
+        if capabilities.classic { methods.append(.classic) }
+        if capabilities.oidc { methods.append(.oidc) }
+        if capabilities.clientTokens { methods.append(.clientToken) }
+        return methods
+    }
 }
