@@ -1017,9 +1017,3 @@ struct ConnectionLogRow: View {
         .padding(.vertical, 4)
     }
 }
-
-// TODO: Remove after Task 7 creates real QRScannerView
-private struct QRScannerView: View {
-    let onCodeScanned: (String) -> Void
-    var body: some View { Text("QR Scanner placeholder") }
-}
