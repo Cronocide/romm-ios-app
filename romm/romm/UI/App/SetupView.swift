@@ -31,6 +31,12 @@ struct SetupView: View {
     @State private var oidcConfiguration: OIDCConfiguration?
     @State private var oidcError: String?
 
+    // Client Token states
+    @State private var clientTokenInput = ""
+    @State private var isExchangingToken = false
+    @State private var clientTokenError: String?
+    @State private var showQRScanner = false
+
     private var connectionLogger: ConnectionLogger { ConnectionLogger.shared }
     private let launchArguments = ProcessInfo.processInfo.arguments
     private var shouldShowLoginForUITests: Bool { launchArguments.contains("-ui_testing_show_login") }
@@ -379,10 +385,69 @@ struct SetupView: View {
         }
     }
 
-    // MARK: - Client Token Auth Section (Placeholder)
+    // MARK: - Client Token Auth Section
 
     private var clientTokenAuthSection: some View {
-        Text("Client Token Auth — coming in Task 6")
+        VStack(spacing: 16) {
+            HStack(spacing: 12) {
+                Image(systemName: "key.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(.orange)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("API Token")
+                        .font(.headline)
+                    Text("Connect using a token from your RomM server settings")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+
+            Button {
+                showQRScanner = true
+            } label: {
+                HStack {
+                    Image(systemName: "qrcode.viewfinder")
+                    Text("Scan QR Code")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+
+            HStack {
+                Rectangle().frame(height: 1).foregroundColor(.secondary.opacity(0.3))
+                Text("or").font(.caption).foregroundColor(.secondary)
+                Rectangle().frame(height: 1).foregroundColor(.secondary.opacity(0.3))
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Paste Token")
+                    .font(.headline)
+                TextField("rmm_...", text: $clientTokenInput)
+                    .textFieldStyle(.roundedBorder)
+                    .textInputAutocapitalization(.never)
+                    .disableAutocorrection(true)
+                    .font(.system(.body, design: .monospaced))
+            }
+
+            if let error = clientTokenError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .sheet(isPresented: $showQRScanner) {
+            QRScannerView { code in
+                showQRScanner = false
+                Task {
+                    await performClientTokenPairing(code: code)
+                }
+            }
+        }
     }
 
     // MARK: - Login Button
@@ -392,21 +457,23 @@ struct SetupView: View {
             Task {
                 if selectedAuthMethod == .oidc {
                     await performOIDCLogin()
+                } else if selectedAuthMethod == .clientToken {
+                    await performClientTokenLogin()
                 } else {
                     await performClassicLogin()
                 }
             }
         } label: {
-            if appViewModel.appData.isLoading || isPerformingOIDC {
+            if appViewModel.appData.isLoading || isPerformingOIDC || isExchangingToken {
                 HStack {
                     ProgressView()
                         .frame(width: 20, height: 20)
-                    Text(isPerformingOIDC ? "Opening browser..." : "Logging in...")
+                    Text(isPerformingOIDC ? "Opening browser..." : isExchangingToken ? "Connecting..." : "Logging in...")
                 }
             } else {
                 HStack {
                     Image(systemName: selectedAuthMethod.iconName)
-                    Text(selectedAuthMethod == .oidc ? "Login with Browser" : "Login")
+                    Text(selectedAuthMethod == .oidc ? "Login with Browser" : selectedAuthMethod == .clientToken ? "Connect with Token" : "Login")
                 }
             }
         }
@@ -417,15 +484,16 @@ struct SetupView: View {
     }
     
     private var canProceedWithLogin: Bool {
-        if appViewModel.appData.isLoading || isPerformingOIDC {
+        if appViewModel.appData.isLoading || isPerformingOIDC || isExchangingToken {
             return false
         }
-        
-        if selectedAuthMethod == .classic {
+        switch selectedAuthMethod {
+        case .classic:
             return !username.isEmpty && !password.isEmpty
-        } else {
-            // OIDC only needs server to be validated
+        case .oidc:
             return oidcConfiguration != nil
+        case .clientToken:
+            return !clientTokenInput.isEmpty
         }
     }
 
@@ -743,6 +811,65 @@ struct SetupView: View {
         }
     }
 
+    // MARK: - Client Token Login
+
+    @MainActor
+    private func performClientTokenLogin() async {
+        isExchangingToken = true
+        clientTokenError = nil
+        let service = ClientTokenAuthService()
+        do {
+            let tokenInfo = try await service.validateToken(serverURL: serverURL, token: clientTokenInput)
+            try service.saveToken(clientTokenInput, info: tokenInfo)
+            let setupRepo = SetupRepository()
+            if let version = detectedServerVersion {
+                appViewModel.saveServerVersion(version)
+            }
+            try setupRepo.saveClientTokenSetup(
+                serverURL: serverURL,
+                tokenName: tokenInfo.name,
+                version: detectedServerVersion ?? "unknown",
+                allowIncompatibleVersionLogin: didAcceptIncompatibleVersion
+            )
+            Logger.auth.info("Client token login complete")
+            appViewModel.appData.isLoading = false
+            appViewModel.appData.errorMessage = nil
+        } catch {
+            Logger.auth.error("Client token login failed: \(error)")
+            clientTokenError = error.localizedDescription
+        }
+        isExchangingToken = false
+    }
+
+    @MainActor
+    private func performClientTokenPairing(code: String) async {
+        isExchangingToken = true
+        clientTokenError = nil
+        let service = ClientTokenAuthService()
+        do {
+            let token = try await service.exchangeCode(serverURL: serverURL, code: code)
+            let tokenInfo = try await service.fetchTokenInfo(serverURL: serverURL, token: token)
+            try service.saveToken(token, info: tokenInfo)
+            let setupRepo = SetupRepository()
+            if let version = detectedServerVersion {
+                appViewModel.saveServerVersion(version)
+            }
+            try setupRepo.saveClientTokenSetup(
+                serverURL: serverURL,
+                tokenName: tokenInfo.name,
+                version: detectedServerVersion ?? "unknown",
+                allowIncompatibleVersionLogin: didAcceptIncompatibleVersion
+            )
+            Logger.auth.info("Client token pairing complete")
+            appViewModel.appData.isLoading = false
+            appViewModel.appData.errorMessage = nil
+        } catch {
+            Logger.auth.error("Client token pairing failed: \(error)")
+            clientTokenError = error.localizedDescription
+        }
+        isExchangingToken = false
+    }
+
     private func hideKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
@@ -889,4 +1016,10 @@ struct ConnectionLogRow: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
     }
+}
+
+// TODO: Remove after Task 7 creates real QRScannerView
+private struct QRScannerView: View {
+    let onCodeScanned: (String) -> Void
+    var body: some View { Text("QR Scanner placeholder") }
 }
