@@ -187,31 +187,46 @@ extension ClientTokenAuthService {
             throw ClientTokenError.scopeFetchFailed
         }
 
-        struct ClientTokenResponse: Decodable {
-            let id: Int
-            let name: String
-            let scopes: String
-            let expires_at: Date?
-        }
+        // Log raw response for debugging
+        let rawResponse = String(data: data, encoding: .utf8) ?? "non-utf8"
+        logger.debug("Token validation raw response: \(rawResponse)")
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-
+        // Try to parse the response — server may return an array or a single object
+        // Fields may vary by server version
         do {
-            let tokens = try decoder.decode([ClientTokenResponse].self, from: data)
-            guard let first = tokens.first else {
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] ??
+                  (try JSONSerialization.jsonObject(with: data) as? [String: Any]).map({ [$0] }) else {
+                logger.error("Response is neither array nor object")
+                throw ClientTokenError.scopeFetchFailed
+            }
+
+            guard let first = json.first else {
                 throw ClientTokenError.tokenInvalid
             }
 
-            let scopes = first.scopes
-                .components(separatedBy: " ")
-                .filter { !$0.isEmpty }
+            let tokenId = first["id"] as? Int ?? 0
+            let name = first["name"] as? String ?? "Token"
+            let scopesRaw = first["scopes"] as? String ?? ""
+            let scopes = scopesRaw.components(separatedBy: " ").filter { !$0.isEmpty }
+
+            // Parse expires_at — could be ISO 8601 string or null
+            var expiresAt: Date?
+            if let expiresStr = first["expires_at"] as? String {
+                let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                expiresAt = formatter.date(from: expiresStr)
+                if expiresAt == nil {
+                    // Try without fractional seconds
+                    formatter.formatOptions = [.withInternetDateTime]
+                    expiresAt = formatter.date(from: expiresStr)
+                }
+            }
 
             let info = ClientTokenInfo(
-                tokenId: first.id,
-                name: first.name,
+                tokenId: tokenId,
+                name: name,
                 scopes: scopes,
-                expiresAt: first.expires_at
+                expiresAt: expiresAt
             )
 
             logger.info("Token validated: \(info.name) with \(info.scopes.count) scope(s)")
@@ -219,7 +234,7 @@ extension ClientTokenAuthService {
         } catch let error as ClientTokenError {
             throw error
         } catch {
-            logger.error("Failed to decode token validation response: \(error.localizedDescription)")
+            logger.error("Failed to parse token validation response: \(error)")
             throw ClientTokenError.scopeFetchFailed
         }
     }
