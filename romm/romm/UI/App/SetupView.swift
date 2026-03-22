@@ -131,6 +131,13 @@ struct SetupView: View {
             .onTapGesture {
                 hideKeyboard()
             }
+            .onReceive(NotificationCenter.default.publisher(for: .clientTokenPairingCode)) { notification in
+                if let code = notification.userInfo?["code"] as? String {
+                    Task {
+                        await performClientTokenPairing(code: code)
+                    }
+                }
+            }
         }
     }
 
