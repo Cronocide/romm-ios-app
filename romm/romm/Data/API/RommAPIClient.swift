@@ -206,13 +206,20 @@ class RommAPIClient: PRommAPIClient {
                 throw APIClientError.authenticationRequired
             case 403:
                 let msg = String(data: data, encoding: .utf8) ?? "Forbidden"
-                
+
                 // Check if this is a Cloudflare challenge
                 if isCloudflareChallenge(response: httpResponse, body: msg) {
-                    logger.warning("⚠️ Cloudflare protection detected - OIDC authentication may be required")
+                    logger.warning("Cloudflare protection detected - OIDC authentication may be required")
                     throw APIClientError.cloudflareProtection(msg)
                 }
-                
+
+                // For client token auth, 403 means token was revoked/invalid
+                if tokenProvider.getAuthMethod() == .clientToken {
+                    logger.warning("Client token rejected (403) - session expired")
+                    NotificationCenter.default.post(name: .sessionExpired, object: nil)
+                    throw APIClientError.authenticationRequired
+                }
+
                 // Regular 403 error
                 logger.error("Forbidden (\(httpResponse.statusCode)): \(msg)")
                 throw APIClientError.invalidResponse(httpResponse.statusCode, msg)
@@ -390,14 +397,18 @@ class RommAPIClient: PRommAPIClient {
                 throw APIClientError.authenticationRequired
             case 403:
                 let msg = String(data: data, encoding: .utf8) ?? "Forbidden"
-                
-                // Check if this is a Cloudflare challenge
+
                 if isCloudflareChallenge(response: httpResponse, body: msg) {
-                    logger.warning("⚠️ Cloudflare protection detected on multipart request")
+                    logger.warning("Cloudflare protection detected on multipart request")
                     throw APIClientError.cloudflareProtection(msg)
                 }
-                
-                // Regular 403 error
+
+                if tokenProvider.getAuthMethod() == .clientToken {
+                    logger.warning("Client token rejected (403) on multipart - session expired")
+                    NotificationCenter.default.post(name: .sessionExpired, object: nil)
+                    throw APIClientError.authenticationRequired
+                }
+
                 logger.error("Multipart forbidden (\(httpResponse.statusCode)): \(msg)")
                 throw APIClientError.invalidResponse(httpResponse.statusCode, msg)
             case 400...499:
