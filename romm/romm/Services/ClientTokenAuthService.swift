@@ -1,0 +1,282 @@
+//
+//  ClientTokenAuthService.swift
+//  romm
+//
+//  Client Token Authentication Service
+//  Handles QR/deep-link pairing, token validation, and Keychain storage
+//
+
+import Foundation
+
+// MARK: - Error Types
+
+enum ClientTokenError: LocalizedError {
+    case invalidQRCode
+    case codeExpired
+    case codeInvalid
+    case exchangeFailed(String)
+    case tokenInvalid
+    case tokenSaveFailed
+    case scopeFetchFailed
+    case cameraUnavailable
+    case rateLimited
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidQRCode:
+            return "The QR code is not a valid RomM pairing code."
+        case .codeExpired:
+            return "The pairing code has expired. Please generate a new one."
+        case .codeInvalid:
+            return "The pairing code is invalid."
+        case .exchangeFailed(let message):
+            return "Failed to exchange pairing code: \(message)"
+        case .tokenInvalid:
+            return "The client token is invalid or revoked."
+        case .tokenSaveFailed:
+            return "Failed to save the client token to Keychain."
+        case .scopeFetchFailed:
+            return "Failed to fetch token scope information."
+        case .cameraUnavailable:
+            return "Camera is not available on this device."
+        case .rateLimited:
+            return "Too many attempts. Please wait before trying again."
+        }
+    }
+}
+
+// MARK: - ClientTokenAuthService
+
+class ClientTokenAuthService {
+
+    private let logger = Logger.auth
+    private let keychainService: PKeychainService
+
+    static let tokenKeychainKey = "romm.clientToken"
+    static let tokenInfoKeychainKey = "romm.clientTokenInfo"
+
+    init(keychainService: PKeychainService = KeychainService.setup) {
+        self.keychainService = keychainService
+    }
+}
+
+// MARK: - Deep Link Handling
+
+extension ClientTokenAuthService {
+
+    /// Parses a `romm://pair?code=XXXXXXXX` deep link and returns the 8-character pairing code.
+    func handleDeepLink(url: URL) -> String? {
+        guard url.scheme == "romm",
+              url.host == "pair",
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let codeItem = components.queryItems?.first(where: { $0.name == "code" }),
+              let code = codeItem.value,
+              code.count == 8 else {
+            logger.warning("Invalid deep link URL: \(url.absoluteString)")
+            return nil
+        }
+        logger.info("Parsed pairing code from deep link")
+        return code
+    }
+}
+
+// MARK: - Pairing Flow
+
+extension ClientTokenAuthService {
+
+    /// Exchanges a pairing code for a client token via the server API.
+    func exchangeCode(serverURL: String, code: String) async throws -> String {
+        let cleanURL = serverURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let endpoint = "\(cleanURL)/api/client-tokens/exchange"
+
+        guard let url = URL(string: endpoint) else {
+            throw ClientTokenError.exchangeFailed("Invalid server URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = 15.0
+
+        let body = ["code": code]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        logger.info("Exchanging pairing code with server")
+
+        let session = URLSession(
+            configuration: .default,
+            delegate: PrivateNetworkURLSessionDelegate(),
+            delegateQueue: nil
+        )
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ClientTokenError.exchangeFailed("Invalid response")
+        }
+
+        logger.debug("Exchange response status: \(httpResponse.statusCode)")
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            break
+        case 404, 410:
+            throw ClientTokenError.codeExpired
+        case 400:
+            throw ClientTokenError.codeInvalid
+        case 429:
+            throw ClientTokenError.rateLimited
+        default:
+            let message = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw ClientTokenError.exchangeFailed("HTTP \(httpResponse.statusCode): \(message)")
+        }
+
+        // Expect JSON with a "token" field
+        struct ExchangeResponse: Decodable {
+            let token: String
+        }
+
+        do {
+            let exchangeResponse = try JSONDecoder().decode(ExchangeResponse.self, from: data)
+            logger.info("Pairing code exchanged successfully")
+            return exchangeResponse.token
+        } catch {
+            throw ClientTokenError.exchangeFailed("Failed to decode token from response")
+        }
+    }
+}
+
+// MARK: - Direct Token Validation
+
+extension ClientTokenAuthService {
+
+    /// Validates a client token against the server and returns its info.
+    func validateToken(serverURL: String, token: String) async throws -> ClientTokenInfo {
+        let cleanURL = serverURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let endpoint = "\(cleanURL)/api/client-tokens"
+
+        guard let url = URL(string: endpoint) else {
+            throw ClientTokenError.scopeFetchFailed
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = 15.0
+
+        let session = URLSession(
+            configuration: .default,
+            delegate: PrivateNetworkURLSessionDelegate(),
+            delegateQueue: nil
+        )
+
+        logger.info("Validating client token with server")
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ClientTokenError.scopeFetchFailed
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                throw ClientTokenError.tokenInvalid
+            }
+            throw ClientTokenError.scopeFetchFailed
+        }
+
+        struct ClientTokenResponse: Decodable {
+            let id: Int
+            let name: String
+            let scopes: String
+            let expires_at: Date?
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        do {
+            let tokens = try decoder.decode([ClientTokenResponse].self, from: data)
+            guard let first = tokens.first else {
+                throw ClientTokenError.tokenInvalid
+            }
+
+            let scopes = first.scopes
+                .split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+
+            let info = ClientTokenInfo(
+                tokenId: first.id,
+                name: first.name,
+                scopes: scopes,
+                expiresAt: first.expires_at
+            )
+
+            logger.info("Token validated: \(info.name) with \(info.scopes.count) scope(s)")
+            return info
+        } catch let error as ClientTokenError {
+            throw error
+        } catch {
+            logger.error("Failed to decode token validation response: \(error.localizedDescription)")
+            throw ClientTokenError.scopeFetchFailed
+        }
+    }
+
+    /// Convenience wrapper that delegates to `validateToken`.
+    func fetchTokenInfo(serverURL: String, token: String) async throws -> ClientTokenInfo {
+        return try await validateToken(serverURL: serverURL, token: token)
+    }
+}
+
+// MARK: - Token Storage
+
+extension ClientTokenAuthService {
+
+    /// Saves the client token string and its info to the Keychain.
+    func saveToken(_ token: String, info: ClientTokenInfo) throws {
+        do {
+            try keychainService.save(key: Self.tokenKeychainKey, value: token)
+        } catch {
+            logger.error("Failed to save client token to Keychain: \(error.localizedDescription)")
+            throw ClientTokenError.tokenSaveFailed
+        }
+
+        do {
+            let data = try JSONEncoder().encode(info)
+            guard let jsonString = String(data: data, encoding: .utf8) else {
+                throw ClientTokenError.tokenSaveFailed
+            }
+            try keychainService.save(key: Self.tokenInfoKeychainKey, value: jsonString)
+        } catch let error as ClientTokenError {
+            throw error
+        } catch {
+            logger.error("Failed to save client token info to Keychain: \(error.localizedDescription)")
+            throw ClientTokenError.tokenSaveFailed
+        }
+
+        logger.info("Client token and info saved to Keychain")
+    }
+
+    /// Reads the stored client token string from the Keychain.
+    func getToken() -> String? {
+        return keychainService.get(key: Self.tokenKeychainKey)
+    }
+
+    /// Reads and decodes the stored `ClientTokenInfo` from the Keychain.
+    func getTokenInfo() -> ClientTokenInfo? {
+        guard let jsonString = keychainService.get(key: Self.tokenInfoKeychainKey),
+              let data = jsonString.data(using: .utf8) else {
+            return nil
+        }
+        return try? JSONDecoder().decode(ClientTokenInfo.self, from: data)
+    }
+
+    /// Deletes both the token and token info from the Keychain.
+    func clearToken() {
+        try? keychainService.delete(key: Self.tokenKeychainKey)
+        try? keychainService.delete(key: Self.tokenInfoKeychainKey)
+        logger.info("Client token cleared from Keychain")
+    }
+}
