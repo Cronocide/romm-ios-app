@@ -841,6 +841,8 @@ struct SetupView: View {
             Logger.auth.info("Client token login complete")
             appViewModel.appData.isLoading = false
             appViewModel.appData.errorMessage = nil
+            // Trigger app state transition to authenticated
+            await appViewModel.checkInitialState()
         } catch {
             Logger.auth.error("Client token login failed: \(error)")
             clientTokenError = error.localizedDescription
@@ -869,6 +871,8 @@ struct SetupView: View {
             Logger.auth.info("Client token pairing complete")
             appViewModel.appData.isLoading = false
             appViewModel.appData.errorMessage = nil
+            // Trigger app state transition to authenticated
+            await appViewModel.checkInitialState()
         } catch {
             Logger.auth.error("Client token pairing failed: \(error)")
             clientTokenError = error.localizedDescription
