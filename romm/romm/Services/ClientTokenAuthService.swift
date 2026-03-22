@@ -204,8 +204,8 @@ extension ClientTokenAuthService {
             }
 
             let scopes = first.scopes
-                .split(separator: ",")
-                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .components(separatedBy: " ")
+                .filter { !$0.isEmpty }
 
             let info = ClientTokenInfo(
                 tokenId: first.id,
