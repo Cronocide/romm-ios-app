@@ -206,8 +206,16 @@ extension ClientTokenAuthService {
 
             let tokenId = first["id"] as? Int ?? 0
             let name = first["name"] as? String ?? "Token"
-            let scopesRaw = first["scopes"] as? String ?? ""
-            let scopes = scopesRaw.components(separatedBy: " ").filter { !$0.isEmpty }
+
+            // Scopes can be an array of strings or a space-separated string
+            let scopes: [String]
+            if let scopesArray = first["scopes"] as? [String] {
+                scopes = scopesArray
+            } else if let scopesString = first["scopes"] as? String {
+                scopes = scopesString.components(separatedBy: " ").filter { !$0.isEmpty }
+            } else {
+                scopes = []
+            }
 
             // Parse expires_at — could be ISO 8601 string or null
             var expiresAt: Date?
