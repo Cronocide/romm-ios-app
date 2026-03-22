@@ -391,6 +391,9 @@ class HeartbeatRepository: PHeartbeatRepository {
         var supportsClientTokens: Bool { clientTokens }
     }
 
+    /// Minimum server version that supports client API tokens (PR #3114)
+    private let minClientTokenVersion = "4.8.0"
+
     func detectAuthCapabilities(serverURL: String) async -> AuthCapabilities {
         let legacy = await detectAuthCapability(serverURL: serverURL)
         var hasClientTokens = false
@@ -398,9 +401,17 @@ class HeartbeatRepository: PHeartbeatRepository {
             let response = try await apiClient.getHeartbeat(from: serverURL)
             if let clientTokensConfig = response.CLIENT_TOKENS {
                 hasClientTokens = clientTokensConfig.ENABLED
-                oidcLogger.info("Client tokens enabled: \(hasClientTokens)")
+                oidcLogger.info("Client tokens enabled via heartbeat: \(hasClientTokens)")
             } else {
-                oidcLogger.info("Server does not expose CLIENT_TOKENS in heartbeat (older version)")
+                // Fallback: check server version >= 4.8.0
+                let version = response.SYSTEM.VERSION
+                let baseVersion = version.split(separator: "-").first.map(String.init) ?? version
+                if compareVersions(baseVersion, minClientTokenVersion) >= 0 {
+                    hasClientTokens = true
+                    oidcLogger.info("Client tokens assumed available (server \(version) >= \(minClientTokenVersion))")
+                } else {
+                    oidcLogger.info("Server \(version) too old for client tokens")
+                }
             }
         } catch {
             oidcLogger.debug("Could not check client token support: \(error)")
