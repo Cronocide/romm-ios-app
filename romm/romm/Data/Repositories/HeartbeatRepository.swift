@@ -195,8 +195,11 @@ class HeartbeatRepository: PHeartbeatRepository {
     }
 
     private func compareVersions(_ version1: String, _ version2: String) -> Int {
-        let v1Parts = version1.split(separator: ".").compactMap { Int($0) }
-        let v2Parts = version2.split(separator: ".").compactMap { Int($0) }
+        // Strip pre-release suffixes (e.g. "4.8.0-alpha.1" → "4.8.0")
+        let base1 = version1.split(separator: "-").first.map(String.init) ?? version1
+        let base2 = version2.split(separator: "-").first.map(String.init) ?? version2
+        let v1Parts = base1.split(separator: ".").compactMap { Int($0) }
+        let v2Parts = base2.split(separator: ".").compactMap { Int($0) }
 
         let maxLength = max(v1Parts.count, v2Parts.count)
 
