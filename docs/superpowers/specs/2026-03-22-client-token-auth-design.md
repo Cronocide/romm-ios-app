@@ -2,7 +2,7 @@
 
 ## Overview
 
-Integrate RomM's new Client API Token system (PR #3114) into the iOS app as a third authentication method alongside Classic (username/password) and OIDC. Users can pair their device via QR code scanning or manual token input. Tokens are stored securely in the iOS Keychain.
+Integrate RomM's new Client API Token system (PR #3114) into the iOS app as a third authentication method alongside Classic (username/password) and OIDC. Users can pair their device via QR code scanning, deep link, or direct token input. Tokens are stored securely in the iOS Keychain.
 
 ## Context
 
@@ -68,10 +68,13 @@ New service file: `romm/Services/ClientTokenAuthService.swift`
 
 ### Responsibilities
 
-**QR Scan & Pairing:**
-- `scanQRCode()` — Opens AVCaptureSession, extracts 8-character pairing code
-- `handleDeepLink(url: URL) -> String?` — Parses `romm://pair?code=XXXXXXXX`, returns code
-- `exchangeCode(serverURL: String, code: String) async throws -> String` — POST to `/api/client-tokens/exchange`, returns raw token string
+**Pairing (8-char code → token exchange):**
+- `scanQRCode()` — Opens AVCaptureSession, extracts 8-character pairing code from QR
+- `handleDeepLink(url: URL) -> String?` — Parses `romm://pair?code=XXXXXXXX`, returns 8-char pairing code
+- `exchangeCode(serverURL: String, code: String) async throws -> String` — POST to `/api/client-tokens/exchange` with pairing code, returns raw `rmm_` token string
+
+**Direct Token Input (user already has a token):**
+- `validateToken(serverURL: String, token: String) async throws -> ClientTokenInfo` — GET `/api/client-tokens` with the token as Bearer header to verify it works and retrieve metadata. Throws if token is invalid/expired.
 
 **Token Management:**
 - `saveToken(_ token: String, info: ClientTokenInfo)` — Token to Keychain, info to Keychain
@@ -80,7 +83,7 @@ New service file: `romm/Services/ClientTokenAuthService.swift`
 - `clearToken()` — Delete both from Keychain
 
 **Scope Query:**
-- `fetchTokenInfo(serverURL: String, token: String) async throws -> ClientTokenInfo` — GET `/api/client-tokens` to retrieve own token details + scopes after pairing
+- `fetchTokenInfo(serverURL: String, token: String) async throws -> ClientTokenInfo` — GET `/api/client-tokens` to retrieve own token details + scopes. Used after both pairing and direct input paths.
 
 ### Network
 
@@ -94,9 +97,11 @@ enum ClientTokenError: Error {
     case codeExpired              // 60s TTL exceeded
     case codeInvalid              // Server rejected the code
     case exchangeFailed(String)   // Network/server error during exchange
+    case tokenInvalid             // Direct-input token failed validation
     case tokenSaveFailed          // Keychain write failure
     case scopeFetchFailed         // Could not retrieve token info
     case cameraUnavailable        // No camera access
+    case rateLimited              // 429 from exchange endpoint (5 req/min/IP)
 }
 ```
 
@@ -104,26 +109,30 @@ enum ClientTokenError: Error {
 
 ## 3. RommAPIClient Integration
 
-### Auth Header
+### Auth Header Refactoring
 
-In `makeAuthHeader()` (existing method), add third branch:
+The current codebase hardcodes `"Basic \(base64Auth)"` in three places: `makeRequest()`, `downloadFile()`, and `multipartRequest()`, each calling `makeBasicAuthHeader()`. This must be refactored:
 
-```
-if authMethod == .clientToken:
-    return "Bearer \(clientToken)"    // rmm_... prefix included in token
-```
+1. **Replace `makeBasicAuthHeader()`** with a new `makeAuthHeader() -> String?` method that dispatches based on auth method:
+   - `.classic` → `"Basic \(base64)"` (existing logic)
+   - `.oidc` → `"Bearer \(oidcAccessToken)"` (existing logic)
+   - `.clientToken` → `"Bearer \(clientToken)"` (rmm_ prefix included in token)
+2. **Update all three request methods** (`makeRequest`, `downloadFile`, `multipartRequest`) to call `makeAuthHeader()` instead of hardcoding Basic auth
+3. **Handle missing credentials gracefully**: For `.clientToken`, if Keychain read fails → throw `APIClientError.noCredentials` (same as existing behavior for missing username/password)
 
-No changes to existing Classic or OIDC branches.
+### TokenProvider & PTokenProvider Protocol
 
-### TokenProvider Extensions
+Both `PTokenProvider` protocol and `TokenProvider` implementation must be updated:
 
-New methods on `TokenProvider`:
+New protocol methods:
 - `getClientToken() -> String?` — Reads from Keychain via KeychainService
 - `getClientTokenInfo() -> ClientTokenInfo?` — Reads metadata
 - `hasScope(_ scope: String) -> Bool` — Checks if current token has a given scope
 - `availableScopes: [String]?` — Computed from stored ClientTokenInfo
 
 Existing `getAuthToken()` gets a third branch for `.clientToken` that delegates to `getClientToken()`.
+
+Note: `MockTokenProvider` (used in tests/previews) must also be updated to conform to the new protocol.
 
 ### 401 Handling
 
@@ -143,12 +152,22 @@ After server validation and capability detection, SetupView shows available auth
 
 ### Token Pairing Sub-Flow
 
-"Token verbinden" presents two options:
+"Token verbinden" presents two options with distinct flows:
 
-1. **"QR-Code scannen"** — Opens `QRScannerView` (camera)
-2. **"Token eingeben"** — TextField for manual paste
+**Path A: QR-Code scannen (pairing code flow)**
+1. Camera opens → scans QR → extracts 8-char pairing code
+2. `exchangeCode()` POSTs code to `/api/client-tokens/exchange` → receives `rmm_` token
+3. `fetchTokenInfo()` validates token and retrieves scopes
+4. Save token + info to Keychain → complete setup
 
-Both converge at the same point: raw token string obtained → save to Keychain → fetch token info/scopes → complete setup.
+**Path B: Token eingeben (direct token flow)**
+1. User pastes full `rmm_` token string from web UI
+2. `validateToken()` calls GET `/api/client-tokens` with token as Bearer header → verifies token works, retrieves scopes
+3. Save token + info to Keychain → complete setup
+
+Both paths converge after step 2: validated token + ClientTokenInfo → save → complete setup.
+
+Note: `SetupConfiguration.username` is currently non-optional. For client token auth, populate with the token name or "Token User" (similar to OIDC's fallback of `tokens.username ?? "OIDC User"`).
 
 ### QRScannerView (new)
 
@@ -162,10 +181,16 @@ Both converge at the same point: raw token string obtained → save to Keychain 
 
 ### Deep Link Handling
 
-`AppDelegate` extended to handle `romm://pair?code=XXXXXXXX`:
-- Parse code from URL
-- If SetupView is active → trigger exchange flow
-- If app is already configured → ignore (token management happens in web UI)
+`AppDelegate` already handles `romm://` URLs for OIDC callbacks (`romm://callback`). Extended to route based on host/path:
+
+- `romm://callback?...` → existing OIDC flow (unchanged)
+- `romm://pair?code=XXXXXXXX` → new client token pairing flow
+
+Routing logic in `AppDelegate.application(_:open:options:)`:
+1. Parse URL host: `"callback"` → OIDC, `"pair"` → client token
+2. For `"pair"`: extract `code` query parameter → forward to `ClientTokenAuthService.handleDeepLink()`
+3. If SetupView is active → trigger exchange flow
+4. If app is already configured → ignore (token management happens in web UI)
 
 ### Scope-Based UI Adaptation
 
@@ -180,17 +205,14 @@ Implementation: `TokenProvider.hasScope(_:)` queried by ViewModels. No new UI fo
 
 ## 5. KeychainService
 
-### Generalized API
+### Using Existing API
 
-Extend existing `KeychainService` with generic methods:
+`KeychainService` already has String-based methods: `save(key:value:)`, `get(key:) -> String?`, `delete(key:)`. Use these directly:
 
-```swift
-func save(key: String, data: Data) throws
-func read(key: String) -> Data?
-func delete(key: String)
-```
+- Token string (`rmm_...`) → `save(key: "romm.clientToken", value: tokenString)`
+- ClientTokenInfo → JSON-encode to String, then `save(key: "romm.clientTokenInfo", value: jsonString)`
 
-These wrap the existing Keychain access patterns already used for SFTP credentials.
+No new methods needed. The existing API is sufficient.
 
 ### Keys
 
@@ -209,7 +231,7 @@ The generic API is designed so Classic credentials and OIDC tokens can be migrat
 
 ## 6. Server Capability Detection
 
-### AuthCapabilities (new, replaces enum)
+### AuthCapabilities (new, replaces ServerAuthCapability enum)
 
 ```swift
 struct AuthCapabilities {
@@ -217,23 +239,34 @@ struct AuthCapabilities {
     let oidc: Bool
     let clientTokens: Bool
     let cloudflareBlocked: Bool
+    let unreachable: Bool
 }
 ```
 
-Replaces the existing `AuthCapability` enum to support three independent auth methods.
+Replaces the existing `ServerAuthCapability` enum (which has cases: `classicOnly`, `oidcOnly`, `both`, `cloudflareBlocked`, `unreachable`) to support three independent auth methods plus error states.
+
+### Migration of Existing Call Sites
+
+The following must be updated when replacing the enum:
+- `AuthMethod.recommendation(for:)` and `AuthMethod.availableMethods(for:)` in `AuthMethod.swift` — switch from enum matching to flag checking
+- `SetupView` `@State private var detectedAuthCapability` — change type to `AuthCapabilities?`
+- `HeartbeatRepository.detectAuthCapability()` — return `AuthCapabilities` instead of enum
 
 ### Detection Logic
 
 In `HeartbeatRepository.detectAuthCapability()`:
 
 1. Fetch heartbeat response
-2. Check for `CLIENT_TOKENS.ENABLED` field in response (or equivalent)
-3. If field absent (older server) → `clientTokens: false`
-4. Fallback: version comparison if heartbeat doesn't expose the field
+2. Check for client token support:
+   - **Primary**: Check if heartbeat response contains a client tokens field (to be verified against the exact server response shape from PR #3114 during implementation)
+   - **Fallback**: Version comparison — if server version >= the release that includes PR #3114, assume client tokens are available
+   - **Default**: If neither signal is present → `clientTokens: false`
+3. Existing classic/OIDC detection logic unchanged
+4. Note: The exact heartbeat response field name must be confirmed during implementation by checking the merged PR #3114 server code
 
 ### SetupView Adaptation
 
-SetupView switches from `switch authCapability` to checking individual flags on `AuthCapabilities`. Shows all available auth options as buttons/sections.
+SetupView switches from `switch authCapability` to checking individual flags on `AuthCapabilities`. Shows all available auth options as buttons/sections. Error states (`cloudflareBlocked`, `unreachable`) take precedence and show appropriate messaging before auth options.
 
 ---
 
@@ -247,7 +280,8 @@ SetupView switches from `switch authCapability` to checking individual flags on 
 | `UI/App/QRScannerView.swift` | New | Camera-based QR scanner |
 | `Data/API/RommAPIClient.swift` | Modified | Third auth header branch |
 | `Data/Services/TokenProvider.swift` | Modified | Client token + scope methods |
-| `Data/Services/KeychainService.swift` | Modified | Generic save/read/delete API |
+| `Data/Services/KeychainService.swift` | Unchanged | Existing String API is sufficient |
+| `Domain/RepositoryProtocols/PTokenProvider.swift` | Modified | Add client token protocol methods |
 | `Data/Repositories/HeartbeatRepository.swift` | Modified | AuthCapabilities struct, client token detection |
 | `Data/Repositories/SetupRepository.swift` | Modified | Client token persistence helpers |
 | `UI/App/SetupView.swift` | Modified | Third auth option, pairing sub-flow |
