@@ -123,7 +123,8 @@ extension AuthMethod {
     static func availableMethods(for capabilities: HeartbeatRepository.AuthCapabilities) -> [AuthMethod] {
         var methods: [AuthMethod] = []
         if capabilities.classic { methods.append(.classic) }
-        if capabilities.oidc { methods.append(.oidc) }
+        // OIDC temporarily disabled until fully working
+        // if capabilities.oidc { methods.append(.oidc) }
         if capabilities.clientTokens { methods.append(.clientToken) }
         return methods
     }

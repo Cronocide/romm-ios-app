@@ -600,10 +600,9 @@ struct SetupView: View {
             return
         }
         serverValidated = true
-        if capabilities.oidc {
-            selectedAuthMethod = .oidc
-            await discoverOIDCConfiguration()
-        } else if capabilities.classic {
+        // Default: prefer classic, then client token
+        // OIDC temporarily disabled
+        if capabilities.classic {
             selectedAuthMethod = .classic
         } else if capabilities.clientTokens {
             selectedAuthMethod = .clientToken
