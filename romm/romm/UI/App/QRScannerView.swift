@@ -52,12 +52,34 @@ struct QRScannerView: View {
     private func handleCode(_ code: String) {
         guard !hasScanned else { return }
         let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count == 8, trimmed.allSatisfy({ $0.isLetter || $0.isNumber }) else {
+
+        // Try to extract pairing code from various formats:
+        // 1. Raw 8-char code: "ABCD1234"
+        // 2. URL with code param: "https://romm.example.com/pair?code=ABCD1234"
+        // 3. Deep link: "romm://pair?code=ABCD1234"
+        if let extracted = extractPairingCode(from: trimmed) {
+            hasScanned = true
+            onCodeScanned(extracted)
+        } else {
             error = "Not a valid pairing code"
-            return
         }
-        hasScanned = true
-        onCodeScanned(trimmed)
+    }
+
+    private func extractPairingCode(from value: String) -> String? {
+        // Check if it's a raw 8-char alphanumeric code
+        if value.count == 8, value.allSatisfy({ $0.isLetter || $0.isNumber }) {
+            return value
+        }
+
+        // Try parsing as URL and extract "code" query parameter
+        if let url = URL(string: value),
+           let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+           let code = components.queryItems?.first(where: { $0.name == "code" })?.value,
+           code.count == 8, code.allSatisfy({ $0.isLetter || $0.isNumber }) {
+            return code
+        }
+
+        return nil
     }
 }
 
