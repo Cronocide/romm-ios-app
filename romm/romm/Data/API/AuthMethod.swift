@@ -14,7 +14,10 @@ enum AuthMethod: String, Codable, CaseIterable {
     
     /// OIDC/OAuth2 authentication (Bearer Token)
     case oidc
-    
+
+    /// Client API Token authentication (prefixed with `rmm_`)
+    case clientToken
+
     /// User-friendly display name
     var displayName: String {
         switch self {
@@ -22,9 +25,11 @@ enum AuthMethod: String, Codable, CaseIterable {
             return "Username & Password"
         case .oidc:
             return "Browser Login (OIDC)"
+        case .clientToken:
+            return "API Token"
         }
     }
-    
+
     /// Short description
     var description: String {
         switch self {
@@ -32,6 +37,8 @@ enum AuthMethod: String, Codable, CaseIterable {
             return "Traditional login with username and password"
         case .oidc:
             return "Secure browser-based authentication"
+        case .clientToken:
+            return "Connect with an API token from your server"
         }
     }
     
@@ -42,6 +49,8 @@ enum AuthMethod: String, Codable, CaseIterable {
             return "person.fill"
         case .oidc:
             return "globe"
+        case .clientToken:
+            return "key.fill"
         }
     }
     
@@ -52,6 +61,8 @@ enum AuthMethod: String, Codable, CaseIterable {
             return false
         case .oidc:
             return true
+        case .clientToken:
+            return false
         }
     }
     
@@ -62,6 +73,8 @@ enum AuthMethod: String, Codable, CaseIterable {
             return true // Username stored, password used for Basic Auth
         case .oidc:
             return false // Only tokens stored, no password
+        case .clientToken:
+            return false // Token stored in Keychain, not as credential
         }
     }
 }
