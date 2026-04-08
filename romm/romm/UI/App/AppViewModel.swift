@@ -140,6 +140,7 @@ class AppViewModel {
                 allowIncompatibleVersionLogin: true
             )
 
+            try SetupRepository().saveAuthMethod(.classic)
             updateAppConfig(setupConfig)
             logger.info("Setup configuration saved successfully")
             appData.updateLoading(false)
