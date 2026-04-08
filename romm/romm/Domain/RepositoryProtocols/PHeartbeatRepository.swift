@@ -46,9 +46,6 @@ protocol PHeartbeatRepository {
     /// Compare two semantic versions. Returns true if version >= minVersion
     func isVersionCompatible(_ version: String) -> Bool
 
-    /// Detect server authentication capabilities (Classic, OIDC, both, or Cloudflare-blocked)
-    func detectAuthCapability(serverURL: String) async -> HeartbeatRepository.ServerAuthCapability
-
-    /// Detect rich authentication capabilities including client token support
+    /// Detect authentication capabilities including client token support
     func detectAuthCapabilities(serverURL: String) async -> HeartbeatRepository.AuthCapabilities
 }

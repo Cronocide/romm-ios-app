@@ -79,12 +79,6 @@ protocol PSetupRepository {
         allowIncompatibleVersionLogin: Bool
     ) async throws -> SetupConfiguration
     
-    // OIDC Methods
-    func saveOIDCConfiguration(_ config: OIDCConfiguration) throws
-    func getOIDCConfiguration() -> OIDCConfiguration?
-    func saveOIDCTokens(_ tokens: OIDCTokens) throws
-    func getOIDCTokens() -> OIDCTokens?
-    func clearOIDCData() throws
     func getAuthMethod() -> AuthMethod
     func saveAuthMethod(_ method: AuthMethod) throws
 
@@ -433,117 +427,8 @@ class SetupRepository: PSetupRepository {
         return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
     }
     
-    // MARK: - OIDC Methods
-    
-    /// UserDefaults keys for OIDC data
-    private var oidcConfigurationKey: String { "\(userDefaultsPrefix)oidc_configuration" }
-    private var oidcTokensKey: String { "\(userDefaultsPrefix)oidc_tokens" }
     private var authMethodKey: String { "\(userDefaultsPrefix)auth_method" }
-    
-    func saveOIDCConfiguration(_ config: OIDCConfiguration) throws {
-        logger.info("💾 Saving OIDC configuration...")
-        logger.debug("Issuer: \(config.issuerURL)")
-        logger.debug("Client ID: \(config.clientId)")
-        logger.debug("Scopes: \(config.scopes.joined(separator: ", "))")
-        
-        do {
-            let jsonData = try JSONEncoder().encode(config)
-            let jsonString = String(data: jsonData, encoding: .utf8) ?? ""
-            
-            UserDefaults.standard.set(jsonString, forKey: oidcConfigurationKey)
-            
-            logger.info("✅ OIDC configuration saved successfully")
-        } catch {
-            logger.error("❌ Failed to encode OIDC configuration: \(error)")
-            throw SetupRepositoryError.invalidData
-        }
-    }
-    
-    func getOIDCConfiguration() -> OIDCConfiguration? {
-        logger.debug("📖 Reading OIDC configuration...")
-        
-        guard let jsonString = UserDefaults.standard.string(forKey: oidcConfigurationKey),
-              !jsonString.isEmpty else {
-            logger.debug("No OIDC configuration found")
-            return nil
-        }
-        
-        guard let jsonData = jsonString.data(using: .utf8) else {
-            logger.error("Failed to convert OIDC config JSON to data")
-            return nil
-        }
-        
-        do {
-            let config = try JSONDecoder().decode(OIDCConfiguration.self, from: jsonData)
-            logger.info("✅ OIDC configuration loaded")
-            logger.debug("Issuer: \(config.issuerURL)")
-            return config
-        } catch {
-            logger.error("❌ Failed to decode OIDC configuration: \(error)")
-            return nil
-        }
-    }
-    
-    func saveOIDCTokens(_ tokens: OIDCTokens) throws {
-        logger.info("💾 Saving OIDC tokens...")
-        logger.debug("Token type: \(tokens.tokenType)")
-        logger.debug("Expires at: \(tokens.expiresAt)")
-        logger.debug("Has refresh token: \(tokens.refreshToken != nil)")
-        
-        do {
-            let jsonData = try JSONEncoder().encode(tokens)
-            let jsonString = String(data: jsonData, encoding: .utf8) ?? ""
-            
-            UserDefaults.standard.set(jsonString, forKey: oidcTokensKey)
-            
-            logger.info("✅ OIDC tokens saved successfully")
-        } catch {
-            logger.error("❌ Failed to encode OIDC tokens: \(error)")
-            throw SetupRepositoryError.invalidData
-        }
-    }
-    
-    func getOIDCTokens() -> OIDCTokens? {
-        logger.debug("📖 Reading OIDC tokens...")
-        
-        guard let jsonString = UserDefaults.standard.string(forKey: oidcTokensKey),
-              !jsonString.isEmpty else {
-            logger.debug("No OIDC tokens found")
-            return nil
-        }
-        
-        guard let jsonData = jsonString.data(using: .utf8) else {
-            logger.error("Failed to convert OIDC tokens JSON to data")
-            return nil
-        }
-        
-        do {
-            let tokens = try JSONDecoder().decode(OIDCTokens.self, from: jsonData)
-            
-            if tokens.isExpired {
-                logger.warning("⚠️ OIDC tokens are expired")
-            } else if tokens.willExpireSoon {
-                logger.warning("⚠️ OIDC tokens will expire soon")
-            } else {
-                logger.info("✅ OIDC tokens loaded (valid)")
-            }
-            
-            return tokens
-        } catch {
-            logger.error("❌ Failed to decode OIDC tokens: \(error)")
-            return nil
-        }
-    }
-    
-    func clearOIDCData() throws {
-        logger.info("🗑️ Clearing OIDC data...")
-        
-        UserDefaults.standard.removeObject(forKey: oidcConfigurationKey)
-        UserDefaults.standard.removeObject(forKey: oidcTokensKey)
-        
-        logger.info("✅ OIDC data cleared")
-    }
-    
+
     func getAuthMethod() -> AuthMethod {
         logger.debug("📖 Reading auth method...")
         

@@ -560,6 +560,8 @@ class SFTPUploadViewModel {
             return .networkError("HTTP \(statusCode)")
         case .decodingError:
             return .downloadFailed
+        case .cloudflareProtection(_):
+            return .connectionFailed
         }
     }
     

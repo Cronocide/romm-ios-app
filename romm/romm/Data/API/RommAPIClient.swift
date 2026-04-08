@@ -78,8 +78,6 @@ protocol PRommAPIClient {
     func getSaves(romId: Int) async throws -> [SaveSchema]
     func getStates(romId: Int) async throws -> [StateSchema]
 
-    // OIDC Discovery
-    func checkOIDCAvailability(serverURL: String) async -> Bool
 }
 
 enum APIClientError: LocalizedError {
@@ -91,7 +89,6 @@ enum APIClientError: LocalizedError {
     case invalidResponse(Int, String)
     case decodingError(Error)
     case cloudflareProtection(String)
-    case oidcRequired
 
     var errorDescription: String? {
         switch self {
@@ -111,8 +108,6 @@ enum APIClientError: LocalizedError {
             return "Data decoding error: \(error.localizedDescription)"
         case .cloudflareProtection(let details):
             return "Server is protected by Cloudflare - browser authentication required"
-        case .oidcRequired:
-            return "This server requires OIDC/SSO authentication"
         }
     }
 }
@@ -209,7 +204,7 @@ class RommAPIClient: PRommAPIClient {
 
                 // Check if this is a Cloudflare challenge
                 if isCloudflareChallenge(response: httpResponse, body: msg) {
-                    logger.warning("Cloudflare protection detected - OIDC authentication may be required")
+                    logger.warning("Cloudflare protection detected")
                     throw APIClientError.cloudflareProtection(msg)
                 }
 
@@ -506,12 +501,6 @@ class RommAPIClient: PRommAPIClient {
                 throw APIClientError.noCredentials
             }
             return "Bearer \(token)"
-        case .oidc:
-            guard let accessToken = tokenProvider.getOIDCAccessToken() else {
-                logger.error("No OIDC access token available")
-                throw APIClientError.noCredentials
-            }
-            return "Bearer \(accessToken)"
         case .classic:
             guard let username = tokenProvider.getUsername(),
                   let password = tokenProvider.getPassword() else {
@@ -568,35 +557,4 @@ class RommAPIClient: PRommAPIClient {
         return isCloudflare
     }
 
-    // MARK: - OIDC Discovery
-
-    func checkOIDCAvailability(serverURL: String) async -> Bool {
-        let wellKnownPath = ".well-known/openid-configuration"
-
-        logger.info("Checking OIDC availability at: \(serverURL)")
-
-        do {
-            // Try without auth first (OIDC discovery is typically public)
-            guard let url = URL(string: "\(serverURL)/\(wellKnownPath)") else {
-                logger.error("Invalid OIDC discovery URL")
-                return false
-            }
-
-            var request = URLRequest(url: url)
-            request.timeoutInterval = 5.0
-            request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-            let (_, response) = try await urlSession.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-                let available = httpResponse.statusCode == 200
-                logger.info("OIDC discovery response: \(httpResponse.statusCode) - Available: \(available)")
-                return available
-            }
-        } catch {
-            logger.debug("OIDC discovery check failed: \(error)")
-        }
-
-        return false
-    }
 }

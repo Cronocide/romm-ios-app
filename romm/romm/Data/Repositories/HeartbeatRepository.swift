@@ -7,7 +7,6 @@ import Foundation
 
 class HeartbeatRepository: PHeartbeatRepository {
     private let logger = Logger.data
-    private let oidcLogger = Logger.oidc // Separate logger for OIDC detection
     private let apiClient: RommAPIClient
     private let userDefaults: UserDefaults
 
@@ -214,183 +213,24 @@ class HeartbeatRepository: PHeartbeatRepository {
         return 0
     }
 
-    // MARK: - Server Capability Detection
-
-    enum ServerAuthCapability {
-        case classicOnly
-        case oidcOnly
-        case both
-        case cloudflareBlocked
-        case unreachable
-
-        var description: String {
-            switch self {
-            case .classicOnly:
-                return "Classic authentication (Username/Password)"
-            case .oidcOnly:
-                return "OIDC/SSO authentication only"
-            case .both:
-                return "Both classic and OIDC authentication supported"
-            case .cloudflareBlocked:
-                return "Server blocked by Cloudflare - no OIDC available"
-            case .unreachable:
-                return "Server unreachable"
-            }
-        }
-
-        var requiresOIDC: Bool {
-            switch self {
-            case .oidcOnly:
-                return true
-            default:
-                return false
-            }
-        }
-
-        var supportsClassic: Bool {
-            switch self {
-            case .classicOnly, .both:
-                return true
-            default:
-                return false
-            }
-        }
-
-        var supportsOIDC: Bool {
-            switch self {
-            case .oidcOnly, .both:
-                return true
-            default:
-                return false
-            }
-        }
-    }
-
-    func detectAuthCapability(serverURL: String) async -> ServerAuthCapability {
-        oidcLogger.info("🔍 Detecting authentication capabilities for: \(serverURL)")
-
-        var hasCloudflare = false
-        var classicAuthWorks = false
-        var hasOIDC = false
-        var heartbeatResponse: HeartbeatResponse?
-
-        // 1. Try heartbeat (will detect Cloudflare and test classic auth)
-        do {
-            let response = try await apiClient.getHeartbeat(from: serverURL)
-            heartbeatResponse = response
-            classicAuthWorks = true
-            oidcLogger.info("✅ Classic auth works - heartbeat successful")
-            
-            // Check if OIDC is enabled in heartbeat response
-            if response.OIDC.ENABLED {
-                hasOIDC = true
-                oidcLogger.info("✅ OIDC is enabled in server config (provider: \(response.OIDC.PROVIDER))")
-            } else {
-                oidcLogger.info("❌ OIDC is disabled in server config")
-            }
-            
-            // Check if classic auth is disabled
-            if response.FRONTEND.DISABLE_USERPASS_LOGIN {
-                classicAuthWorks = false
-                oidcLogger.warning("⚠️ Classic username/password login is disabled on server")
-            }
-        } catch let error as APIClientError {
-            if case .cloudflareProtection = error {
-                hasCloudflare = true
-                oidcLogger.warning("🔒 Cloudflare protection detected")
-            } else {
-                oidcLogger.error("Heartbeat failed with error: \(error)")
-            }
-        } catch {
-            oidcLogger.error("Heartbeat failed with unexpected error: \(error)")
-        }
-
-        // 2. If we couldn't get heartbeat (e.g. Cloudflare), check OIDC discovery endpoint
-        if heartbeatResponse == nil {
-            hasOIDC = await apiClient.checkOIDCAvailability(serverURL: serverURL)
-            if hasOIDC {
-                oidcLogger.info("✅ OIDC discovery endpoint is available")
-            } else {
-                oidcLogger.info("❌ OIDC discovery endpoint not available")
-                
-                // If Cloudflare is detected, assume OIDC might be available
-                // even if .well-known is not accessible (also behind Cloudflare)
-                if hasCloudflare {
-                    oidcLogger.warning("⚠️ Cloudflare detected - assuming OIDC might be available with default config")
-                    hasOIDC = true // Optimistic assumption for Cloudflare scenarios
-                }
-            }
-        }
-
-        // 3. Determine capability
-        let capability: ServerAuthCapability
-        if hasCloudflare && hasOIDC {
-            capability = .oidcOnly
-            oidcLogger.info("🎯 Result: OIDC only (Cloudflare protection active)")
-        } else if hasCloudflare && !hasOIDC {
-            capability = .cloudflareBlocked
-            oidcLogger.warning("⚠️ Result: Server blocked by Cloudflare, no OIDC configured")
-        } else if classicAuthWorks && hasOIDC {
-            capability = .both
-            oidcLogger.info("🎯 Result: Both authentication methods available")
-        } else if classicAuthWorks && !hasOIDC {
-            capability = .classicOnly
-            oidcLogger.info("🎯 Result: Classic authentication only")
-        } else if !classicAuthWorks && hasOIDC {
-            capability = .oidcOnly
-            oidcLogger.info("🎯 Result: OIDC only (classic auth disabled)")
-        } else {
-            capability = .unreachable
-            oidcLogger.error("❌ Result: Server unreachable")
-        }
-
-        return capability
-    }
-
-    // MARK: - Auth Capabilities (Rich)
+    // MARK: - Auth Capabilities
 
     struct AuthCapabilities {
         let classic: Bool
-        let oidc: Bool
         let clientTokens: Bool
         let cloudflareBlocked: Bool
         let unreachable: Bool
-
-        init(from legacy: ServerAuthCapability, clientTokens: Bool = false) {
-            switch legacy {
-            case .classicOnly:
-                self.init(classic: true, oidc: false, clientTokens: clientTokens, cloudflareBlocked: false, unreachable: false)
-            case .oidcOnly:
-                self.init(classic: false, oidc: true, clientTokens: clientTokens, cloudflareBlocked: false, unreachable: false)
-            case .both:
-                self.init(classic: true, oidc: true, clientTokens: clientTokens, cloudflareBlocked: false, unreachable: false)
-            case .cloudflareBlocked:
-                self.init(classic: false, oidc: false, clientTokens: false, cloudflareBlocked: true, unreachable: false)
-            case .unreachable:
-                self.init(classic: false, oidc: false, clientTokens: false, cloudflareBlocked: false, unreachable: true)
-            }
-        }
-
-        init(classic: Bool, oidc: Bool, clientTokens: Bool, cloudflareBlocked: Bool, unreachable: Bool) {
-            self.classic = classic
-            self.oidc = oidc
-            self.clientTokens = clientTokens
-            self.cloudflareBlocked = cloudflareBlocked
-            self.unreachable = unreachable
-        }
 
         var description: String {
             if unreachable { return "Server unreachable" }
             if cloudflareBlocked { return "Server blocked by Cloudflare" }
             var methods: [String] = []
             if classic { methods.append("Classic") }
-            if oidc { methods.append("OIDC") }
             if clientTokens { methods.append("Client Tokens") }
             return methods.isEmpty ? "No auth methods available" : methods.joined(separator: ", ")
         }
 
         var supportsClassic: Bool { classic }
-        var supportsOIDC: Bool { oidc }
         var supportsClientTokens: Bool { clientTokens }
     }
 
@@ -398,27 +238,57 @@ class HeartbeatRepository: PHeartbeatRepository {
     private let minClientTokenVersion = "4.8.0"
 
     func detectAuthCapabilities(serverURL: String) async -> AuthCapabilities {
-        let legacy = await detectAuthCapability(serverURL: serverURL)
+        logger.info("Detecting authentication capabilities for: \(serverURL)")
+
+        var classicAuthWorks = false
         var hasClientTokens = false
+        var hasCloudflare = false
+
         do {
             let response = try await apiClient.getHeartbeat(from: serverURL)
+            classicAuthWorks = true
+            logger.info("Classic auth works - heartbeat successful")
+
+            // Check if classic auth is disabled
+            if response.FRONTEND.DISABLE_USERPASS_LOGIN {
+                classicAuthWorks = false
+                logger.warning("Classic username/password login is disabled on server")
+            }
+
+            // Check client token support
             if let clientTokensConfig = response.CLIENT_TOKENS {
                 hasClientTokens = clientTokensConfig.ENABLED
-                oidcLogger.info("Client tokens enabled via heartbeat: \(hasClientTokens)")
+                logger.info("Client tokens enabled via heartbeat: \(hasClientTokens)")
             } else {
                 // Fallback: check server version >= 4.8.0
                 let version = response.SYSTEM.VERSION
                 let baseVersion = version.split(separator: "-").first.map(String.init) ?? version
                 if compareVersions(baseVersion, minClientTokenVersion) >= 0 {
                     hasClientTokens = true
-                    oidcLogger.info("Client tokens assumed available (server \(version) >= \(minClientTokenVersion))")
+                    logger.info("Client tokens assumed available (server \(version) >= \(minClientTokenVersion))")
                 } else {
-                    oidcLogger.info("Server \(version) too old for client tokens")
+                    logger.info("Server \(version) too old for client tokens")
                 }
             }
+        } catch let error as APIClientError {
+            if case .cloudflareProtection = error {
+                hasCloudflare = true
+                logger.warning("Cloudflare protection detected")
+            } else {
+                logger.error("Heartbeat failed with error: \(error)")
+            }
         } catch {
-            oidcLogger.debug("Could not check client token support: \(error)")
+            logger.error("Heartbeat failed with unexpected error: \(error)")
         }
-        return AuthCapabilities(from: legacy, clientTokens: hasClientTokens)
+
+        if hasCloudflare {
+            return AuthCapabilities(classic: false, clientTokens: false, cloudflareBlocked: true, unreachable: false)
+        }
+
+        if !classicAuthWorks && !hasClientTokens {
+            return AuthCapabilities(classic: false, clientTokens: false, cloudflareBlocked: false, unreachable: true)
+        }
+
+        return AuthCapabilities(classic: classicAuthWorks, clientTokens: hasClientTokens, cloudflareBlocked: false, unreachable: false)
     }
 }

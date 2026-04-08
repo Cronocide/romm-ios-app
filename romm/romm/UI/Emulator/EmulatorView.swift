@@ -11,25 +11,24 @@ import WebKit
 
 struct EmulatorView: View {
     let rom: Rom
-    private let viewModel: EmulatorViewModel
+    @State private var viewModel: EmulatorViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showExitConfirmation = false
     @State private var showMenu = false
 
     init(rom: Rom) {
         self.rom = rom
-        self.viewModel = EmulatorViewModel(rom: rom)
+        _viewModel = State(initialValue: EmulatorViewModel(rom: rom))
     }
 
     var body: some View {
         NavigationView {
             ZStack {
                 // WebView - Full screen
-                if viewModel.emulatorURL != nil {
-                    EmulatorWebView(viewModel: viewModel)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .edgesIgnoringSafeArea(.bottom)  // Ignore bottom, navbar handles top
-                }
+                EmulatorWebView(viewModel: viewModel)
+                    .id(viewModel.emulatorURL?.absoluteString ?? "webview")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .edgesIgnoringSafeArea(.bottom)  // Ignore bottom, navbar handles top
 
                 // Overlay Controls (optional, for later)
                 if viewModel.showControls {
@@ -38,22 +37,6 @@ struct EmulatorView: View {
                         onExit: { showExitConfirmation = true }
                     )
                     .transition(.opacity)
-                }
-
-                // Loading Indicator
-                if viewModel.isLoading {
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                        Text("Starting Emulator...")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                    }
-                    .padding(32)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.black.opacity(0.7))
-                    )
                 }
 
                 // Error Alert
@@ -132,6 +115,13 @@ struct EmulatorView: View {
             // Start emulator when view appears
             viewModel.startEmulator()
         }
+        .onChange(of: viewModel.emulatorURL) { _, newURL in
+            if let newURL {
+                print("🔗 EmulatorView detected emulatorURL change: \(newURL.absoluteString)")
+            } else {
+                print("🔗 EmulatorView detected emulatorURL cleared")
+            }
+        }
         .onDisappear {
             print("🎮 EmulatorView disappeared - running cleanup")
             viewModel.cleanup()
@@ -144,6 +134,7 @@ struct EmulatorWebView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+        print("🧩 WKWebView makeUIView created")
 
         // Use persistent data store to keep cookies and login between app restarts
         config.websiteDataStore = WKWebsiteDataStore.default()
@@ -234,6 +225,8 @@ struct EmulatorWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        print("🔁 updateUIView called - hasLoaded: \(context.coordinator.hasLoaded), emulatorURL: \(String(describing: viewModel.emulatorURL))")
+
         guard let emulatorURL = viewModel.emulatorURL,
             context.coordinator.hasLoaded == false
         else {
@@ -256,6 +249,8 @@ struct EmulatorWebView: UIViewRepresentable {
             // Load the ROMM EmulatorJS page
             print("📱 Loading page now...")
             webView.load(request)
+
+            context.coordinator.startReadyProbe(on: webView)
         }
     }
 
@@ -281,8 +276,68 @@ struct EmulatorWebView: UIViewRepresentable {
         weak var webView: WKWebView?
         private let logger = Logger.viewModel
 
+        private var loadTimeoutTask: Task<Void, Never>?
+
         init(viewModel: EmulatorViewModel) {
             self.viewModel = viewModel
+        }
+
+        func startLoadTimeout(seconds: UInt64 = 25) {
+            loadTimeoutTask?.cancel()
+            loadTimeoutTask = Task { [weak self] in
+                let ns = seconds * 1_000_000_000
+                try? await Task.sleep(nanoseconds: ns)
+                await MainActor.run {
+                    guard let self, self.viewModel.isLoading else { return }
+                    self.logger.error("⏱️ Load timed out after \(seconds)s")
+                    self.viewModel.isLoading = false
+                    self.viewModel.errorMessage = "Emulator start timed out. Please try again."
+                }
+            }
+        }
+
+        func cancelLoadTimeout() {
+            loadTimeoutTask?.cancel()
+            loadTimeoutTask = nil
+        }
+
+        func startReadyProbe(on webView: WKWebView) {
+            let js = """
+            (function() {
+                try {
+                    function postReady() {
+                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.consoleLog) {
+                            window.webkit.messageHandlers.consoleLog.postMessage('EMULATOR_READY');
+                        } else {
+                            console.log('consoleLog handler not available');
+                        }
+                    }
+                    function checkReady() {
+                        try {
+                            if (window.Emulator && (window.Emulator.isReady || window.Emulator.ready)) {
+                                postReady();
+                            } else if (window.Module && (window.Module.calledRun || window.Module.ready)) {
+                                postReady();
+                            } else {
+                                setTimeout(checkReady, 500);
+                            }
+                        } catch (e) {
+                            setTimeout(checkReady, 500);
+                        }
+                    }
+                    setTimeout(checkReady, 500);
+                } catch (e) {
+                    console.error('READY probe install failed', e);
+                }
+            })();
+            """
+            webView.evaluateJavaScript(js, completionHandler: { _, error in
+                if let error = error {
+                    print("⚠️ Failed to inject READY probe: \(error.localizedDescription)")
+                } else {
+                    print("🔎 READY probe injected")
+                }
+            })
         }
 
         func syncCookiesFromHTTPStorage(for webView: WKWebView, url: URL) async {
@@ -313,6 +368,14 @@ struct EmulatorWebView: UIViewRepresentable {
                 )
             }
 
+            let store = webView.configuration.websiteDataStore.httpCookieStore
+            store.getAllCookies { cookies in
+                self.logger.info("🍪 WKWebView now has \(cookies.count) cookies")
+                for c in cookies {
+                    self.logger.info("   • \(c.name) (domain: \(c.domain), path: \(c.path))")
+                }
+            }
+
             logger.info("✅ Cookie sync complete - WKWebView should now be authenticated")
         }
 
@@ -329,8 +392,12 @@ struct EmulatorWebView: UIViewRepresentable {
             logger.info("✅ WebView finished loading navigation")
             didRetryAfterProcessTermination = false
 
+            cancelLoadTimeout()
+
             // Inject CSS to hide ROMM UI and make emulator fullscreen
             injectFullscreenCSS(webView)
+
+            startReadyProbe(on: webView)
 
             // Check if JavaScript is working
             webView.evaluateJavaScript("document.body ? 'body exists' : 'no body'") {
@@ -392,6 +459,8 @@ struct EmulatorWebView: UIViewRepresentable {
         ) {
             logger.error("❌ WebView navigation failed: \(error.localizedDescription)")
 
+            cancelLoadTimeout()
+
             // Ignore cancelled navigation (common during normal operation)
             let nsError = error as NSError
             if nsError.code == NSURLErrorCancelled {
@@ -410,6 +479,9 @@ struct EmulatorWebView: UIViewRepresentable {
             withError error: Error
         ) {
             logger.error("❌ WebView provisional navigation failed: \(error.localizedDescription)")
+
+            cancelLoadTimeout()
+
             Task { @MainActor in
                 viewModel.errorMessage =
                     "Failed to connect to server: \(error.localizedDescription)"
@@ -461,6 +533,14 @@ struct EmulatorWebView: UIViewRepresentable {
             case "consoleLog":
                 if let msg = message.body as? String {
                     logger.info("🎮 [JS] \(msg)")
+
+                    if msg == "EMULATOR_READY" {
+                        self.logger.info("✅ JS reported EMULATOR_READY")
+                        self.cancelLoadTimeout()
+                        Task { @MainActor in
+                            self.viewModel.isLoading = false
+                        }
+                    }
                 }
 
             case "consoleError":
@@ -475,3 +555,4 @@ struct EmulatorWebView: UIViewRepresentable {
         }
     }
 }
+

@@ -98,7 +98,7 @@ class AppViewModel {
         let config = try? getSetupConfigurationUseCase.execute()
 
         if let config {
-            // Check if we have valid auth: either a token in config (classic/OIDC)
+            // Check if we have valid auth: either a token in config (classic)
             // or a client token in Keychain
             let authMethod = SetupRepository().getAuthMethod()
             let hasAuth = config.token != nil || (authMethod == .clientToken && ClientTokenAuthService().getToken() != nil)

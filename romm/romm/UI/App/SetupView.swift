@@ -9,7 +9,7 @@ import SwiftUI
 
 struct SetupView: View {
     let appViewModel: AppViewModel
-    @State private var serverURL = "https://romm​.spinnich​.net"
+    @State private var serverURL = ""
     @State private var username = ""
     @State private var password = ""
     @State private var showConnectionDetails = false
@@ -23,13 +23,10 @@ struct SetupView: View {
     @State private var isErrorExpanded = false
     @State private var isVersionWarning = false  // true if error is just a warning (incompatible but can proceed)
     @State private var didAcceptIncompatibleVersion = false
-    
-    // OIDC states
+
+    // Auth capability detection
     @State private var detectedAuthCapability: HeartbeatRepository.AuthCapabilities?
     @State private var selectedAuthMethod: AuthMethod = .classic
-    @State private var isPerformingOIDC = false
-    @State private var oidcConfiguration: OIDCConfiguration?
-    @State private var oidcError: String?
 
     // Client Token states
     @State private var clientTokenInput = ""
@@ -298,39 +295,26 @@ struct SetupView: View {
                     authMethodPicker
                 }
             }
-            
+
             // Classic Auth Fields (Username/Password)
             if selectedAuthMethod == .classic {
                 classicAuthFields
-            }
-            
-            // OIDC Info (if OIDC selected)
-            if selectedAuthMethod == .oidc {
-                oidcAuthInfo
             }
 
             // Client Token Auth (if client token selected)
             if selectedAuthMethod == .clientToken {
                 clientTokenAuthSection
             }
-
-            // OIDC Error
-            if let oidcError = oidcError {
-                Text(oidcError)
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .multilineTextAlignment(.center)
-            }
         }
     }
-    
+
     // MARK: - Auth Method Picker
-    
+
     private var authMethodPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Authentication Method")
                 .font(.headline)
-            
+
             Picker("Auth Method", selection: $selectedAuthMethod) {
                 ForEach(AuthMethod.allCases, id: \.self) { method in
                     Label(method.displayName, systemImage: method.iconName)
@@ -338,15 +322,15 @@ struct SetupView: View {
                 }
             }
             .pickerStyle(.segmented)
-            
+
             Text(selectedAuthMethod.description)
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
     }
-    
+
     // MARK: - Classic Auth Fields
-    
+
     private var classicAuthFields: some View {
         VStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
@@ -365,30 +349,6 @@ struct SetupView: View {
                     .textFieldStyle(.roundedBorder)
                     .textContentType(.password)
             }
-        }
-    }
-    
-    // MARK: - OIDC Auth Info
-    
-    private var oidcAuthInfo: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                Image(systemName: "globe")
-                    .font(.system(size: 40))
-                    .foregroundColor(.blue)
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Browser Authentication")
-                        .font(.headline)
-                    Text("You'll be redirected to your browser to sign in securely")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .padding()
-            .background(Color(.systemGray6))
-            .cornerRadius(12)
         }
     }
 
@@ -462,25 +422,23 @@ struct SetupView: View {
     private var loginButton: some View {
         Button {
             Task {
-                if selectedAuthMethod == .oidc {
-                    await performOIDCLogin()
-                } else if selectedAuthMethod == .clientToken {
+                if selectedAuthMethod == .clientToken {
                     await performClientTokenLogin()
                 } else {
                     await performClassicLogin()
                 }
             }
         } label: {
-            if appViewModel.appData.isLoading || isPerformingOIDC || isExchangingToken {
+            if appViewModel.appData.isLoading || isExchangingToken {
                 HStack {
                     ProgressView()
                         .frame(width: 20, height: 20)
-                    Text(isPerformingOIDC ? "Opening browser..." : isExchangingToken ? "Connecting..." : "Logging in...")
+                    Text(isExchangingToken ? "Connecting..." : "Logging in...")
                 }
             } else {
                 HStack {
                     Image(systemName: selectedAuthMethod.iconName)
-                    Text(selectedAuthMethod == .oidc ? "Login with Browser" : selectedAuthMethod == .clientToken ? "Connect with Token" : "Login")
+                    Text(selectedAuthMethod == .clientToken ? "Connect with Token" : "Login")
                 }
             }
         }
@@ -489,16 +447,14 @@ struct SetupView: View {
         .disabled(!canProceedWithLogin)
         .padding(.horizontal, 24)
     }
-    
+
     private var canProceedWithLogin: Bool {
-        if appViewModel.appData.isLoading || isPerformingOIDC || isExchangingToken {
+        if appViewModel.appData.isLoading || isExchangingToken {
             return false
         }
         switch selectedAuthMethod {
         case .classic:
             return !username.isEmpty && !password.isEmpty
-        case .oidc:
-            return oidcConfiguration != nil
         case .clientToken:
             return !clientTokenInput.isEmpty
         }
@@ -515,8 +471,6 @@ struct SetupView: View {
         isVersionWarning = false
         didAcceptIncompatibleVersion = false
         detectedAuthCapability = nil
-        oidcConfiguration = nil
-        oidcError = nil
 
         do {
             let version = try await appViewModel.fetchServerVersion(from: serverURL)
@@ -527,7 +481,7 @@ struct SetupView: View {
                 serverValidated = true
                 connectionError = nil
                 didAcceptIncompatibleVersion = false
-                
+
                 // Detect authentication capabilities
                 await detectAuthenticationMethod()
             } else {
@@ -537,26 +491,12 @@ struct SetupView: View {
                 isVersionWarning = true
             }
         } catch let error as APIClientError {
-            // Handle Cloudflare protection specifically
             if case .cloudflareProtection = error {
-                // Mark server as validated - OIDC can still work
-                serverValidated = true
-                
-                // Set a placeholder version for Cloudflare-protected servers
-                detectedServerVersion = "Cloudflare"
-                
-                // Show info but not as blocking error
-                connectionError = nil // Clear error so login section shows
-                connectionErrorDetails = nil
+                // Cloudflare blocks everything — can't authenticate
+                connectionError = "Server is protected by Cloudflare"
+                connectionErrorDetails = "This server is behind Cloudflare protection and cannot be accessed directly."
                 isVersionWarning = false
-                isErrorExpanded = false
-                
-                Logger.oidc.warning("🔒 Cloudflare detected, proceeding with OIDC detection...")
-                
-                // Cloudflare detected - try OIDC discovery anyway
-                await detectAuthenticationMethod()
             } else {
-                // Parse other API errors
                 let (message, details) = parseConnectionError(error)
                 connectionError = message
                 connectionErrorDetails = details
@@ -564,7 +504,6 @@ struct SetupView: View {
             }
             didAcceptIncompatibleVersion = false
         } catch {
-            // Parse general error for user-friendly message
             let (message, details) = parseConnectionError(error)
             connectionError = message
             connectionErrorDetails = details
@@ -574,15 +513,15 @@ struct SetupView: View {
 
         isConnecting = false
     }
-    
+
     // MARK: - Auth Detection
-    
+
     private func detectAuthenticationMethod() async {
         let heartbeatRepo = HeartbeatRepository()
-        Logger.oidc.info("Detecting authentication methods...")
+        Logger.auth.info("Detecting authentication methods...")
         let capabilities = await heartbeatRepo.detectAuthCapabilities(serverURL: serverURL)
         detectedAuthCapability = capabilities
-        Logger.oidc.info("Detected capabilities: \(capabilities.description)")
+        Logger.auth.info("Detected capabilities: \(capabilities.description)")
         connectionError = nil
         connectionErrorDetails = nil
 
@@ -593,46 +532,17 @@ struct SetupView: View {
             return
         }
         if capabilities.cloudflareBlocked {
-            Logger.oidc.warning("Cloudflare detected, trying OIDC with default config")
-            selectedAuthMethod = .oidc
-            serverValidated = true
-            await discoverOIDCConfiguration()
+            serverValidated = false
+            connectionError = "Server is protected by Cloudflare"
+            connectionErrorDetails = "This server is behind Cloudflare protection and cannot be accessed directly."
             return
         }
         serverValidated = true
         // Default: prefer classic, then client token
-        // OIDC temporarily disabled
         if capabilities.classic {
             selectedAuthMethod = .classic
         } else if capabilities.clientTokens {
             selectedAuthMethod = .clientToken
-        }
-    }
-    
-    private func discoverOIDCConfiguration() async {
-        Logger.oidc.info("🔍 Discovering OIDC configuration...")
-        
-        let oidcService = OIDCAuthService()
-        
-        do {
-            let config = try await oidcService.discoverConfiguration(serverURL: serverURL)
-            oidcConfiguration = config
-            Logger.oidc.info("✅ OIDC configuration discovered")
-        } catch {
-            Logger.oidc.error("❌ OIDC discovery failed: \(error)")
-            
-            // Fallback: Use default OIDC configuration
-            // This is common for servers behind Cloudflare where .well-known is also protected
-            Logger.oidc.warning("⚠️ Using default OIDC configuration as fallback")
-            
-            let fallbackConfig = OIDCConfiguration.default(for: serverURL)
-            oidcConfiguration = fallbackConfig
-            
-            Logger.oidc.info("✅ Using default OIDC configuration")
-            Logger.oidc.debug("Config: \(fallbackConfig.description)")
-            
-            // Show info to user
-            oidcError = nil // Clear any error - fallback is OK
         }
     }
 
@@ -641,9 +551,7 @@ struct SetupView: View {
         if let apiError = error as? APIClientError {
             switch apiError {
             case .cloudflareProtection:
-                return ("🔒 Cloudflare protection detected", "This server requires browser-based authentication (OIDC/SSO)")
-            case .oidcRequired:
-                return ("OIDC authentication required", "This server only supports browser-based login")
+                return ("Server is protected by Cloudflare", "This server is behind Cloudflare protection and cannot be accessed directly.")
             case .authenticationRequired:
                 return ("Authentication failed", "Invalid username or password")
             case .invalidURL(let url):
@@ -657,7 +565,6 @@ struct SetupView: View {
             case .decodingError:
                 return ("Invalid response", "The server did not return a valid RomM response")
             case .networkError(let underlyingError):
-                // Fall through to general error parsing
                 return parseGeneralConnectionError(underlyingError)
             }
         }
@@ -724,97 +631,6 @@ struct SetupView: View {
             username: username,
             password: password
         )
-    }
-    
-    private func performOIDCLogin() async {
-        Logger.oidc.info("🚀 Starting OIDC login flow...")
-        
-        guard let config = oidcConfiguration else {
-            Logger.oidc.error("❌ No OIDC configuration available")
-            oidcError = "OIDC is not configured. Please try again."
-            return
-        }
-        
-        isPerformingOIDC = true
-        oidcError = nil
-        
-        // Get the window for presentation context
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = windowScene.windows.first else {
-            Logger.oidc.error("❌ Cannot get window for authentication session")
-            oidcError = "Cannot open browser for authentication"
-            isPerformingOIDC = false
-            return
-        }
-        
-        let oidcService = OIDCAuthService()
-        
-        do {
-            // Step 1: Authorize (opens browser)
-            Logger.oidc.info("📱 Opening browser for authorization...")
-            let (code, _) = try await oidcService.authorize(
-                configuration: config,
-                presentationContext: window
-            )
-            
-            Logger.oidc.info("✅ Authorization successful, exchanging code for tokens...")
-            
-            // Step 2: Exchange code for tokens
-            let tokens = try await oidcService.exchangeCodeForTokens(
-                code: code,
-                configuration: config
-            )
-            
-            Logger.oidc.info("✅ Tokens received!")
-            Logger.oidc.debug("Access token expires: \(tokens.expirationDescription)")
-            
-            // Step 3: Save configuration and tokens
-            let setupRepo = SetupRepository()
-            try setupRepo.saveOIDCConfiguration(config)
-            try setupRepo.saveOIDCTokens(tokens)
-            try setupRepo.saveAuthMethod(.oidc)
-            
-            // Step 4: Extract username from ID token if available
-            let username = tokens.username ?? tokens.email ?? "OIDC User"
-            
-            // Step 5: Save server version
-            if let version = detectedServerVersion {
-                appViewModel.saveServerVersion(version)
-            }
-            
-            // Step 6: Create minimal setup configuration for compatibility
-            let setupConfig = SetupConfiguration(
-                serverURL: serverURL,
-                username: username,
-                password: nil, // No password for OIDC
-                token: tokens.accessToken,
-                refreshToken: tokens.refreshToken,
-                setupDate: Date(),
-                version: detectedServerVersion ?? "unknown",
-                allowIncompatibleVersionLogin: didAcceptIncompatibleVersion
-            )
-            
-            try setupRepo.saveSetupConfiguration(setupConfig)
-            
-            Logger.oidc.info("✅ OIDC login complete!")
-            
-            // Trigger app refresh by clearing loading state
-            Task { @MainActor in
-                appViewModel.appData.isLoading = false
-                appViewModel.appData.errorMessage = nil
-            }
-            
-            isPerformingOIDC = false
-            
-        } catch let error as OIDCError {
-            Logger.oidc.error("❌ OIDC error: \(error.detailedMessage)")
-            oidcError = error.userMessage
-            isPerformingOIDC = false
-        } catch {
-            Logger.oidc.error("❌ Unexpected error: \(error)")
-            oidcError = "Authentication failed: \(error.localizedDescription)"
-            isPerformingOIDC = false
-        }
     }
 
     // MARK: - Client Token Login

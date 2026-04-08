@@ -14,17 +14,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> UIInterfaceOrientationMask {
         OrientationLock.currentMask
     }
-    
-    // Handle URL callbacks (OIDC and client token pairing)
+
+    // Handle URL callbacks (client token pairing)
     func application(
         _ app: UIApplication,
         open url: URL,
         options: [UIApplication.OpenURLOptionsKey: Any] = [:]
     ) -> Bool {
-        Logger.oidc.info("App received URL: \(url.absoluteString)")
+        Logger.auth.info("App received URL: \(url.absoluteString)")
 
         guard url.scheme == "romm" else {
-            Logger.oidc.warning("Unknown URL scheme: \(url.scheme ?? "none")")
+            Logger.auth.warning("Unknown URL scheme: \(url.scheme ?? "none")")
             return false
         }
 
@@ -42,9 +42,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             return true
 
         default:
-            // OIDC callback — ASWebAuthenticationSession handles it
-            Logger.oidc.info("OIDC callback URL received")
-            return true
+            Logger.auth.warning("Unknown URL host: \(url.host ?? "none")")
+            return false
         }
     }
 }

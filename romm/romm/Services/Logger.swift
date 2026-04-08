@@ -59,8 +59,13 @@ class LogConfiguration: ObservableObject {
     @Published var includeSourceLocation = true
 
     private init() {
-        // Standard: Logging deaktiviert (kann in Debug-Builds manuell aktiviert werden)
+        // In Debug-Builds: Logging automatisch aktiviert
+        // In Release-Builds: Nur wenn manuell aktiviert
+        #if DEBUG
+        self.isLoggingEnabled = UserDefaults.standard.object(forKey: "logging.enabled") as? Bool ?? true
+        #else
         self.isLoggingEnabled = UserDefaults.standard.object(forKey: "logging.enabled") as? Bool ?? false
+        #endif
         loadConfiguration()
     }
     

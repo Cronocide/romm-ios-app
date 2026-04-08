@@ -15,11 +15,7 @@ protocol PTokenProvider {
     func getPassword() -> String?
     func isConfigured() -> Bool
     
-    // OIDC Methods
     func getAuthMethod() -> AuthMethod
-    func getOIDCAccessToken() -> String?
-    func getOIDCTokens() -> OIDCTokens?
-    func isOIDCConfigured() -> Bool
 
     // Client Token Methods
     func getClientToken() -> String?
@@ -162,57 +158,10 @@ class TokenProvider: PTokenProvider {
         return configured
     }
     
-    // MARK: - OIDC Methods
-    
     func getAuthMethod() -> AuthMethod {
         let method = setupRepository.getAuthMethod()
         logger.debug("Current auth method: \(method.displayName)")
         return method
-    }
-    
-    func getOIDCAccessToken() -> String? {
-        logger.debug("Getting OIDC access token...")
-        
-        guard let tokens = setupRepository.getOIDCTokens() else {
-            logger.debug("No OIDC tokens found")
-            return nil
-        }
-        
-        if tokens.isExpired {
-            logger.warning("⚠️ OIDC access token is expired")
-            return nil
-        }
-        
-        if tokens.willExpireSoon {
-            logger.warning("⚠️ OIDC access token will expire soon")
-        }
-        
-        logger.info("✅ OIDC access token found (valid)")
-        return tokens.accessToken
-    }
-    
-    func getOIDCTokens() -> OIDCTokens? {
-        logger.debug("Getting OIDC tokens...")
-        
-        guard let tokens = setupRepository.getOIDCTokens() else {
-            logger.debug("No OIDC tokens found")
-            return nil
-        }
-        
-        logger.info("✅ OIDC tokens found")
-        logger.debug("Expires: \(tokens.expirationDescription)")
-        logger.debug("Can refresh: \(tokens.canRefresh)")
-        
-        return tokens
-    }
-    
-    func isOIDCConfigured() -> Bool {
-        let hasConfig = setupRepository.getOIDCConfiguration() != nil
-        let hasTokens = setupRepository.getOIDCTokens() != nil
-        let isConfigured = hasConfig && hasTokens
-
-        logger.info("OIDC configuration check - Config: \(hasConfig), Tokens: \(hasTokens), Configured: \(isConfigured)")
-        return isConfigured
     }
 
     // MARK: - Client Token Methods
@@ -252,7 +201,6 @@ class MockTokenProvider: PTokenProvider {
     var mockPassword: String?
     var mockConfigured: Bool = false
     var mockAuthMethod: AuthMethod = .classic
-    var mockOIDCTokens: OIDCTokens?
     var mockClientToken: String?
     var mockClientTokenInfo: ClientTokenInfo?
     
@@ -286,18 +234,6 @@ class MockTokenProvider: PTokenProvider {
     
     func getAuthMethod() -> AuthMethod {
         return mockAuthMethod
-    }
-    
-    func getOIDCAccessToken() -> String? {
-        return mockOIDCTokens?.accessToken
-    }
-    
-    func getOIDCTokens() -> OIDCTokens? {
-        return mockOIDCTokens
-    }
-    
-    func isOIDCConfigured() -> Bool {
-        return mockOIDCTokens != nil
     }
 
     func getClientToken() -> String? { return mockClientToken }
