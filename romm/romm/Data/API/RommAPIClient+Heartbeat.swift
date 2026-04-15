@@ -25,19 +25,71 @@ extension RommAPIClient {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 30.0
 
-        logger.debug("Fetching heartbeat from: \(url.absoluteString)")
+        logger.info("🔍 [Network] - Fetching heartbeat from: \(url.absoluteString)")
 
-        let (data, response) = try await urlSession.data(for: request)
+        do {
+            let (data, response) = try await urlSession.data(for: request)
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIClientError.networkError(URLError(.badServerResponse))
+            guard let httpResponse = response as? HTTPURLResponse else {
+                logger.error("Invalid response type for heartbeat")
+                throw APIClientError.networkError(URLError(.badServerResponse))
+            }
+
+            logger.info("📊 [Network] - Heartbeat response status: \(httpResponse.statusCode)")
+
+            switch httpResponse.statusCode {
+            case 200:
+                // Success - decode response
+                do {
+                    let heartbeat = try JSONDecoder().decode(HeartbeatResponse.self, from: data)
+                    logger.info("✅ [Network] - Heartbeat successful: v\(heartbeat.SYSTEM.VERSION)")
+                    return heartbeat
+                } catch {
+                    logger.error("Failed to decode heartbeat response: \(error)")
+                    throw APIClientError.decodingError(error)
+                }
+                
+            case 403:
+                let msg = String(data: data, encoding: .utf8) ?? "Forbidden"
+                logger.warning("⚠️ [Network] - 403 response received, checking for Cloudflare...")
+                
+                // Check if this is a Cloudflare challenge
+                if isCloudflareChallenge(response: httpResponse, body: msg) {
+                    logger.warning("🔒 [Network] - Cloudflare protection detected!")
+                    throw APIClientError.cloudflareProtection(msg)
+                }
+                
+                // Regular 403
+                logger.error("❌ [Network] - Forbidden (not Cloudflare): \(msg.prefix(200))")
+                throw APIClientError.invalidResponse(httpResponse.statusCode, msg)
+                
+            case 401:
+                logger.warning("⚠️ [Network] - Authentication required for heartbeat")
+                throw APIClientError.authenticationRequired
+                
+            default:
+                let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+                logger.error("❌ [Network] - Unexpected status \(httpResponse.statusCode): \(errorMessage.prefix(200))")
+                throw APIClientError.invalidResponse(httpResponse.statusCode, errorMessage)
+            }
+            
+        } catch let error as APIClientError {
+            // Re-throw API client errors
+            throw error
+        } catch let urlError as URLError {
+            logger.error("❌ [Network] - URLError during heartbeat: \(urlError.code.rawValue) - \(urlError.localizedDescription)")
+            
+            // Log specific error codes that might indicate Cloudflare issues
+            if urlError.code == .networkConnectionLost ||
+               urlError.code == .cannotConnectToHost ||
+               urlError.code == .notConnectedToInternet {
+                logger.warning("⚠️ This might be a Cloudflare protection issue")
+            }
+            
+            throw APIClientError.networkError(urlError)
+        } catch {
+            logger.error("❌ [Network] - Unexpected error during heartbeat: \(error)")
+            throw APIClientError.networkError(error)
         }
-
-        guard httpResponse.statusCode == 200 else {
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw APIClientError.invalidResponse(httpResponse.statusCode, errorMessage)
-        }
-
-        return try JSONDecoder().decode(HeartbeatResponse.self, from: data)
     }
 }

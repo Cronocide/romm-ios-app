@@ -77,6 +77,7 @@ protocol PRommAPIClient {
     func getStats() async throws -> StatsReturn
     func getSaves(romId: Int) async throws -> [SaveSchema]
     func getStates(romId: Int) async throws -> [StateSchema]
+
 }
 
 enum APIClientError: LocalizedError {
@@ -87,6 +88,7 @@ enum APIClientError: LocalizedError {
     case networkError(Error)
     case invalidResponse(Int, String)
     case decodingError(Error)
+    case cloudflareProtection(String)
 
     var errorDescription: String? {
         switch self {
@@ -104,6 +106,8 @@ enum APIClientError: LocalizedError {
             return "Server error (\(code)): \(message)"
         case .decodingError(let error):
             return "Data decoding error: \(error.localizedDescription)"
+        case .cloudflareProtection(let details):
+            return "Server is protected by Cloudflare - browser authentication required"
         }
     }
 }
@@ -160,11 +164,11 @@ class RommAPIClient: PRommAPIClient {
         logger.logNetworkRequest(method: method.rawValue, url: path)
 
         let url = try buildURL(path: path)
-        let base64Auth = try makeBasicAuthHeader()
+        let authHeader = try makeAuthHeader()
 
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
-        request.setValue("Basic \(base64Auth)", forHTTPHeaderField: "Authorization")
+        request.setValue(authHeader, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 30.0
@@ -195,6 +199,25 @@ class RommAPIClient: PRommAPIClient {
                 logger.warning("Authentication failed - invalid credentials")
                 NotificationCenter.default.post(name: .sessionExpired, object: nil)
                 throw APIClientError.authenticationRequired
+            case 403:
+                let msg = String(data: data, encoding: .utf8) ?? "Forbidden"
+
+                // Check if this is a Cloudflare challenge
+                if isCloudflareChallenge(response: httpResponse, body: msg) {
+                    logger.warning("Cloudflare protection detected")
+                    throw APIClientError.cloudflareProtection(msg)
+                }
+
+                // For client token auth, 403 means token was revoked/invalid
+                if tokenProvider.getAuthMethod() == .clientToken {
+                    logger.warning("Client token rejected (403) - session expired")
+                    NotificationCenter.default.post(name: .sessionExpired, object: nil)
+                    throw APIClientError.authenticationRequired
+                }
+
+                // Regular 403 error
+                logger.error("Forbidden (\(httpResponse.statusCode)): \(msg)")
+                throw APIClientError.invalidResponse(httpResponse.statusCode, msg)
             case 400...499:
                 let msg = String(data: data, encoding: .utf8) ?? "Client error"
                 logger.error("Client error (\(httpResponse.statusCode)): \(msg)")
@@ -210,6 +233,14 @@ class RommAPIClient: PRommAPIClient {
             }
         } catch let error as URLError {
             logger.logNetworkError(method: method.rawValue, url: path, error: error)
+            
+            // Check if this might be a Cloudflare issue based on error type
+            if error.code == .networkConnectionLost || 
+               error.code == .cannotConnectToHost ||
+               error.code == .notConnectedToInternet {
+                logger.warning("⚠️ Connection error that might indicate Cloudflare protection: \(error.code)")
+            }
+            
             throw APIClientError.networkError(error)
         } catch let error as APIClientError {
             throw error
@@ -226,11 +257,11 @@ class RommAPIClient: PRommAPIClient {
         logger.logNetworkRequest(method: HTTPMethod.get.rawValue, url: path)
 
         let url = try buildURL(path: path)
-        let base64Auth = try makeBasicAuthHeader()
+        let authHeader = try makeAuthHeader()
 
         var request = URLRequest(url: url)
         request.httpMethod = HTTPMethod.get.rawValue
-        request.setValue("Basic \(base64Auth)", forHTTPHeaderField: "Authorization")
+        request.setValue(authHeader, forHTTPHeaderField: "Authorization")
         request.setValue("*/*", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 60.0
 
@@ -330,12 +361,12 @@ class RommAPIClient: PRommAPIClient {
         logger.logNetworkRequest(method: method.rawValue, url: path)
 
         let url = try buildURL(path: path)
-        let base64Auth = try makeBasicAuthHeader()
+        let authHeader = try makeAuthHeader()
 
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.setValue("Basic \(base64Auth)", forHTTPHeaderField: "Authorization")
+        request.setValue(authHeader, forHTTPHeaderField: "Authorization")
         request.setValue("application/json, text/plain, */*", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 60.0
         additionalHeaders?.forEach { request.setValue($1, forHTTPHeaderField: $0) }
@@ -359,6 +390,22 @@ class RommAPIClient: PRommAPIClient {
                 logger.warning("Authentication failed for multipart request")
                 NotificationCenter.default.post(name: .sessionExpired, object: nil)
                 throw APIClientError.authenticationRequired
+            case 403:
+                let msg = String(data: data, encoding: .utf8) ?? "Forbidden"
+
+                if isCloudflareChallenge(response: httpResponse, body: msg) {
+                    logger.warning("Cloudflare protection detected on multipart request")
+                    throw APIClientError.cloudflareProtection(msg)
+                }
+
+                if tokenProvider.getAuthMethod() == .clientToken {
+                    logger.warning("Client token rejected (403) on multipart - session expired")
+                    NotificationCenter.default.post(name: .sessionExpired, object: nil)
+                    throw APIClientError.authenticationRequired
+                }
+
+                logger.error("Multipart forbidden (\(httpResponse.statusCode)): \(msg)")
+                throw APIClientError.invalidResponse(httpResponse.statusCode, msg)
             case 400...499:
                 let msg = String(data: data, encoding: .utf8) ?? "Client error"
                 logger.error("Multipart client error (\(httpResponse.statusCode)): \(msg)")
@@ -445,18 +492,28 @@ class RommAPIClient: PRommAPIClient {
         return url
     }
 
-    func makeBasicAuthHeader() throws -> String {
-        guard let username = tokenProvider.getUsername(),
-              let password = tokenProvider.getPassword() else {
-            logger.error("No authentication credentials available")
-            throw APIClientError.noCredentials
+    func makeAuthHeader() throws -> String {
+        let authMethod = tokenProvider.getAuthMethod()
+        switch authMethod {
+        case .clientToken:
+            guard let token = tokenProvider.getClientToken() else {
+                logger.error("No client token available")
+                throw APIClientError.noCredentials
+            }
+            return "Bearer \(token)"
+        case .classic:
+            guard let username = tokenProvider.getUsername(),
+                  let password = tokenProvider.getPassword() else {
+                logger.error("No authentication credentials available")
+                throw APIClientError.noCredentials
+            }
+            let loginString = "\(username):\(password)"
+            guard let loginData = loginString.data(using: .utf8) else {
+                logger.error("Failed to encode credentials")
+                throw APIClientError.authenticationRequired
+            }
+            return "Basic \(loginData.base64EncodedString())"
         }
-        let loginString = "\(username):\(password)"
-        guard let loginData = loginString.data(using: .utf8) else {
-            logger.error("Failed to encode credentials")
-            throw APIClientError.authenticationRequired
-        }
-        return loginData.base64EncodedString()
     }
 
     func withQuery(_ path: String, _ params: [(String, String?)]) -> String {
@@ -468,4 +525,36 @@ class RommAPIClient: PRommAPIClient {
         guard !parts.isEmpty else { return path }
         return "\(path)?\(parts.joined(separator: "&"))"
     }
+
+    // MARK: - Cloudflare Detection
+
+    func isCloudflareChallenge(response: HTTPURLResponse, body: String) -> Bool {
+        // Check for Cloudflare-specific headers
+        let hasCFHeaders = response.allHeaderFields.keys.contains { key in
+            guard let headerName = key as? String else { return false }
+            return headerName.lowercased().starts(with: "cf-")
+        }
+
+        // Check server header
+        let serverHeader = (response.allHeaderFields["Server"] as? String)?.lowercased()
+        let isCloudflareServer = serverHeader?.contains("cloudflare") == true
+
+        // Check body content for Cloudflare challenge page markers
+        let bodyLower = body.lowercased()
+        let hasChallengePage = bodyLower.contains("just a moment") ||
+                              bodyLower.contains("checking your browser") ||
+                              bodyLower.contains("challenge-platform") ||
+                              bodyLower.contains("cf-browser-verification") ||
+                              (bodyLower.contains("<!doctype html>") && hasCFHeaders)
+
+        let isCloudflare = (hasCFHeaders || isCloudflareServer) && hasChallengePage
+
+        if isCloudflare {
+            logger.warning("🔒 Cloudflare challenge detected!")
+            logger.debug("CF Headers: \(hasCFHeaders), CF Server: \(isCloudflareServer), Challenge Page: \(hasChallengePage)")
+        }
+
+        return isCloudflare
+    }
+
 }

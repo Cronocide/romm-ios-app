@@ -83,15 +83,15 @@ public struct RomUserSchema: Codable, JSONEncodable, Hashable {
         }
         noteRawMarkdown = try container.decodeIfPresent(String.self, forKey: .noteRawMarkdown)
         noteIsPublic = try container.decodeIfPresent(Bool.self, forKey: .noteIsPublic)
-        isMainSibling = try container.decode(Bool.self, forKey: .isMainSibling)
-        backlogged = try container.decode(Bool.self, forKey: .backlogged)
-        nowPlaying = try container.decode(Bool.self, forKey: .nowPlaying)
-        hidden = try container.decode(Bool.self, forKey: .hidden)
-        rating = try container.decode(Int.self, forKey: .rating)
-        difficulty = try container.decode(Int.self, forKey: .difficulty)
-        completion = try container.decode(Int.self, forKey: .completion)
+        isMainSibling = try container.decodeIfPresent(Bool.self, forKey: .isMainSibling)
+        backlogged = container.decodeFlexibleBool(forKey: .backlogged, default: false)
+        nowPlaying = container.decodeFlexibleBool(forKey: .nowPlaying, default: false)
+        hidden = container.decodeFlexibleBool(forKey: .hidden, default: false)
+        rating = container.decodeFlexibleInt(forKey: .rating, default: 0)
+        difficulty = container.decodeFlexibleInt(forKey: .difficulty, default: 0)
+        completion = container.decodeFlexibleInt(forKey: .completion, default: 0)
         status = try container.decodeIfPresent(RomUserStatus.self, forKey: .status)
-        userUsername = try container.decode(String.self, forKey: .userUsername)
+        userUsername = container.decodeFlexibleString(forKey: .userUsername, default: "")
     }
 
     // Encodable protocol methods

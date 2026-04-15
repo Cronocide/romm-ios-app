@@ -7,6 +7,11 @@
 
 import Foundation
 
+public struct ClientTokensDict: Codable, JSONEncodable, Hashable {
+    public var ENABLED: Bool
+    public init(ENABLED: Bool) { self.ENABLED = ENABLED }
+}
+
 public struct HeartbeatResponse: Codable, JSONEncodable, Hashable {
 
     public var SYSTEM: SystemDict
@@ -15,14 +20,16 @@ public struct HeartbeatResponse: Codable, JSONEncodable, Hashable {
     public var EMULATION: EmulationDict
     public var FRONTEND: FrontendDict
     public var OIDC: OIDCDict
+    public var CLIENT_TOKENS: ClientTokensDict?
 
-    public init(SYSTEM: SystemDict, METADATA_SOURCES: MetadataSourcesDict, FILESYSTEM: FilesystemDict, EMULATION: EmulationDict, FRONTEND: FrontendDict, OIDC: OIDCDict) {
+    public init(SYSTEM: SystemDict, METADATA_SOURCES: MetadataSourcesDict, FILESYSTEM: FilesystemDict, EMULATION: EmulationDict, FRONTEND: FrontendDict, OIDC: OIDCDict, CLIENT_TOKENS: ClientTokensDict? = nil) {
         self.SYSTEM = SYSTEM
         self.METADATA_SOURCES = METADATA_SOURCES
         self.FILESYSTEM = FILESYSTEM
         self.EMULATION = EMULATION
         self.FRONTEND = FRONTEND
         self.OIDC = OIDC
+        self.CLIENT_TOKENS = CLIENT_TOKENS
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
@@ -32,6 +39,20 @@ public struct HeartbeatResponse: Codable, JSONEncodable, Hashable {
         case EMULATION
         case FRONTEND
         case OIDC
+        case CLIENT_TOKENS
+    }
+
+    // Decodable protocol methods
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        SYSTEM = try container.decode(SystemDict.self, forKey: .SYSTEM)
+        METADATA_SOURCES = try container.decode(MetadataSourcesDict.self, forKey: .METADATA_SOURCES)
+        FILESYSTEM = try container.decode(FilesystemDict.self, forKey: .FILESYSTEM)
+        EMULATION = try container.decode(EmulationDict.self, forKey: .EMULATION)
+        FRONTEND = try container.decode(FrontendDict.self, forKey: .FRONTEND)
+        OIDC = try container.decode(OIDCDict.self, forKey: .OIDC)
+        CLIENT_TOKENS = try container.decodeIfPresent(ClientTokensDict.self, forKey: .CLIENT_TOKENS)
     }
 
     // Encodable protocol methods
@@ -44,6 +65,7 @@ public struct HeartbeatResponse: Codable, JSONEncodable, Hashable {
         try container.encode(EMULATION, forKey: .EMULATION)
         try container.encode(FRONTEND, forKey: .FRONTEND)
         try container.encode(OIDC, forKey: .OIDC)
+        try container.encodeIfPresent(CLIENT_TOKENS, forKey: .CLIENT_TOKENS)
     }
 }
 

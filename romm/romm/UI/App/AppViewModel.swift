@@ -97,12 +97,22 @@ class AppViewModel {
 
         let config = try? getSetupConfigurationUseCase.execute()
 
-        if let config, config.token != nil {
-            logger.info("Authentication state: \(appData.isAuthenticated)")
-            updateAppConfig(config)
-            appState = .authenticated
+        if let config {
+            // Check if we have valid auth: either a token in config (classic)
+            // or a client token in Keychain
+            let authMethod = SetupRepository().getAuthMethod()
+            let hasAuth = config.token != nil || (authMethod == .clientToken && ClientTokenAuthService().getToken() != nil)
+
+            if hasAuth {
+                logger.info("Authentication state: \(appData.isAuthenticated) (method: \(authMethod.displayName))")
+                updateAppConfig(config)
+                appState = .authenticated
+            } else {
+                logger.info("Setup not complete, showing setup")
+                appState = .setup
+            }
         } else {
-            logger.info("Setup not complete, showing setup")
+            logger.info("No configuration found, showing setup")
             appState = .setup
         }
     }
@@ -130,6 +140,7 @@ class AppViewModel {
                 allowIncompatibleVersionLogin: true
             )
 
+            try SetupRepository().saveAuthMethod(.classic)
             updateAppConfig(setupConfig)
             logger.info("Setup configuration saved successfully")
             appData.updateLoading(false)

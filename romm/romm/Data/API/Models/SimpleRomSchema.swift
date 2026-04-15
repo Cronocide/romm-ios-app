@@ -138,6 +138,7 @@ public struct SimpleRomSchema: Codable, JSONEncodable, Hashable {
         case platformFsSlug = "platform_fs_slug"        
         case platformCustomName = "platform_custom_name"
         case platformDisplayName = "platform_display_name"
+        case platformName = "platform_name"
         case fsName = "fs_name"
         case fsNameNoTags = "fs_name_no_tags"
         case fsNameNoExt = "fs_name_no_ext"
@@ -195,19 +196,19 @@ public struct SimpleRomSchema: Codable, JSONEncodable, Hashable {
         platformId = try container.decode(Int.self, forKey: .platformId)
         platformSlug = try container.decode(String.self, forKey: .platformSlug)
         platformFsSlug = try container.decode(String.self, forKey: .platformFsSlug)
-        platformName = ""
+        platformName = container.decodeFlexibleString(forKey: .platformName, default: "")
         platformCustomName = try container.decodeIfPresent(String.self, forKey: .platformCustomName)
-        platformDisplayName = try container.decode(String.self, forKey: .platformDisplayName)
-        fsName = try container.decode(String.self, forKey: .fsName)
-        fsNameNoTags = try container.decode(String.self, forKey: .fsNameNoTags)
-        fsNameNoExt = try container.decode(String.self, forKey: .fsNameNoExt)
-        fsExtension = try container.decode(String.self, forKey: .fsExtension)
-        fsPath = try container.decode(String.self, forKey: .fsPath)
+        platformDisplayName = container.decodeFlexibleString(forKey: .platformDisplayName, default: "")
+        fsName = container.decodeFlexibleString(forKey: .fsName, default: "")
+        fsNameNoTags = container.decodeFlexibleString(forKey: .fsNameNoTags, default: "")
+        fsNameNoExt = container.decodeFlexibleString(forKey: .fsNameNoExt, default: "")
+        fsExtension = container.decodeFlexibleString(forKey: .fsExtension, default: "")
+        fsPath = container.decodeFlexibleString(forKey: .fsPath, default: "")
         fsSizeBytes = try container.decode(Int.self, forKey: .fsSizeBytes)
         name = try container.decodeIfPresent(String.self, forKey: .name)
         slug = try container.decodeIfPresent(String.self, forKey: .slug)
         summary = try container.decodeIfPresent(String.self, forKey: .summary)
-        alternativeNames = try container.decode([String].self, forKey: .alternativeNames)
+        alternativeNames = container.decodeIfPresentOrDefault([String].self, forKey: .alternativeNames, default: [])
         youtubeVideoId = try container.decodeIfPresent(String.self, forKey: .youtubeVideoId)
         metadatum = try container.decode(RomMetadataSchema.self, forKey: .metadatum)
         igdbMetadata = try container.decodeIfPresent(RomIGDBMetadata.self, forKey: .igdbMetadata)
@@ -218,20 +219,20 @@ public struct SimpleRomSchema: Codable, JSONEncodable, Hashable {
         pathCoverSmall = try container.decodeIfPresent(String.self, forKey: .pathCoverSmall)
         pathCoverLarge = try container.decodeIfPresent(String.self, forKey: .pathCoverLarge)
         urlCover = try container.decodeIfPresent(String.self, forKey: .urlCover)
-        hasManual = try container.decode(Bool.self, forKey: .hasManual)
+        hasManual = container.decodeFlexibleBool(forKey: .hasManual, default: false)
         pathManual = try container.decodeIfPresent(String.self, forKey: .pathManual)
         urlManual = try container.decodeIfPresent(String.self, forKey: .urlManual)
-        isUnidentified = try container.decode(Bool.self, forKey: .isUnidentified)
-        isIdentified = try container.decode(Bool.self, forKey: .isIdentified)
+        isUnidentified = container.decodeFlexibleBool(forKey: .isUnidentified, default: false)
+        isIdentified = container.decodeFlexibleBool(forKey: .isIdentified, default: false)
         revision = try container.decodeIfPresent(String.self, forKey: .revision)
-        regions = try container.decode([String].self, forKey: .regions)
-        languages = try container.decode([String].self, forKey: .languages)
-        tags = try container.decode([String].self, forKey: .tags)
+        regions = container.decodeIfPresentOrDefault([String].self, forKey: .regions, default: [])
+        languages = container.decodeIfPresentOrDefault([String].self, forKey: .languages, default: [])
+        tags = container.decodeIfPresentOrDefault([String].self, forKey: .tags, default: [])
         crcHash = try container.decodeIfPresent(String.self, forKey: .crcHash)
         md5Hash = try container.decodeIfPresent(String.self, forKey: .md5Hash)
         sha1Hash = try container.decodeIfPresent(String.self, forKey: .sha1Hash)
         multi = try container.decodeIfPresent(Bool.self, forKey: .multi)
-        files = try container.decode([RomFileSchema].self, forKey: .files)
+        files = container.decodeLossyArray(RomFileSchema.self, forKey: .files)
         fullPath = try container.decode(String.self, forKey: .fullPath)
         createdAt = try container.decodeFlexibleDate(forKey: .createdAt)
         updatedAt = try container.decodeFlexibleDate(forKey: .updatedAt)
@@ -304,3 +305,4 @@ public struct SimpleRomSchema: Codable, JSONEncodable, Hashable {
 
 @available(iOS 13, tvOS 13, watchOS 6, macOS 10.15, *)
 extension SimpleRomSchema: Identifiable {}
+

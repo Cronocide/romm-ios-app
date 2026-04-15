@@ -45,4 +45,7 @@ protocol PHeartbeatRepository {
 
     /// Compare two semantic versions. Returns true if version >= minVersion
     func isVersionCompatible(_ version: String) -> Bool
+
+    /// Detect authentication capabilities including client token support
+    func detectAuthCapabilities(serverURL: String) async -> HeartbeatRepository.AuthCapabilities
 }

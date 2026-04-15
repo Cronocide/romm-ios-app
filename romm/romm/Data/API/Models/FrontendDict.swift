@@ -9,11 +9,11 @@ import Foundation
 
 public struct FrontendDict: Codable, JSONEncodable, Hashable {
 
-    public var UPLOAD_TIMEOUT: Int
+    public var UPLOAD_TIMEOUT: Int?
     public var DISABLE_USERPASS_LOGIN: Bool
-    public var YOUTUBE_BASE_URL: String
+    public var YOUTUBE_BASE_URL: String?
 
-    public init(UPLOAD_TIMEOUT: Int, DISABLE_USERPASS_LOGIN: Bool, YOUTUBE_BASE_URL: String) {
+    public init(UPLOAD_TIMEOUT: Int? = nil, DISABLE_USERPASS_LOGIN: Bool = false, YOUTUBE_BASE_URL: String? = nil) {
         self.UPLOAD_TIMEOUT = UPLOAD_TIMEOUT
         self.DISABLE_USERPASS_LOGIN = DISABLE_USERPASS_LOGIN
         self.YOUTUBE_BASE_URL = YOUTUBE_BASE_URL
@@ -25,13 +25,18 @@ public struct FrontendDict: Codable, JSONEncodable, Hashable {
         case YOUTUBE_BASE_URL
     }
 
-    // Encodable protocol methods
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        UPLOAD_TIMEOUT = try container.decodeIfPresent(Int.self, forKey: .UPLOAD_TIMEOUT)
+        DISABLE_USERPASS_LOGIN = try container.decodeIfPresent(Bool.self, forKey: .DISABLE_USERPASS_LOGIN) ?? false
+        YOUTUBE_BASE_URL = try container.decodeIfPresent(String.self, forKey: .YOUTUBE_BASE_URL)
+    }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(UPLOAD_TIMEOUT, forKey: .UPLOAD_TIMEOUT)
+        try container.encodeIfPresent(UPLOAD_TIMEOUT, forKey: .UPLOAD_TIMEOUT)
         try container.encode(DISABLE_USERPASS_LOGIN, forKey: .DISABLE_USERPASS_LOGIN)
-        try container.encode(YOUTUBE_BASE_URL, forKey: .YOUTUBE_BASE_URL)
+        try container.encodeIfPresent(YOUTUBE_BASE_URL, forKey: .YOUTUBE_BASE_URL)
     }
 }
 

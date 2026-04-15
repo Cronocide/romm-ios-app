@@ -13,7 +13,7 @@ class HeartbeatRepository: PHeartbeatRepository {
     // MARK: - Constants
 
     let minSupportedServerVersion = "4.1.0"
-    let maxSupportedServerVersion = "4.6.1"
+    let maxSupportedServerVersion = "4.8.1"
     let versionCheckThrottleSeconds: TimeInterval = 30
 
     // MARK: - UserDefaults Keys
@@ -194,8 +194,11 @@ class HeartbeatRepository: PHeartbeatRepository {
     }
 
     private func compareVersions(_ version1: String, _ version2: String) -> Int {
-        let v1Parts = version1.split(separator: ".").compactMap { Int($0) }
-        let v2Parts = version2.split(separator: ".").compactMap { Int($0) }
+        // Strip pre-release suffixes (e.g. "4.8.0-alpha.1" → "4.8.0")
+        let base1 = version1.split(separator: "-").first.map(String.init) ?? version1
+        let base2 = version2.split(separator: "-").first.map(String.init) ?? version2
+        let v1Parts = base1.split(separator: ".").compactMap { Int($0) }
+        let v2Parts = base2.split(separator: ".").compactMap { Int($0) }
 
         let maxLength = max(v1Parts.count, v2Parts.count)
 
@@ -208,5 +211,84 @@ class HeartbeatRepository: PHeartbeatRepository {
         }
 
         return 0
+    }
+
+    // MARK: - Auth Capabilities
+
+    struct AuthCapabilities {
+        let classic: Bool
+        let clientTokens: Bool
+        let cloudflareBlocked: Bool
+        let unreachable: Bool
+
+        var description: String {
+            if unreachable { return "Server unreachable" }
+            if cloudflareBlocked { return "Server blocked by Cloudflare" }
+            var methods: [String] = []
+            if classic { methods.append("Classic") }
+            if clientTokens { methods.append("Client Tokens") }
+            return methods.isEmpty ? "No auth methods available" : methods.joined(separator: ", ")
+        }
+
+        var supportsClassic: Bool { classic }
+        var supportsClientTokens: Bool { clientTokens }
+    }
+
+    /// Minimum server version that supports client API tokens (PR #3114)
+    private let minClientTokenVersion = "4.8.0"
+
+    func detectAuthCapabilities(serverURL: String) async -> AuthCapabilities {
+        logger.info("Detecting authentication capabilities for: \(serverURL)")
+
+        var classicAuthWorks = false
+        var hasClientTokens = false
+        var hasCloudflare = false
+
+        do {
+            let response = try await apiClient.getHeartbeat(from: serverURL)
+            classicAuthWorks = true
+            logger.info("Classic auth works - heartbeat successful")
+
+            // Check if classic auth is disabled
+            if response.FRONTEND.DISABLE_USERPASS_LOGIN {
+                classicAuthWorks = false
+                logger.warning("Classic username/password login is disabled on server")
+            }
+
+            // Check client token support
+            if let clientTokensConfig = response.CLIENT_TOKENS {
+                hasClientTokens = clientTokensConfig.ENABLED
+                logger.info("Client tokens enabled via heartbeat: \(hasClientTokens)")
+            } else {
+                // Fallback: check server version >= 4.8.0
+                let version = response.SYSTEM.VERSION
+                let baseVersion = version.split(separator: "-").first.map(String.init) ?? version
+                if compareVersions(baseVersion, minClientTokenVersion) >= 0 {
+                    hasClientTokens = true
+                    logger.info("Client tokens assumed available (server \(version) >= \(minClientTokenVersion))")
+                } else {
+                    logger.info("Server \(version) too old for client tokens")
+                }
+            }
+        } catch let error as APIClientError {
+            if case .cloudflareProtection = error {
+                hasCloudflare = true
+                logger.warning("Cloudflare protection detected")
+            } else {
+                logger.error("Heartbeat failed with error: \(error)")
+            }
+        } catch {
+            logger.error("Heartbeat failed with unexpected error: \(error)")
+        }
+
+        if hasCloudflare {
+            return AuthCapabilities(classic: false, clientTokens: false, cloudflareBlocked: true, unreachable: false)
+        }
+
+        if !classicAuthWorks && !hasClientTokens {
+            return AuthCapabilities(classic: false, clientTokens: false, cloudflareBlocked: false, unreachable: true)
+        }
+
+        return AuthCapabilities(classic: classicAuthWorks, clientTokens: hasClientTokens, cloudflareBlocked: false, unreachable: false)
     }
 }

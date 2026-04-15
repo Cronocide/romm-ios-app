@@ -78,6 +78,13 @@ protocol PSetupRepository {
         password: String,
         allowIncompatibleVersionLogin: Bool
     ) async throws -> SetupConfiguration
+    
+    func getAuthMethod() -> AuthMethod
+    func saveAuthMethod(_ method: AuthMethod) throws
+
+    // Client Token Methods
+    func saveClientTokenSetup(serverURL: String, tokenName: String, version: String, allowIncompatibleVersionLogin: Bool) throws
+    func clearClientTokenData() throws
 }
 
 // MARK: - Setup Repository Implementation
@@ -164,10 +171,9 @@ class SetupRepository: PSetupRepository {
     
     func clearSetupConfiguration() throws {
         logger.info("Clearing setup configuration...")
-        
-        // Clear JSON configuration from UserDefaults
-        // UserDefaults.standard.removeObject(forKey: setupConfigurationKey)
-        
+        if getAuthMethod() == .clientToken {
+            try clearClientTokenData()
+        }
         logger.info("Setup configuration cleared")
     }
     
@@ -421,6 +427,55 @@ class SetupRepository: PSetupRepository {
         return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
     }
     
+    private var authMethodKey: String { "\(userDefaultsPrefix)auth_method" }
+
+    func getAuthMethod() -> AuthMethod {
+        logger.debug("📖 Reading auth method...")
+        
+        guard let methodString = UserDefaults.standard.string(forKey: authMethodKey),
+              let method = AuthMethod(rawValue: methodString) else {
+            logger.debug("No auth method found, defaulting to classic")
+            return .classic
+        }
+        
+        logger.info("✅ Auth method: \(method.displayName)")
+        return method
+    }
+    
+    func saveAuthMethod(_ method: AuthMethod) throws {
+        logger.info("💾 Saving auth method: \(method.displayName)")
+        
+        UserDefaults.standard.set(method.rawValue, forKey: authMethodKey)
+        
+        logger.info("✅ Auth method saved")
+    }
+    
+    // MARK: - Client Token Methods
+
+    func saveClientTokenSetup(serverURL: String, tokenName: String, version: String, allowIncompatibleVersionLogin: Bool) throws {
+        logger.info("Saving client token setup configuration...")
+        let setupConfig = SetupConfiguration(
+            serverURL: serverURL,
+            username: tokenName.isEmpty ? "Token User" : tokenName,
+            password: nil,
+            token: nil,
+            refreshToken: nil,
+            setupDate: Date(),
+            version: version,
+            allowIncompatibleVersionLogin: allowIncompatibleVersionLogin
+        )
+        try saveSetupConfiguration(setupConfig)
+        try saveAuthMethod(.clientToken)
+        logger.info("Client token setup saved")
+    }
+
+    func clearClientTokenData() throws {
+        logger.info("Clearing client token data...")
+        let service = ClientTokenAuthService()
+        service.clearToken()
+        logger.info("Client token data cleared")
+    }
+
     // MARK: - Private Helper Methods (continued)
 }
 

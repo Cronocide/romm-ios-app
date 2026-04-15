@@ -79,8 +79,8 @@ public struct CollectionSchema: Codable, JSONEncodable, Hashable {
         romCount = try container.decode(Int.self, forKey: .romCount)
         pathCoverSmall = try container.decodeIfPresent(String.self, forKey: .pathCoverSmall)
         pathCoverLarge = try container.decodeIfPresent(String.self, forKey: .pathCoverLarge)
-        pathCoversSmall = try container.decode([String].self, forKey: .pathCoversSmall)
-        pathCoversLarge = try container.decode([String].self, forKey: .pathCoversLarge)
+        pathCoversSmall = container.decodeIfPresentOrDefault([String].self, forKey: .pathCoversSmall, default: [])
+        pathCoversLarge = container.decodeIfPresentOrDefault([String].self, forKey: .pathCoversLarge, default: [])
         isPublic = try container.decodeIfPresent(Bool.self, forKey: .isPublic) ?? false
         isFavorite = try container.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
         isVirtual = try container.decodeIfPresent(Bool.self, forKey: .isVirtual) ?? false
@@ -90,7 +90,7 @@ public struct CollectionSchema: Codable, JSONEncodable, Hashable {
         id = try container.decode(Int.self, forKey: .id)
         urlCover = try container.decodeIfPresent(String.self, forKey: .urlCover)
         userId = try container.decode(Int.self, forKey: .userId)
-        userUsername = try container.decode(String.self, forKey: .userUsername)
+        userUsername = container.decodeFlexibleString(forKey: .userUsername, default: "")
     }
 
     // Encodable protocol methods
@@ -121,3 +121,4 @@ public struct CollectionSchema: Codable, JSONEncodable, Hashable {
 
 @available(iOS 13, tvOS 13, watchOS 6, macOS 10.15, *)
 extension CollectionSchema: Identifiable {}
+

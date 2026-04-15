@@ -1,21 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-	<dict>
-		<key>ITSAppUsesNonExemptEncryption</key>
-		<false />
-		<key>NSAppTransportSecurity</key>
+<dict>
+	<key>CFBundleURLTypes</key>
+	<array>
 		<dict>
-			<key>NSAllowsLocalNetworking</key>
-			<true />
-			<key>NSExceptionRequiresForwardSecrecy</key>
-			<false />
-			<key>NSAllowsArbitraryLoads</key>
-			<true />
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>romm.url-handler</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>romm</string>
+			</array>
 		</dict>
-		<key>UIFileSharingEnabled</key>
-		<true />
-		<key>LSSupportsOpeningDocumentsInPlace</key>
-		<true />
+	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+		<key>NSExceptionRequiresForwardSecrecy</key>
+		<false/>
 	</dict>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access is needed to scan QR codes for device pairing</string>
+</dict>
 </plist>

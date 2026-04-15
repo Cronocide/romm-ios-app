@@ -24,6 +24,16 @@ struct SetupView: View {
     @State private var isVersionWarning = false  // true if error is just a warning (incompatible but can proceed)
     @State private var didAcceptIncompatibleVersion = false
 
+    // Auth capability detection
+    @State private var detectedAuthCapability: HeartbeatRepository.AuthCapabilities?
+    @State private var selectedAuthMethod: AuthMethod = .classic
+
+    // Client Token states
+    @State private var clientTokenInput = ""
+    @State private var isExchangingToken = false
+    @State private var clientTokenError: String?
+    @State private var showQRScanner = false
+
     private var connectionLogger: ConnectionLogger { ConnectionLogger.shared }
     private let launchArguments = ProcessInfo.processInfo.arguments
     private var shouldShowLoginForUITests: Bool { launchArguments.contains("-ui_testing_show_login") }
@@ -117,6 +127,13 @@ struct SetupView: View {
             }
             .onTapGesture {
                 hideKeyboard()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .clientTokenPairingCode)) { notification in
+                if let code = notification.userInfo?["code"] as? String {
+                    Task {
+                        await performClientTokenPairing(code: code)
+                    }
+                }
             }
         }
     }
@@ -271,6 +288,51 @@ struct SetupView: View {
 
     private var loginSection: some View {
         VStack(spacing: 16) {
+            // Auth Method Selection (if server supports multiple methods)
+            if let capability = detectedAuthCapability {
+                let methods = AuthMethod.availableMethods(for: capability)
+                if methods.count > 1 {
+                    authMethodPicker
+                }
+            }
+
+            // Classic Auth Fields (Username/Password)
+            if selectedAuthMethod == .classic {
+                classicAuthFields
+            }
+
+            // Client Token Auth (if client token selected)
+            if selectedAuthMethod == .clientToken {
+                clientTokenAuthSection
+            }
+        }
+    }
+
+    // MARK: - Auth Method Picker
+
+    private var authMethodPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Authentication Method")
+                .font(.headline)
+
+            Picker("Auth Method", selection: $selectedAuthMethod) {
+                ForEach(AuthMethod.allCases, id: \.self) { method in
+                    Label(method.displayName, systemImage: method.iconName)
+                        .tag(method)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(selectedAuthMethod.description)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    // MARK: - Classic Auth Fields
+
+    private var classicAuthFields: some View {
+        VStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Username")
                     .font(.headline)
@@ -290,28 +352,112 @@ struct SetupView: View {
         }
     }
 
+    // MARK: - Client Token Auth Section
+
+    private var clientTokenAuthSection: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 12) {
+                Image(systemName: "key.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(.orange)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("API Token")
+                        .font(.headline)
+                    Text("Connect using a token from your RomM server settings")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+
+            Button {
+                showQRScanner = true
+            } label: {
+                HStack {
+                    Image(systemName: "qrcode.viewfinder")
+                    Text("Scan QR Code")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+
+            HStack {
+                Rectangle().frame(height: 1).foregroundColor(.secondary.opacity(0.3))
+                Text("or").font(.caption).foregroundColor(.secondary)
+                Rectangle().frame(height: 1).foregroundColor(.secondary.opacity(0.3))
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Paste Token")
+                    .font(.headline)
+                TextField("rmm_...", text: $clientTokenInput)
+                    .textFieldStyle(.roundedBorder)
+                    .textInputAutocapitalization(.never)
+                    .disableAutocorrection(true)
+                    .font(.system(.body, design: .monospaced))
+            }
+
+            if let error = clientTokenError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .sheet(isPresented: $showQRScanner) {
+            QRScannerView { code in
+                showQRScanner = false
+                Task {
+                    await performClientTokenPairing(code: code)
+                }
+            }
+        }
+    }
+
     // MARK: - Login Button
 
     private var loginButton: some View {
         Button {
             Task {
-                await performLogin()
+                if selectedAuthMethod == .clientToken {
+                    await performClientTokenLogin()
+                } else {
+                    await performClassicLogin()
+                }
             }
         } label: {
-            if appViewModel.appData.isLoading {
+            if appViewModel.appData.isLoading || isExchangingToken {
                 HStack {
                     ProgressView()
                         .frame(width: 20, height: 20)
-                    Text("Logging in...")
+                    Text(isExchangingToken ? "Connecting..." : "Logging in...")
                 }
             } else {
-                Text("Login")
+                HStack {
+                    Image(systemName: selectedAuthMethod.iconName)
+                    Text(selectedAuthMethod == .clientToken ? "Connect with Token" : "Login")
+                }
             }
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
-        .disabled(username.isEmpty || password.isEmpty || appViewModel.appData.isLoading)
+        .disabled(!canProceedWithLogin)
         .padding(.horizontal, 24)
+    }
+
+    private var canProceedWithLogin: Bool {
+        if appViewModel.appData.isLoading || isExchangingToken {
+            return false
+        }
+        switch selectedAuthMethod {
+        case .classic:
+            return !username.isEmpty && !password.isEmpty
+        case .clientToken:
+            return !clientTokenInput.isEmpty
+        }
     }
 
     // MARK: - Actions
@@ -324,24 +470,40 @@ struct SetupView: View {
         isErrorExpanded = false
         isVersionWarning = false
         didAcceptIncompatibleVersion = false
+        detectedAuthCapability = nil
 
         do {
             let version = try await appViewModel.fetchServerVersion(from: serverURL)
             detectedServerVersion = version
 
             if appViewModel.isVersionCompatible(version) {
-                // Compatible - proceed
+                // Compatible - proceed with auth detection
                 serverValidated = true
                 connectionError = nil
                 didAcceptIncompatibleVersion = false
+
+                // Detect authentication capabilities
+                await detectAuthenticationMethod()
             } else {
                 // Incompatible - show warning but allow to proceed
                 connectionError = "Server version \(version) is not compatible"
                 connectionErrorDetails = "Supported range: \(appViewModel.minSupportedServerVersion) - \(appViewModel.maxSupportedServerVersion). Some features may not work correctly."
                 isVersionWarning = true
             }
+        } catch let error as APIClientError {
+            if case .cloudflareProtection = error {
+                // Cloudflare blocks everything — can't authenticate
+                connectionError = "Server is protected by Cloudflare"
+                connectionErrorDetails = "This server is behind Cloudflare protection and cannot be accessed directly."
+                isVersionWarning = false
+            } else {
+                let (message, details) = parseConnectionError(error)
+                connectionError = message
+                connectionErrorDetails = details
+                isVersionWarning = false
+            }
+            didAcceptIncompatibleVersion = false
         } catch {
-            // Parse error for user-friendly message
             let (message, details) = parseConnectionError(error)
             connectionError = message
             connectionErrorDetails = details
@@ -352,7 +514,65 @@ struct SetupView: View {
         isConnecting = false
     }
 
+    // MARK: - Auth Detection
+
+    private func detectAuthenticationMethod() async {
+        let heartbeatRepo = HeartbeatRepository()
+        Logger.auth.info("Detecting authentication methods...")
+        let capabilities = await heartbeatRepo.detectAuthCapabilities(serverURL: serverURL)
+        detectedAuthCapability = capabilities
+        Logger.auth.info("Detected capabilities: \(capabilities.description)")
+        connectionError = nil
+        connectionErrorDetails = nil
+
+        if capabilities.unreachable {
+            serverValidated = false
+            connectionError = "Server is unreachable"
+            connectionErrorDetails = "Could not connect to the server."
+            return
+        }
+        if capabilities.cloudflareBlocked {
+            serverValidated = false
+            connectionError = "Server is protected by Cloudflare"
+            connectionErrorDetails = "This server is behind Cloudflare protection and cannot be accessed directly."
+            return
+        }
+        serverValidated = true
+        // Default: prefer classic, then client token
+        if capabilities.classic {
+            selectedAuthMethod = .classic
+        } else if capabilities.clientTokens {
+            selectedAuthMethod = .clientToken
+        }
+    }
+
     private func parseConnectionError(_ error: Error) -> (message: String, details: String?) {
+        // Handle APIClientError specifically
+        if let apiError = error as? APIClientError {
+            switch apiError {
+            case .cloudflareProtection:
+                return ("Server is protected by Cloudflare", "This server is behind Cloudflare protection and cannot be accessed directly.")
+            case .authenticationRequired:
+                return ("Authentication failed", "Invalid username or password")
+            case .invalidURL(let url):
+                return ("Invalid URL", "The URL '\(url)' is not valid")
+            case .noConfiguration:
+                return ("Configuration error", "Server configuration is missing")
+            case .noCredentials:
+                return ("Credentials missing", "Please provide username and password")
+            case .invalidResponse(let code, _):
+                return ("Server error (\(code))", "The server returned an error response")
+            case .decodingError:
+                return ("Invalid response", "The server did not return a valid RomM response")
+            case .networkError(let underlyingError):
+                return parseGeneralConnectionError(underlyingError)
+            }
+        }
+
+        return parseGeneralConnectionError(error)
+    }
+
+    private func parseGeneralConnectionError(_ error: Error) -> (message: String, details: String?) {
         let errorString = error.localizedDescription
 
         // Certificate errors
@@ -401,7 +621,7 @@ struct SetupView: View {
         password = ""
     }
 
-    private func performLogin() async {
+    private func performClassicLogin() async {
         // Store the server version for foreground checks
         if let version = detectedServerVersion {
             appViewModel.saveServerVersion(version)
@@ -411,6 +631,68 @@ struct SetupView: View {
             username: username,
             password: password
         )
+    }
+
+    // MARK: - Client Token Login
+
+    @MainActor
+    private func performClientTokenLogin() async {
+        isExchangingToken = true
+        clientTokenError = nil
+        let service = ClientTokenAuthService()
+        do {
+            let tokenInfo = try await service.validateToken(serverURL: serverURL, token: clientTokenInput)
+            try service.saveToken(clientTokenInput, info: tokenInfo)
+            let setupRepo = SetupRepository()
+            if let version = detectedServerVersion {
+                appViewModel.saveServerVersion(version)
+            }
+            try setupRepo.saveClientTokenSetup(
+                serverURL: serverURL,
+                tokenName: tokenInfo.name,
+                version: detectedServerVersion ?? "unknown",
+                allowIncompatibleVersionLogin: didAcceptIncompatibleVersion
+            )
+            Logger.auth.info("Client token login complete")
+            appViewModel.appData.isLoading = false
+            appViewModel.appData.errorMessage = nil
+            // Trigger app state transition to authenticated
+            await appViewModel.checkInitialState()
+        } catch {
+            Logger.auth.error("Client token login failed: \(error)")
+            clientTokenError = error.localizedDescription
+        }
+        isExchangingToken = false
+    }
+
+    @MainActor
+    private func performClientTokenPairing(code: String) async {
+        isExchangingToken = true
+        clientTokenError = nil
+        let service = ClientTokenAuthService()
+        do {
+            let (token, tokenInfo) = try await service.exchangeCode(serverURL: serverURL, code: code)
+            try service.saveToken(token, info: tokenInfo)
+            let setupRepo = SetupRepository()
+            if let version = detectedServerVersion {
+                appViewModel.saveServerVersion(version)
+            }
+            try setupRepo.saveClientTokenSetup(
+                serverURL: serverURL,
+                tokenName: tokenInfo.name,
+                version: detectedServerVersion ?? "unknown",
+                allowIncompatibleVersionLogin: didAcceptIncompatibleVersion
+            )
+            Logger.auth.info("Client token pairing complete")
+            appViewModel.appData.isLoading = false
+            appViewModel.appData.errorMessage = nil
+            // Trigger app state transition to authenticated
+            await appViewModel.checkInitialState()
+        } catch {
+            Logger.auth.error("Client token pairing failed: \(error)")
+            clientTokenError = error.localizedDescription
+        }
+        isExchangingToken = false
     }
 
     private func hideKeyboard() {

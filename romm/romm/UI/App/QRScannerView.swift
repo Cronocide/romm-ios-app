@@ -1,0 +1,154 @@
+//
+//  QRScannerView.swift
+//  romm
+//
+
+import SwiftUI
+import AVFoundation
+
+struct QRScannerView: View {
+    let onCodeScanned: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var error: String?
+    @State private var hasScanned = false
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                QRCameraPreview(onCodeFound: handleCode)
+                    .ignoresSafeArea()
+                VStack {
+                    Spacer()
+                    VStack(spacing: 12) {
+                        if let error {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundColor(.red)
+                                .padding()
+                                .background(.ultraThinMaterial)
+                                .cornerRadius(8)
+                        } else {
+                            Text("Point your camera at the QR code in RomM settings")
+                                .font(.subheadline)
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(.ultraThinMaterial)
+                                .cornerRadius(8)
+                        }
+                    }
+                    .padding(.bottom, 60)
+                }
+            }
+            .navigationTitle("Scan QR Code")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func handleCode(_ code: String) {
+        guard !hasScanned else { return }
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Try to extract pairing code from various formats:
+        // 1. Raw 8-char code: "ABCD1234"
+        // 2. URL with code param: "https://romm.example.com/pair?code=ABCD1234"
+        // 3. Deep link: "romm://pair?code=ABCD1234"
+        if let extracted = extractPairingCode(from: trimmed) {
+            hasScanned = true
+            onCodeScanned(extracted)
+        } else {
+            error = "Not a valid pairing code"
+        }
+    }
+
+    private func extractPairingCode(from value: String) -> String? {
+        // Codes can contain hyphens (e.g. "WMXW-4R53"), strip them for validation
+        let stripped = value.replacingOccurrences(of: "-", with: "")
+
+        // Check if it's a raw 8-char alphanumeric code (with or without hyphen)
+        if stripped.count == 8, stripped.allSatisfy({ $0.isLetter || $0.isNumber }) {
+            return value // Return original format, server handles stripping
+        }
+
+        // Try parsing as URL and extract "code" query parameter
+        if let url = URL(string: value),
+           let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+           let code = components.queryItems?.first(where: { $0.name == "code" })?.value {
+            let codeStripped = code.replacingOccurrences(of: "-", with: "")
+            if codeStripped.count == 8, codeStripped.allSatisfy({ $0.isLetter || $0.isNumber }) {
+                return code
+            }
+        }
+
+        return nil
+    }
+}
+
+private struct QRCameraPreview: UIViewRepresentable {
+    let onCodeFound: (String) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onCodeFound: onCodeFound)
+    }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        let session = AVCaptureSession()
+        context.coordinator.session = session
+
+        guard let device = AVCaptureDevice.default(for: .video),
+              let input = try? AVCaptureDeviceInput(device: device) else {
+            return view
+        }
+
+        if session.canAddInput(input) { session.addInput(input) }
+
+        let output = AVCaptureMetadataOutput()
+        if session.canAddOutput(output) {
+            session.addOutput(output)
+            output.setMetadataObjectsDelegate(context.coordinator, queue: .main)
+            output.metadataObjectTypes = [.qr]
+        }
+
+        let previewLayer = AVCaptureVideoPreviewLayer(session: session)
+        previewLayer.videoGravity = .resizeAspectFill
+        previewLayer.frame = view.bounds
+        view.layer.addSublayer(previewLayer)
+        context.coordinator.previewLayer = previewLayer
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            session.startRunning()
+        }
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.previewLayer?.frame = uiView.bounds
+    }
+
+    class Coordinator: NSObject, AVCaptureMetadataOutputObjectsDelegate {
+        let onCodeFound: (String) -> Void
+        var session: AVCaptureSession?
+        var previewLayer: AVCaptureVideoPreviewLayer?
+
+        init(onCodeFound: @escaping (String) -> Void) {
+            self.onCodeFound = onCodeFound
+        }
+
+        func metadataOutput(
+            _ output: AVCaptureMetadataOutput,
+            didOutput metadataObjects: [AVMetadataObject],
+            from connection: AVCaptureConnection
+        ) {
+            guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
+                  object.type == .qr,
+                  let value = object.stringValue else { return }
+            session?.stopRunning()
+            onCodeFound(value)
+        }
+    }
+}

@@ -65,17 +65,17 @@ public struct FirmwareSchema: Codable, JSONEncodable, Hashable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(Int.self, forKey: .id)
-        fileName = try container.decode(String.self, forKey: .fileName)
-        fileNameNoTags = try container.decode(String.self, forKey: .fileNameNoTags)
-        fileNameNoExt = try container.decode(String.self, forKey: .fileNameNoExt)
-        fileExtension = try container.decode(String.self, forKey: .fileExtension)
-        filePath = try container.decode(String.self, forKey: .filePath)
+        fileName = container.decodeFlexibleString(forKey: .fileName, default: "")
+        fileNameNoTags = container.decodeFlexibleString(forKey: .fileNameNoTags, default: "")
+        fileNameNoExt = container.decodeFlexibleString(forKey: .fileNameNoExt, default: "")
+        fileExtension = container.decodeFlexibleString(forKey: .fileExtension, default: "")
+        filePath = container.decodeFlexibleString(forKey: .filePath, default: "")
         fileSizeBytes = try container.decode(Int.self, forKey: .fileSizeBytes)
-        fullPath = try container.decode(String.self, forKey: .fullPath)
+        fullPath = container.decodeFlexibleString(forKey: .fullPath, default: "")
         isVerified = try container.decode(Bool.self, forKey: .isVerified)
-        crcHash = try container.decode(String.self, forKey: .crcHash)
-        md5Hash = try container.decode(String.self, forKey: .md5Hash)
-        sha1Hash = try container.decode(String.self, forKey: .sha1Hash)
+        crcHash = container.decodeFlexibleString(forKey: .crcHash, default: "")
+        md5Hash = container.decodeFlexibleString(forKey: .md5Hash, default: "")
+        sha1Hash = container.decodeFlexibleString(forKey: .sha1Hash, default: "")
         missingFromFs = try container.decode(Bool.self, forKey: .missingFromFs)
         createdAt = try container.decodeFlexibleDate(forKey: .createdAt)
         updatedAt = try container.decodeFlexibleDate(forKey: .updatedAt)
@@ -106,3 +106,4 @@ public struct FirmwareSchema: Codable, JSONEncodable, Hashable {
 
 @available(iOS 13, tvOS 13, watchOS 6, macOS 10.15, *)
 extension FirmwareSchema: Identifiable {}
+
