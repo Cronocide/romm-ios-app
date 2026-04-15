@@ -43,6 +43,12 @@ class HeartbeatRepository: PHeartbeatRepository {
             let heartbeat = Heartbeat(version: response.SYSTEM.VERSION)
             logger.info("Retrieved server version: \(heartbeat.version)")
             return heartbeat
+        } catch let error as APIClientError {
+            logger.error("Error getting heartbeat: \(error)")
+            if case .decodingError = error {
+                throw HeartbeatError.decodingError(error)
+            }
+            throw HeartbeatError.networkError(error)
         } catch {
             logger.error("Error getting heartbeat: \(error)")
             throw HeartbeatError.networkError(error)
@@ -57,6 +63,12 @@ class HeartbeatRepository: PHeartbeatRepository {
             let heartbeat = Heartbeat(version: response.SYSTEM.VERSION)
             logger.info("Retrieved server version from URL: \(heartbeat.version)")
             return heartbeat
+        } catch let error as APIClientError {
+            logger.error("Error getting heartbeat from URL: \(error)")
+            if case .decodingError = error {
+                throw HeartbeatError.decodingError(error)
+            }
+            throw HeartbeatError.networkError(error)
         } catch {
             logger.error("Error getting heartbeat from URL: \(error)")
             throw HeartbeatError.networkError(error)
