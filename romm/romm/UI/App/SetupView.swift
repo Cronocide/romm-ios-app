@@ -503,6 +503,18 @@ struct SetupView: View {
                 isVersionWarning = false
             }
             didAcceptIncompatibleVersion = false
+        } catch let error as HeartbeatError {
+            switch error {
+            case .decodingError:
+                connectionError = "Invalid response"
+                connectionErrorDetails = "The server did not return a valid RomM response. Is this a RomM server?"
+            default:
+                let (message, details) = parseConnectionError(error)
+                connectionError = message
+                connectionErrorDetails = details
+            }
+            isVersionWarning = false
+            didAcceptIncompatibleVersion = false
         } catch {
             let (message, details) = parseConnectionError(error)
             connectionError = message
