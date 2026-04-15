@@ -12,9 +12,15 @@ public struct EmulationDict: Codable, JSONEncodable, Hashable {
     public var DISABLE_EMULATOR_JS: Bool
     public var DISABLE_RUFFLE_RS: Bool
 
-    public init(DISABLE_EMULATOR_JS: Bool, DISABLE_RUFFLE_RS: Bool) {
+    public init(DISABLE_EMULATOR_JS: Bool = false, DISABLE_RUFFLE_RS: Bool = false) {
         self.DISABLE_EMULATOR_JS = DISABLE_EMULATOR_JS
         self.DISABLE_RUFFLE_RS = DISABLE_RUFFLE_RS
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        DISABLE_EMULATOR_JS = try container.decodeIfPresent(Bool.self, forKey: .DISABLE_EMULATOR_JS) ?? false
+        DISABLE_RUFFLE_RS = try container.decodeIfPresent(Bool.self, forKey: .DISABLE_RUFFLE_RS) ?? false
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {

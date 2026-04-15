@@ -12,9 +12,15 @@ public struct OIDCDict: Codable, JSONEncodable, Hashable {
     public var ENABLED: Bool
     public var PROVIDER: String
 
-    public init(ENABLED: Bool, PROVIDER: String) {
+    public init(ENABLED: Bool = false, PROVIDER: String = "") {
         self.ENABLED = ENABLED
         self.PROVIDER = PROVIDER
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        ENABLED = try container.decodeIfPresent(Bool.self, forKey: .ENABLED) ?? false
+        PROVIDER = try container.decodeIfPresent(String.self, forKey: .PROVIDER) ?? ""
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {

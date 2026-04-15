@@ -11,8 +11,13 @@ public struct FilesystemDict: Codable, JSONEncodable, Hashable {
 
     public var FS_PLATFORMS: [String]
 
-    public init(FS_PLATFORMS: [String]) {
+    public init(FS_PLATFORMS: [String] = []) {
         self.FS_PLATFORMS = FS_PLATFORMS
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        FS_PLATFORMS = try container.decodeIfPresent([String].self, forKey: .FS_PLATFORMS) ?? []
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {

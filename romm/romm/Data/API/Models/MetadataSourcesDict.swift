@@ -20,7 +20,18 @@ public struct MetadataSourcesDict: Codable, JSONEncodable, Hashable {
     public var HASHEOUS_API_ENABLED: Bool
     public var TGDB_API_ENABLED: Bool
 
-    public init(ANY_SOURCE_ENABLED: Bool, IGDB_API_ENABLED: Bool, MOBY_API_ENABLED: Bool, SS_API_ENABLED: Bool, STEAMGRIDDB_API_ENABLED: Bool, RA_API_ENABLED: Bool, LAUNCHBOX_API_ENABLED: Bool, PLAYMATCH_API_ENABLED: Bool, HASHEOUS_API_ENABLED: Bool, TGDB_API_ENABLED: Bool) {
+    public init(
+        ANY_SOURCE_ENABLED: Bool = false,
+        IGDB_API_ENABLED: Bool = false,
+        MOBY_API_ENABLED: Bool = false,
+        SS_API_ENABLED: Bool = false,
+        STEAMGRIDDB_API_ENABLED: Bool = false,
+        RA_API_ENABLED: Bool = false,
+        LAUNCHBOX_API_ENABLED: Bool = false,
+        PLAYMATCH_API_ENABLED: Bool = false,
+        HASHEOUS_API_ENABLED: Bool = false,
+        TGDB_API_ENABLED: Bool = false
+    ) {
         self.ANY_SOURCE_ENABLED = ANY_SOURCE_ENABLED
         self.IGDB_API_ENABLED = IGDB_API_ENABLED
         self.MOBY_API_ENABLED = MOBY_API_ENABLED
@@ -31,6 +42,20 @@ public struct MetadataSourcesDict: Codable, JSONEncodable, Hashable {
         self.PLAYMATCH_API_ENABLED = PLAYMATCH_API_ENABLED
         self.HASHEOUS_API_ENABLED = HASHEOUS_API_ENABLED
         self.TGDB_API_ENABLED = TGDB_API_ENABLED
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        ANY_SOURCE_ENABLED = try container.decodeIfPresent(Bool.self, forKey: .ANY_SOURCE_ENABLED) ?? false
+        IGDB_API_ENABLED = try container.decodeIfPresent(Bool.self, forKey: .IGDB_API_ENABLED) ?? false
+        MOBY_API_ENABLED = try container.decodeIfPresent(Bool.self, forKey: .MOBY_API_ENABLED) ?? false
+        SS_API_ENABLED = try container.decodeIfPresent(Bool.self, forKey: .SS_API_ENABLED) ?? false
+        STEAMGRIDDB_API_ENABLED = try container.decodeIfPresent(Bool.self, forKey: .STEAMGRIDDB_API_ENABLED) ?? false
+        RA_API_ENABLED = try container.decodeIfPresent(Bool.self, forKey: .RA_API_ENABLED) ?? false
+        LAUNCHBOX_API_ENABLED = try container.decodeIfPresent(Bool.self, forKey: .LAUNCHBOX_API_ENABLED) ?? false
+        PLAYMATCH_API_ENABLED = try container.decodeIfPresent(Bool.self, forKey: .PLAYMATCH_API_ENABLED) ?? false
+        HASHEOUS_API_ENABLED = try container.decodeIfPresent(Bool.self, forKey: .HASHEOUS_API_ENABLED) ?? false
+        TGDB_API_ENABLED = try container.decodeIfPresent(Bool.self, forKey: .TGDB_API_ENABLED) ?? false
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {

@@ -12,9 +12,15 @@ public struct SystemDict: Codable, JSONEncodable, Hashable {
     public var VERSION: String
     public var SHOW_SETUP_WIZARD: Bool
 
-    public init(VERSION: String, SHOW_SETUP_WIZARD: Bool) {
+    public init(VERSION: String = "", SHOW_SETUP_WIZARD: Bool = false) {
         self.VERSION = VERSION
         self.SHOW_SETUP_WIZARD = SHOW_SETUP_WIZARD
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        VERSION = try container.decode(String.self, forKey: .VERSION)
+        SHOW_SETUP_WIZARD = try container.decodeIfPresent(Bool.self, forKey: .SHOW_SETUP_WIZARD) ?? false
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
