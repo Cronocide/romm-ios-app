@@ -484,6 +484,11 @@ struct SetupView: View {
 
                 // Detect authentication capabilities
                 await detectAuthenticationMethod()
+            } else if version == "development" {
+                // Development build - warn but allow to proceed
+                connectionError = "Development build detected"
+                connectionErrorDetails = "This server is running a development version of RomM. Compatibility is not guaranteed."
+                isVersionWarning = true
             } else {
                 // Incompatible - show warning but allow to proceed
                 connectionError = "Server version \(version) is not compatible"

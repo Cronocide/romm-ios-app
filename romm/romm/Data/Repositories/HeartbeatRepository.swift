@@ -206,6 +206,10 @@ class HeartbeatRepository: PHeartbeatRepository {
     }
 
     private func compareVersions(_ version1: String, _ version2: String) -> Int {
+        // "development" builds are treated as above any release version
+        if version1 == "development" { return 1 }
+        if version2 == "development" { return -1 }
+
         // Strip pre-release suffixes (e.g. "4.8.0-alpha.1" → "4.8.0")
         let base1 = version1.split(separator: "-").first.map(String.init) ?? version1
         let base2 = version2.split(separator: "-").first.map(String.init) ?? version2
