@@ -769,6 +769,21 @@ struct QuickInputChip: View {
 struct ConnectionDebugPanel: View {
     let logs: [ConnectionLogEntry]
     @Binding var isExpanded: Bool
+    @State private var copied = false
+
+    static func formatLogsForClipboard(_ logs: [ConnectionLogEntry], appVersion: String) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        let header = "RomM iOS v\(appVersion)\n\n"
+        let body = logs.map { entry in
+            var line = "\(formatter.string(from: entry.timestamp)) [\(entry.type.label)] \(entry.message)"
+            if let details = entry.details {
+                line += "\n  \(details)"
+            }
+            return line
+        }.joined(separator: "\n")
+        return header + body
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -813,6 +828,26 @@ struct ConnectionDebugPanel: View {
                         }
                     }
                 }
+
+                Button {
+                    let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+                    UIPasteboard.general.string = ConnectionDebugPanel.formatLogsForClipboard(logs, appVersion: version)
+                    copied = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        copied = false
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                            .font(.caption)
+                        Text(copied ? "Kopiert ✓" : "Log kopieren")
+                            .font(.caption)
+                    }
+                    .foregroundColor(copied ? .green : .secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(12)

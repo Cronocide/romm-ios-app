@@ -32,6 +32,15 @@ enum ConnectionLogType {
         case .error: return .red
         }
     }
+
+    var label: String {
+        switch self {
+        case .info: return "info"
+        case .success: return "ok"
+        case .warning: return "warn"
+        case .error: return "error"
+        }
+    }
 }
 
 /// A single log entry for connection debugging
