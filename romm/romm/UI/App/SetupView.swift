@@ -840,7 +840,7 @@ struct ConnectionDebugPanel: View {
                     HStack(spacing: 4) {
                         Image(systemName: copied ? "checkmark" : "doc.on.doc")
                             .font(.caption)
-                        Text(copied ? "Kopiert ✓" : "Log kopieren")
+                        Text(copied ? "Copied ✓" : "Copy log")
                             .font(.caption)
                     }
                     .foregroundColor(copied ? .green : .secondary)

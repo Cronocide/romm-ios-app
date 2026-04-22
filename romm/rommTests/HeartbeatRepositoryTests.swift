@@ -76,4 +76,18 @@ struct ConnectionLogFormatterTests {
         let hasTimestamp = result.range(of: #"\d{2}:\d{2}:\d{2}"#, options: .regularExpression) != nil
         #expect(hasTimestamp)
     }
+
+    @Test func formattedLogContainsCorrectTypeLabels() {
+        let entries: [ConnectionLogEntry] = [
+            ConnectionLogEntry(message: "A", type: .info),
+            ConnectionLogEntry(message: "B", type: .success),
+            ConnectionLogEntry(message: "C", type: .warning),
+            ConnectionLogEntry(message: "D", type: .error),
+        ]
+        let result = ConnectionDebugPanel.formatLogsForClipboard(entries, appVersion: "1.0.0")
+        #expect(result.contains("[info]"))
+        #expect(result.contains("[ok]"))
+        #expect(result.contains("[warn]"))
+        #expect(result.contains("[error]"))
+    }
 }
