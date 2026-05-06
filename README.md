@@ -24,6 +24,14 @@ Join the beta program and help improve the app:
 - 🔄 Transfer ROMs via SFTP to remote devices
 - 📲 Basic iPad support (enhanced version coming soon)
 
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/iphone_1.png" width="200" alt="Screenshot 1" />
+  <img src="screenshots/iphone_2.png" width="200" alt="Screenshot 2" />
+  <img src="screenshots/iphone_3.png" width="200" alt="Screenshot 3" />
+</p>
+
 ## Contributing
 
 1. Follow the established Clean Architecture patterns
