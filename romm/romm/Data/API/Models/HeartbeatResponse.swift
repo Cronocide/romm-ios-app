@@ -47,11 +47,11 @@ public struct HeartbeatResponse: Codable, JSONEncodable, Hashable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         SYSTEM = try container.decode(SystemDict.self, forKey: .SYSTEM)
-        METADATA_SOURCES = try container.decode(MetadataSourcesDict.self, forKey: .METADATA_SOURCES)
-        FILESYSTEM = try container.decode(FilesystemDict.self, forKey: .FILESYSTEM)
-        EMULATION = try container.decode(EmulationDict.self, forKey: .EMULATION)
-        FRONTEND = try container.decode(FrontendDict.self, forKey: .FRONTEND)
-        OIDC = try container.decode(OIDCDict.self, forKey: .OIDC)
+        METADATA_SOURCES = try container.decodeIfPresent(MetadataSourcesDict.self, forKey: .METADATA_SOURCES) ?? MetadataSourcesDict()
+        FILESYSTEM = try container.decodeIfPresent(FilesystemDict.self, forKey: .FILESYSTEM) ?? FilesystemDict()
+        EMULATION = try container.decodeIfPresent(EmulationDict.self, forKey: .EMULATION) ?? EmulationDict()
+        FRONTEND = try container.decodeIfPresent(FrontendDict.self, forKey: .FRONTEND) ?? FrontendDict()
+        OIDC = try container.decodeIfPresent(OIDCDict.self, forKey: .OIDC) ?? OIDCDict()
         CLIENT_TOKENS = try container.decodeIfPresent(ClientTokensDict.self, forKey: .CLIENT_TOKENS)
     }
 

@@ -484,6 +484,11 @@ struct SetupView: View {
 
                 // Detect authentication capabilities
                 await detectAuthenticationMethod()
+            } else if version == "development" {
+                // Development build - warn but allow to proceed
+                connectionError = "Development build detected"
+                connectionErrorDetails = "This server is running a development version of RomM. Compatibility is not guaranteed."
+                isVersionWarning = true
             } else {
                 // Incompatible - show warning but allow to proceed
                 connectionError = "Server version \(version) is not compatible"
@@ -502,6 +507,18 @@ struct SetupView: View {
                 connectionErrorDetails = details
                 isVersionWarning = false
             }
+            didAcceptIncompatibleVersion = false
+        } catch let error as HeartbeatError {
+            switch error {
+            case .decodingError:
+                connectionError = "Invalid response"
+                connectionErrorDetails = "The server did not return a valid RomM response. Is this a RomM server?"
+            default:
+                let (message, details) = parseConnectionError(error)
+                connectionError = message
+                connectionErrorDetails = details
+            }
+            isVersionWarning = false
             didAcceptIncompatibleVersion = false
         } catch {
             let (message, details) = parseConnectionError(error)
@@ -752,6 +769,21 @@ struct QuickInputChip: View {
 struct ConnectionDebugPanel: View {
     let logs: [ConnectionLogEntry]
     @Binding var isExpanded: Bool
+    @State private var copied = false
+
+    static func formatLogsForClipboard(_ logs: [ConnectionLogEntry], appVersion: String) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        let header = "RomM iOS v\(appVersion)\n\n"
+        let body = logs.map { entry in
+            var line = "\(formatter.string(from: entry.timestamp)) [\(entry.type.label)] \(entry.message)"
+            if let details = entry.details {
+                line += "\n  \(details)"
+            }
+            return line
+        }.joined(separator: "\n")
+        return header + body
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -796,6 +828,26 @@ struct ConnectionDebugPanel: View {
                         }
                     }
                 }
+
+                Button {
+                    let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+                    UIPasteboard.general.string = ConnectionDebugPanel.formatLogsForClipboard(logs, appVersion: version)
+                    copied = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        copied = false
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                            .font(.caption)
+                        Text(copied ? "Copied ✓" : "Copy log")
+                            .font(.caption)
+                    }
+                    .foregroundColor(copied ? .green : .secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(12)

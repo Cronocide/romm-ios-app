@@ -45,7 +45,9 @@ extension RommAPIClient {
                     logger.info("✅ [Network] - Heartbeat successful: v\(heartbeat.SYSTEM.VERSION)")
                     return heartbeat
                 } catch {
+                    let preview = String(data: data.prefix(500), encoding: .utf8) ?? "binary data"
                     logger.error("Failed to decode heartbeat response: \(error)")
+                    logger.error("Raw response (first 500 chars): \(preview)")
                     throw APIClientError.decodingError(error)
                 }
                 

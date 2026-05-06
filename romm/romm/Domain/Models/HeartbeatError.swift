@@ -9,6 +9,7 @@ enum HeartbeatError: LocalizedError {
     case serverVersionChanged(from: String, to: String)
     case serverVersionTooLow(serverVersion: String, minRequired: String)
     case serverVersionTooHigh(serverVersion: String, maxSupported: String)
+    case decodingError(Error)
     case networkError(Error)
 
     var errorDescription: String? {
@@ -19,6 +20,8 @@ enum HeartbeatError: LocalizedError {
             return "Server version \(serverVersion) is too old. Minimum required: \(minRequired)"
         case .serverVersionTooHigh(let serverVersion, let maxSupported):
             return "Your server has been updated to version \(serverVersion), but this app doesn't support it yet. An app update is coming soon."
+        case .decodingError(let error):
+            return "Invalid server response: \(error.localizedDescription)"
         case .networkError(let error):
             return error.localizedDescription
         }
