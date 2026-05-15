@@ -125,3 +125,6 @@ Temporary Items
 # Documentation
 documentation/features/
 .claude
+
+# Git worktrees
+.worktrees/
