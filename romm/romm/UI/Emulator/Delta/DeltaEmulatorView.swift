@@ -4,6 +4,7 @@ import DeltaCore
 struct DeltaEmulatorView: View {
     @SwiftUI.State private var viewModel: DeltaEmulatorViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     init(rom: Rom, gameType: DeltaGameType, factory: PDependencyFactory = DefaultDependencyFactory.shared) {
         self._viewModel = SwiftUI.State(wrappedValue: DeltaEmulatorViewModel(
@@ -25,6 +26,13 @@ struct DeltaEmulatorView: View {
         }
         .onAppear { viewModel.bootstrap() }
         .onDisappear { viewModel.teardown() }
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .active: viewModel.session?.resume()
+            case .inactive, .background: viewModel.session?.pause()
+            @unknown default: break
+            }
+        }
     }
 }
 
