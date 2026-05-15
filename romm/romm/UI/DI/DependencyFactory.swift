@@ -85,6 +85,10 @@ protocol PDependencyFactory {
     func makeCheckEmulatorSupportUseCase() -> PCheckEmulatorSupportUseCase
     func makeLaunchEmulatorUseCase() -> PLaunchEmulatorUseCase
 
+    // Emulator Engine
+    var enginePreference: PEmulatorEnginePreference { get }
+    func makePlatformEngineSupport() -> PPlatformEngineSupport
+
     // SFTP ViewModels
     @MainActor func makeSFTPDevicesViewModel() -> SFTPDevicesViewModel
     @MainActor func makeSFTPDirectoryBrowserViewModel(connection: SFTPConnection) -> SFTPDirectoryBrowserViewModel
@@ -331,10 +335,18 @@ class DefaultDependencyFactory: PDependencyFactory {
         CheckEmulatorSupportUseCase()
     }
 
+    lazy var enginePreference: PEmulatorEnginePreference = EmulatorEnginePreference()
+
+    func makePlatformEngineSupport() -> PPlatformEngineSupport {
+        PlatformEngineSupport()
+    }
+
     func makeLaunchEmulatorUseCase() -> PLaunchEmulatorUseCase {
         LaunchEmulatorUseCase(
             tokenProvider: TokenProvider(),
-            checkEmulatorSupport: makeCheckEmulatorSupportUseCase()
+            checkEmulatorSupport: makeCheckEmulatorSupportUseCase(),
+            enginePreference: enginePreference,
+            platformSupport: makePlatformEngineSupport()
         )
     }
 

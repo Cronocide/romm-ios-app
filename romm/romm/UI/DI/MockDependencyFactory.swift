@@ -29,6 +29,9 @@ class MockDependencyFactory: PDependencyFactory {
     var sftpConnectionManager: SFTPConnectionManager
     var apiClient: PRommAPIClient
     var fileValidationService: PFileValidationService
+
+    // Emulator engine
+    lazy var enginePreference: PEmulatorEnginePreference = EmulatorEnginePreference()
     
     init(
         authRepository: PAuthRepository? = nil,
@@ -286,10 +289,16 @@ class MockDependencyFactory: PDependencyFactory {
         CheckEmulatorSupportUseCase()
     }
 
+    func makePlatformEngineSupport() -> PPlatformEngineSupport {
+        PlatformEngineSupport()
+    }
+
     func makeLaunchEmulatorUseCase() -> PLaunchEmulatorUseCase {
         LaunchEmulatorUseCase(
             tokenProvider: TokenProvider(),
-            checkEmulatorSupport: makeCheckEmulatorSupportUseCase()
+            checkEmulatorSupport: makeCheckEmulatorSupportUseCase(),
+            enginePreference: enginePreference,
+            platformSupport: makePlatformEngineSupport()
         )
     }
 }
