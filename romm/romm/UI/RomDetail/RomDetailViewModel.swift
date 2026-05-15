@@ -309,9 +309,8 @@ class RomDetailViewModel {
 
         switch result {
         case .success(let decision):
+            logger.info("Launching emulator for ROM: \(rom.name) — decision: \(String(describing: decision))")
             self.launchDecision = decision
-            logger.info("Launching emulator for ROM: \(rom.name)")
-            showingEmulator = true
 
         case .failure(let error):
             logger.error("Failed to launch emulator: \(error.localizedDescription)")

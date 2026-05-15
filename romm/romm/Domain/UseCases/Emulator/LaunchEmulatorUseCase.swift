@@ -7,9 +7,16 @@
 
 import Foundation
 
-enum LaunchDecision {
+enum LaunchDecision: Identifiable {
     case web(rom: Rom)
     case deltaCore(rom: Rom, gameType: DeltaGameType)
+
+    var id: String {
+        switch self {
+        case .web(let rom): return "web-\(rom.id)"
+        case .deltaCore(let rom, _): return "delta-\(rom.id)"
+        }
+    }
 }
 
 enum EmulatorLaunchResult {
