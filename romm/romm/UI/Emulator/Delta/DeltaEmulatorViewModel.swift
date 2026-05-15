@@ -38,6 +38,13 @@ final class DeltaEmulatorViewModel {
             }
             let base = localROMRepo.romsBaseURL
             let url = try resolver.resolve(rom: downloaded, baseURL: base, gameType: gameType)
+            let exists = FileManager.default.fileExists(atPath: url.path)
+            let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? -1
+            print("[DeltaEmulatorVM] ROM url=\(url.path) exists=\(exists) size=\(size)")
+            if !exists {
+                errorMessage = "ROM-Datei nicht gefunden: \(url.lastPathComponent)"
+                return
+            }
             let deltaType = Self.deltaCoreGameType(for: gameType)
             session = DeltaCoreSession(
                 gameURL: url, gameType: deltaType,

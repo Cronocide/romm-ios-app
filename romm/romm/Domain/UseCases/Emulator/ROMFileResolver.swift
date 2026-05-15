@@ -21,13 +21,38 @@ final class ROMFileResolver: PROMFileResolver {
 
     func resolve(rom: DownloadedROM, baseURL: URL, gameType: DeltaGameType) throws -> URL {
         let allowed = extensions[gameType] ?? []
-        let romDir = baseURL.appendingPathComponent(rom.localDirectory, isDirectory: true)
-        for file in rom.files {
-            let ext = (file.fileName as NSString).pathExtension.lowercased()
-            if allowed.contains(ext) {
-                return romDir.appendingPathComponent(file.fileName)
+        let fm = FileManager.default
+
+        let candidateFile = rom.files.first { file in
+            allowed.contains((file.fileName as NSString).pathExtension.lowercased())
+        }
+        guard let file = candidateFile else {
+            throw ROMFileResolverError.noMatchingFile(gameType: gameType)
+        }
+
+        let primary = baseURL
+            .appendingPathComponent(rom.localDirectory, isDirectory: true)
+            .appendingPathComponent(file.fileName)
+        if fm.fileExists(atPath: primary.path) {
+            return primary
+        }
+
+        // Fallback: scan platform dirs under baseURL for <romName>/<fileName>
+        if let platformDirs = try? fm.contentsOfDirectory(
+            at: baseURL,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) {
+            for platformDir in platformDirs {
+                let candidate = platformDir
+                    .appendingPathComponent(rom.name, isDirectory: true)
+                    .appendingPathComponent(file.fileName)
+                if fm.fileExists(atPath: candidate.path) {
+                    return candidate
+                }
             }
         }
-        throw ROMFileResolverError.noMatchingFile(gameType: gameType)
+
+        return primary
     }
 }
