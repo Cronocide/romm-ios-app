@@ -6,165 +6,118 @@
 
 **Architektur:** Domain-Layer trifft Engine-Entscheidung im erweiterten `LaunchEmulatorUseCase`. Ein neuer `EmulatorRouterView` routet anhand des Ergebnisses entweder auf die bestehende `EmulatorView` (WebView) oder die neue `DeltaEmulatorView`. Ein isolierter `DeltaCoreSession`-Adapter kapselt alle DeltaCore-Importe; das restliche App-Codebase importiert kein DeltaCore-Symbol direkt. Lokale Saves/States landen in `Documents/Saves/<romId>/` über ein `SaveStore`-Protokoll (MVP-Implementierung: `LocalSaveStore`).
 
-**Tech Stack:** Swift 5+, SwiftUI, iOS 18.6+, Swift Testing Framework (`Testing`), SPM. Dependencies: `github.com/rileytestut/DeltaCore` (offiziell), `github.com/<user>/GBADeltaCore` (Fork mit `Package.swift`, im Spike anzulegen).
+**Tech Stack:** Swift 5+, SwiftUI, iOS 18.6+, Swift Testing Framework (`Testing`). Dependencies eingebunden über Git-Submodules + Xcode-Subprojekte: `Vendor/DeltaCore` (`github.com/rileytestut/DeltaCore`) und `Vendor/GBADeltaCore` (`github.com/ilyas-hallak/GBADeltaCore`). Kein SPM für die DeltaCore-Kette — GBADeltaCore-Build (VBA-M / C++) ist mit der vorhandenen `.xcodeproj` am robustesten.
 
 **Spec:** `docs/superpowers/specs/2026-05-15-deltacore-integration-design.md`
 
 ---
 
-## Phase 0 — Spike
+## Phase 0 — DeltaCore via Git-Submodules + Xcode-Subprojekt
 
-Vor dem eigentlichen Bau klären wir das Hauptrisiko (R1, R2): Lässt sich `GBADeltaCore` als SPM-Dependency in einer iOS-App starten und liefert sie einen brauchbaren Default-Skin?
+**Ziel:** `DeltaCore.framework` und `GBADeltaCore.framework` aus den Submodul-Subprojekten heraus bauen und in die `romm`-App linken. Kein SPM. Kein Package.swift schreiben.
 
-### Task 0.1: GBADeltaCore-Fork anlegen + Package.swift
+**Begründung:** GBADeltaCore enthält VBA-M (C/C++/Obj-C++) mit verschachtelten Submodulen (visualboyadvance-m, SFML). Eine SPM-Beschreibung wäre brüchig und müsste bei jedem Upstream-Update nachgezogen werden. Die mitgelieferten Xcode-Projekte sind die Single Source of Truth.
 
-**Files:**
-- Außerhalb des Repos: GitHub-Fork von `rileytestut/GBADeltaCore` unter `https://github.com/<user>/GBADeltaCore`
-- Im Fork hinzufügen: `Package.swift`
+**Status (bereits erledigt im aktuellen Branch):**
+- `Vendor/DeltaCore` als Submodule (rileytestut/DeltaCore)
+- `Vendor/GBADeltaCore` als Submodule (ilyas-hallak/GBADeltaCore)
+- `git submodule update --init --recursive` ist gelaufen (inkl. ZIPFoundation, visualboyadvance-m, dependencies)
+- Pfad-Layout: `GBADeltaCore.xcodeproj` referenziert `../DeltaCore/DeltaCore.xcodeproj` — durch das `Vendor/`-Layout korrekt auflösbar.
 
-- [ ] **Step 1: Fork anlegen**
+### Task 0.1: GBADeltaCore.xcodeproj ins romm-Workspace integrieren
 
-`gh repo fork rileytestut/GBADeltaCore --clone=true --remote=false`
+**Manuelle Xcode-Schritte (kein Subagent kann das tun):**
 
-- [ ] **Step 2: Submodule-Inhalte initialisieren (falls vorhanden)**
-
-```bash
-cd GBADeltaCore
-git submodule update --init --recursive
-```
-
-- [ ] **Step 3: Repo-Layout sichten**
+- [ ] **Step 1: Xcode öffnen**
 
 ```bash
-ls GBADeltaCore
-find . -maxdepth 3 -type d
+open romm/romm.xcodeproj
 ```
 
-Notiere: Pfad der Swift-Quellen, Pfad der C/C++-Quellen (VBA-M), Pfad evtl. vorhandener Skin-Dateien (`*.deltaskin`) und Header.
+- [ ] **Step 2: GBADeltaCore.xcodeproj per Drag & Drop ins Project Navigator ziehen**
 
-- [ ] **Step 4: Package.swift schreiben (analog zu DeltaCore)**
+Im Finder navigieren zu `Vendor/GBADeltaCore/GBADeltaCore.xcodeproj` und in der Xcode-Project-Navigator-Liste (linke Spalte) auf **gleicher Hierarchie-Ebene wie `romm.xcodeproj`** loslassen — also als Geschwister, NICHT ins `romm`-Projekt hinein.
 
-Vorlage (Pfade je nach Repo-Layout anpassen):
+Dialog "Choose options": `Copy items if needed` **ausschalten** (Submodul soll referenziert, nicht kopiert werden). `Create groups`. Add to targets: KEINE Targets (Häkchen alle entfernen — Linking machen wir im nächsten Schritt manuell).
+
+Im Anschluss zieht Xcode `DeltaCore.xcodeproj` automatisch als Nested-Subprojekt mit ein, weil GBADeltaCore.xcodeproj es referenziert.
+
+- [ ] **Step 3: Build Phase "Link Binary With Libraries" am `romm`-Target ergänzen**
+
+`romm` Target → Tab **General** → Sektion **Frameworks, Libraries, and Embedded Content** → **+** → in der Liste auswählen:
+- `DeltaCore.framework` (aus dem Subprojekt)
+- `GBADeltaCore.framework` (aus dem Subprojekt)
+
+Bei beiden **Embed: "Embed & Sign"** wählen.
+
+- [ ] **Step 4: Target-Dependencies setzen**
+
+`romm` Target → Tab **Build Phases** → Abschnitt **Dependencies** → **+** → `GBADeltaCore` (das Framework-Target des Subprojekts) hinzufügen.
+
+(GBADeltaCore hat seinerseits bereits `DeltaCore` als Dependency — dadurch ist die Reihenfolge korrekt.)
+
+- [ ] **Step 5: Deployment-Target prüfen**
+
+`romm` ist auf iOS 18.6. `DeltaCore` und `GBADeltaCore` müssen ≤ 18.6 sein (Submodul-Default ist iOS 14). Falls Xcode einen Mismatch meldet: in den Sub-Projekt-Targets das iOS Deployment Target auf 14 belassen (kompatibel mit 18.6).
+
+- [ ] **Step 6: Build verifizieren**
+
+Im Xcode Schema-Picker `romm` auswählen, Destination iPhone 17 Simulator, `Product → Build` (cmd+B).
+
+Erwartet: ** BUILD SUCCEEDED **. Falls Fehler:
+- "Module 'DeltaCore' not found": Frameworks-Section in General nochmal prüfen, ggf. Clean Build Folder (cmd+shift+K) + Derived Data löschen.
+- C++/header search path Fehler im VBA-M-Build: nicht anfassen — sollten durch das mitgelieferte `.xcodeproj` korrekt gesetzt sein. Im Zweifel `Vendor/GBADeltaCore` Submodul auf den Upstream-HEAD aktualisieren.
+
+- [ ] **Step 7: Smoke-Test ohne ROM**
+
+Eine Datei `romm/romm/UI/Emulator/DeltaCoreSmokeTest.swift` (temporär, in Phase 3 wieder gelöscht) anlegen:
 
 ```swift
-// swift-tools-version:5.5
-import PackageDescription
-
-let package = Package(
-    name: "GBADeltaCore",
-    platforms: [.iOS(.v14)],
-    products: [
-        .library(name: "GBADeltaCore", targets: ["GBADeltaCore", "CGBADeltaCore"]),
-    ],
-    dependencies: [
-        .package(url: "https://github.com/rileytestut/DeltaCore.git", branch: "main")
-    ],
-    targets: [
-        .target(
-            name: "CGBADeltaCore",
-            dependencies: [],
-            path: "GBADeltaCore",
-            exclude: [
-                // Swift-Dateien hier ausschließen (basierend auf Step 3 Sichtung):
-                // "GBA.swift",
-                // "GBAEmulatorBridge.swift",
-            ],
-            sources: ["VisualBoyAdvance"],
-            publicHeadersPath: "include",
-            cSettings: [
-                .headerSearchPath("VisualBoyAdvance"),
-                .headerSearchPath("include"),
-                .define("FINAL_VERSION"),
-                .define("C_CORE"),
-                .define("NO_PNG"),
-                .define("NO_LINK"),
-                .define("__LIBRETRO__")
-            ],
-            cxxSettings: [
-                .headerSearchPath("VisualBoyAdvance"),
-                .headerSearchPath("include")
-            ]
-        ),
-        .target(
-            name: "GBADeltaCore",
-            dependencies: ["CGBADeltaCore", "DeltaCore"],
-            path: "GBADeltaCore",
-            exclude: ["VisualBoyAdvance"],
-            resources: [
-                // Falls Skin-Datei vorhanden:
-                // .copy("Standard.deltaskin"),
-            ]
-        ),
-    ]
-)
-```
-
-- [ ] **Step 5: Push in Fork**
-
-```bash
-git checkout -b feature/spm-support
-git add Package.swift
-git commit -m "feat: add Swift Package Manager support"
-git push -u origin feature/spm-support
-```
-
-- [ ] **Step 6: Spike-App anlegen (Sandbox außerhalb des Hauptrepos)**
-
-In einem temporären Ordner ein neues iOS-Xcode-Projekt "DeltaSpike" erstellen, iOS 18+, SwiftUI. Über Xcode → File → Add Package Dependencies → URL `https://github.com/<user>/GBADeltaCore` → Branch `feature/spm-support` einbinden.
-
-- [ ] **Step 7: Build verifizieren**
-
-Im Spike-Projekt `Product → Build` (cmd+B). Erwartet: Build erfolgreich, keine ungelösten Symbol-Fehler.
-
-Falls Build fehlschlägt:
-- C/C++-Header-Pfade in `Package.swift` anpassen, bis es kompiliert.
-- Falls nach 1–2 h kein Erfolg: Abbruch, Plan-Adjust auf Approach (B) Git-Submodules.
-
-- [ ] **Step 8: Hello-ROM testen**
-
-Eine kleine homebrew GBA-ROM (frei verfügbar) in den Spike legen, in ContentView:
-
-```swift
-import SwiftUI
 import DeltaCore
 import GBADeltaCore
 
-struct ContentView: View {
-    var body: some View {
-        DeltaSpikeView()
-            .ignoresSafeArea()
+enum DeltaCoreSmokeTest {
+    static func ping() -> String {
+        return "DeltaCore loaded. GBA gameType id: \(GBA.gameType.rawValue)"
     }
-}
-
-struct DeltaSpikeView: UIViewControllerRepresentable {
-    func makeUIViewController(context: Context) -> UIViewController {
-        let url = Bundle.main.url(forResource: "test", withExtension: "gba")!
-        let game = Game(fileURL: url, type: .gba)
-        let vc = GameViewController()
-        vc.game = game
-        return vc
-    }
-    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
 }
 ```
 
-Auf einem Simulator/Device laufen lassen. Erwartet: ROM startet, Bild erscheint, Touch-Skin reagiert.
+Erfolgskriterium: Datei compiliert. Damit ist der Import-Pfad ins App-Target nachgewiesen. Nach Phase 3 wieder löschen.
 
-- [ ] **Step 9: Ergebnisse dokumentieren**
+- [ ] **Step 8: Commit (pbxproj-Änderungen)**
 
-In `docs/superpowers/specs/2026-05-15-deltacore-integration-design.md` ein Anhang-Kapitel "Spike Findings" anhängen:
-- Hat SPM funktioniert? (ja/nein)
-- Default-Skin vorhanden? (ja/nein) — falls nein: Skin-Datei aus dem Delta-Repo notwendig?
-- Exakte Initializer-Signaturen für `Game`, `GameViewController`, `EmulatorCore`
-- Endgültiger Repository-URL des Forks
+Xcode hat `romm/romm.xcodeproj/project.pbxproj` modifiziert. Diese Änderungen committen — zusammen mit den bereits gestageten Submodul-Referenzen:
 
-Falls SPM scheitert: Plan stoppen, mit User nächste Schritte besprechen (Approach B/C).
+```bash
+git add .gitmodules Vendor/DeltaCore Vendor/GBADeltaCore romm/romm.xcodeproj/project.pbxproj romm/romm/UI/Emulator/DeltaCoreSmokeTest.swift
+git commit -m "feat: integrate DeltaCore and GBADeltaCore as Xcode subprojects"
+```
 
-- [ ] **Step 10: Commit**
+### Task 0.2: Spike-Findings dokumentieren
+
+- [ ] **Step 1: Im Design-Spec einen Anhang anhängen**
+
+`docs/superpowers/specs/2026-05-15-deltacore-integration-design.md` → neuer Abschnitt am Ende:
+
+```markdown
+## Anhang — Phase-0-Findings
+
+- Integrationsweg: Git-Submodules `Vendor/DeltaCore` und `Vendor/GBADeltaCore`, eingebunden als Xcode-Subprojekte.
+- DeltaCore: rileytestut/DeltaCore (SHA: <sha>)
+- GBADeltaCore-Fork: ilyas-hallak/GBADeltaCore (SHA: <sha>)
+- Default-Skin: <vorhanden im Core-Bundle / Fallback nötig> — siehe `Vendor/GBADeltaCore/GBADeltaCore/Standard.deltaskin`
+- Initializer-Signaturen für Phase 3:
+  - `Game(fileURL:, type:)` — `<fertige Signatur einfügen>`
+  - `EmulatorCore(game:)` — `<…>`
+  - `GameViewController` / `DLTAGameViewController` — `<…>`
+```
+
+- [ ] **Step 2: Commit**
 
 ```bash
 git add docs/superpowers/specs/2026-05-15-deltacore-integration-design.md
-git commit -m "docs: add spike findings to DeltaCore integration spec"
+git commit -m "docs: document Phase 0 DeltaCore integration findings"
 ```
 
 ---
@@ -1009,31 +962,9 @@ git commit -m "feat: consume LaunchDecision in RomDetailViewModel"
 
 Setzt Phase 0 (Spike) erfolgreich voraus. Beachte: Adapter ist die einzige Stelle, die DeltaCore importiert.
 
-### Task 3.1: SPM-Dependencies ins Xcode-Projekt aufnehmen
+### Task 3.1: Dependencies ins Xcode-Projekt aufnehmen
 
-**Files:**
-- Modify: `romm/romm.xcodeproj` (über Xcode-UI)
-
-- [ ] **Step 1: Xcode öffnen, DeltaCore hinzufügen**
-
-Xcode → File → Add Package Dependencies →
-- `https://github.com/rileytestut/DeltaCore` (Branch `main`)
-- `https://github.com/<user>/GBADeltaCore` (Branch `feature/spm-support` aus Phase 0)
-
-Beide an Target `romm` linken.
-
-- [ ] **Step 2: Build prüfen**
-
-```bash
-xcodebuild -scheme romm -destination 'generic/platform=iOS Simulator' build | tail -10
-```
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add romm/romm.xcodeproj
-git commit -m "build: add DeltaCore and GBADeltaCore SPM dependencies"
-```
+**Erledigt in Phase 0** (Subprojekt-Integration). Falls dieser Punkt noch offen ist, dort weiterarbeiten. Hier nichts zu tun.
 
 ### Task 3.2: `DeltaCoreSession`-Adapter
 

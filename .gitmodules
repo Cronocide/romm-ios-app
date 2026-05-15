@@ -1,0 +1,6 @@
+[submodule "Vendor/DeltaCore"]
+	path = Vendor/DeltaCore
+	url = https://github.com/rileytestut/DeltaCore.git
+[submodule "Vendor/GBADeltaCore"]
+	path = Vendor/GBADeltaCore
+	url = https://github.com/ilyas-hallak/GBADeltaCore.git
