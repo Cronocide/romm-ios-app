@@ -298,8 +298,10 @@ class RomDetailViewModel {
     }
 
     func launchEmulator(rom: Rom) async {
+        print("[RomDetailVM] launchEmulator tapped for rom id=\(rom.id)")
         // Check if experimental feature is enabled first
         guard ExperimentalFeatureSettings.shared.isEmulatorEnabled else {
+            print("[RomDetailVM] experimental emulator disabled — showing hint")
             showingEmulatorFeatureHint = true
             return
         }

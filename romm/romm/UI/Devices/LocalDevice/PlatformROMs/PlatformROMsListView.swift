@@ -6,7 +6,8 @@ struct PlatformROMsListView: View {
     let roms: [DownloadedROM]
     let onDelete: (DownloadedROM) -> Void
 
-    @State private var selectedRomForEmulator: DownloadedROM?
+    @State private var launchDecision: LaunchDecision?
+    private let launchUseCase: PLaunchEmulatorUseCase = DefaultDependencyFactory.shared.makeLaunchEmulatorUseCase()
 
     var body: some View {
         List {
@@ -14,7 +15,7 @@ struct PlatformROMsListView: View {
                 Button {
                     // Tap to play (if supported)
                     if isPlatformSupported(rom.platformSlug) {
-                        selectedRomForEmulator = rom
+                        Task { await launch(rom: rom) }
                     }
                 } label: {
                     ROMInfoView(rom: rom, isPlayable: isPlatformSupported(rom.platformSlug))
@@ -34,12 +35,18 @@ struct PlatformROMsListView: View {
         }
         .navigationTitle(platformName)
         .navigationBarTitleDisplayMode(.inline)
-        .fullScreenCover(item: $selectedRomForEmulator, onDismiss: {
+        .fullScreenCover(item: $launchDecision, onDismiss: {
             OrientationLock.set(.portrait, rotateTo: .portrait)
-        }) { downloadedRom in
-            // Convert DownloadedROM to Rom for EmulatorView
-            EmulatorView(rom: downloadedRom.toRom())
+        }) { decision in
+            EmulatorRouterView(decision: decision)
                 .ignoresSafeArea()
+        }
+    }
+
+    private func launch(rom: DownloadedROM) async {
+        let result = await launchUseCase.execute(rom: rom.toRom())
+        if case .success(let decision) = result {
+            launchDecision = decision
         }
     }
 
