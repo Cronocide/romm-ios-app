@@ -188,7 +188,11 @@ struct RomDetailView: View {
                         }
                     }
                     .fullScreenCover(isPresented: $viewModel.showingEmulator) {
-                        EmulatorView(rom: currentSelectedRom)
+                        if let decision = viewModel.launchDecision {
+                            EmulatorRouterView(decision: decision)
+                        } else {
+                            EmulatorView(rom: currentSelectedRom)
+                        }
                     }
                     .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
                         Button("OK") {
