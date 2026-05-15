@@ -124,6 +124,13 @@ struct SettingsView: View {
                         Text("Emulator Engine")
                     }
                 }
+
+                NavigationLink(destination: LicensesView()) {
+                    HStack {
+                        Image(systemName: "doc.text")
+                        Text("Lizenzen")
+                    }
+                }
             }
 
             // Experimental Features Section (TestFlight & Debug only)
