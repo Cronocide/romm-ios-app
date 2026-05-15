@@ -10,6 +10,10 @@
 		5D7501352E97A35300DAE612 /* mft.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5D2B9D032E5BA8C200F5233E /* mft.xcframework */; };
 		5D7501362E97A35300DAE612 /* mft.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5D2B9D032E5BA8C200F5233E /* mft.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5D9D918E2E5F8F21009AF769 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 5D9D918D2E5F8F21009AF769 /* Kingfisher */; };
+		5DF893F92FB7D26D0083B111 /* DeltaCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DF893F82FB7D26D0083B111 /* DeltaCore.framework */; };
+		5DF893FA2FB7D26D0083B111 /* DeltaCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5DF893F82FB7D26D0083B111 /* DeltaCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5DF893FB2FB7D26D0083B111 /* GBADeltaCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DF893F52FB7D2210083B111 /* GBADeltaCore.framework */; };
+		5DF893FC2FB7D26D0083B111 /* GBADeltaCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5DF893F52FB7D2210083B111 /* GBADeltaCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -27,6 +31,20 @@
 			remoteGlobalIDString = 5DA7E41F2E43D870003680D9;
 			remoteInfo = romm;
 		};
+		5DF893F42FB7D2210083B111 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5DF893EB2FB7D2200083B111 /* GBADeltaCore.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = BFE8E9CA1D010AF7009D623D;
+			remoteInfo = GBADeltaCore;
+		};
+		5DF893FD2FB7D29B0083B111 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5DF893EB2FB7D2200083B111 /* GBADeltaCore.xcodeproj */;
+			proxyType = 1;
+			remoteGlobalIDString = BFE8E9C91D010AF7009D623D;
+			remoteInfo = GBADeltaCore;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -36,7 +54,9 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
+				5DF893FA2FB7D26D0083B111 /* DeltaCore.framework in Embed Frameworks */,
 				5D7501362E97A35300DAE612 /* mft.xcframework in Embed Frameworks */,
+				5DF893FC2FB7D26D0083B111 /* GBADeltaCore.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -48,6 +68,8 @@
 		5DA7E4202E43D870003680D9 /* romm.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = romm.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5DA7E4332E43D872003680D9 /* rommTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = rommTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5DA7E43D2E43D872003680D9 /* rommUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = rommUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5DF893EB2FB7D2200083B111 /* GBADeltaCore.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = GBADeltaCore.xcodeproj; path = ../Vendor/GBADeltaCore/GBADeltaCore.xcodeproj; sourceTree = SOURCE_ROOT; };
+		5DF893F82FB7D26D0083B111 /* DeltaCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = DeltaCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -86,8 +108,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5DF893F92FB7D26D0083B111 /* DeltaCore.framework in Frameworks */,
 				5D9D918E2E5F8F21009AF769 /* Kingfisher in Frameworks */,
 				5D7501352E97A35300DAE612 /* mft.xcframework in Frameworks */,
+				5DF893FB2FB7D26D0083B111 /* GBADeltaCore.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -111,6 +135,7 @@
 		5D2B9D022E5BA8C200F5233E /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				5DF893F82FB7D26D0083B111 /* DeltaCore.framework */,
 				5D2B9D032E5BA8C200F5233E /* mft.xcframework */,
 			);
 			name = Frameworks;
@@ -119,6 +144,7 @@
 		5DA7E4172E43D870003680D9 = {
 			isa = PBXGroup;
 			children = (
+				5DF893EB2FB7D2200083B111 /* GBADeltaCore.xcodeproj */,
 				5DA7E4222E43D870003680D9 /* romm */,
 				5DA7E4362E43D872003680D9 /* rommTests */,
 				5DA7E4402E43D872003680D9 /* rommUITests */,
@@ -133,6 +159,14 @@
 				5DA7E4202E43D870003680D9 /* romm.app */,
 				5DA7E4332E43D872003680D9 /* rommTests.xctest */,
 				5DA7E43D2E43D872003680D9 /* rommUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5DF893F02FB7D2210083B111 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5DF893F52FB7D2210083B111 /* GBADeltaCore.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -152,6 +186,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				5DF893FE2FB7D29B0083B111 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				5DA7E4222E43D870003680D9 /* romm */,
@@ -248,6 +283,12 @@
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5DA7E4212E43D870003680D9 /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = 5DF893F02FB7D2210083B111 /* Products */;
+					ProjectRef = 5DF893EB2FB7D2200083B111 /* GBADeltaCore.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				5DA7E41F2E43D870003680D9 /* romm */,
@@ -256,6 +297,16 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		5DF893F52FB7D2210083B111 /* GBADeltaCore.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = GBADeltaCore.framework;
+			remoteRef = 5DF893F42FB7D2210083B111 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
 
 /* Begin PBXResourcesBuildPhase section */
 		5DA7E41E2E43D870003680D9 /* Resources */ = {
@@ -315,6 +366,11 @@
 			isa = PBXTargetDependency;
 			target = 5DA7E41F2E43D870003680D9 /* romm */;
 			targetProxy = 5DA7E43E2E43D872003680D9 /* PBXContainerItemProxy */;
+		};
+		5DF893FE2FB7D29B0083B111 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = GBADeltaCore;
+			targetProxy = 5DF893FD2FB7D29B0083B111 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
