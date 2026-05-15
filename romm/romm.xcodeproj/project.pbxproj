@@ -14,6 +14,8 @@
 		5DF893FA2FB7D26D0083B111 /* DeltaCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5DF893F82FB7D26D0083B111 /* DeltaCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5DF893FB2FB7D26D0083B111 /* GBADeltaCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DF893F52FB7D2210083B111 /* GBADeltaCore.framework */; };
 		5DF893FC2FB7D26D0083B111 /* GBADeltaCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5DF893F52FB7D2210083B111 /* GBADeltaCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5DF8940F2FB7D79F0083B111 /* ZIPFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DF8940E2FB7D79F0083B111 /* ZIPFoundation.framework */; };
+		5DF894102FB7D79F0083B111 /* ZIPFoundation.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5DF8940E2FB7D79F0083B111 /* ZIPFoundation.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -55,6 +57,7 @@
 			dstSubfolderSpec = 10;
 			files = (
 				5DF893FA2FB7D26D0083B111 /* DeltaCore.framework in Embed Frameworks */,
+				5DF894102FB7D79F0083B111 /* ZIPFoundation.framework in Embed Frameworks */,
 				5D7501362E97A35300DAE612 /* mft.xcframework in Embed Frameworks */,
 				5DF893FC2FB7D26D0083B111 /* GBADeltaCore.framework in Embed Frameworks */,
 			);
@@ -70,6 +73,7 @@
 		5DA7E43D2E43D872003680D9 /* rommUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = rommUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5DF893EB2FB7D2200083B111 /* GBADeltaCore.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = GBADeltaCore.xcodeproj; path = ../Vendor/GBADeltaCore/GBADeltaCore.xcodeproj; sourceTree = SOURCE_ROOT; };
 		5DF893F82FB7D26D0083B111 /* DeltaCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = DeltaCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		5DF8940E2FB7D79F0083B111 /* ZIPFoundation.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = ZIPFoundation.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -112,6 +116,7 @@
 				5D9D918E2E5F8F21009AF769 /* Kingfisher in Frameworks */,
 				5D7501352E97A35300DAE612 /* mft.xcframework in Frameworks */,
 				5DF893FB2FB7D26D0083B111 /* GBADeltaCore.framework in Frameworks */,
+				5DF8940F2FB7D79F0083B111 /* ZIPFoundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -135,6 +140,7 @@
 		5D2B9D022E5BA8C200F5233E /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				5DF8940E2FB7D79F0083B111 /* ZIPFoundation.framework */,
 				5DF893F82FB7D26D0083B111 /* DeltaCore.framework */,
 				5D2B9D032E5BA8C200F5233E /* mft.xcframework */,
 			);

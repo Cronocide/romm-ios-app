@@ -6,8 +6,6 @@ protocol PPlatformEngineSupport {
 }
 
 final class PlatformEngineSupport: PPlatformEngineSupport {
-    private let deltaCoreSlugs: Set<String> = ["gba"]
-
     private let webSupport: PCheckEmulatorSupportUseCase
 
     init(webSupport: PCheckEmulatorSupportUseCase = CheckEmulatorSupportUseCase()) {
@@ -18,7 +16,7 @@ final class PlatformEngineSupport: PPlatformEngineSupport {
         let slug = platformSlug.lowercased()
         var result: Set<EmulatorEngine> = []
         if webSupport.execute(platformSlug: slug) { result.insert(.web) }
-        if deltaCoreSlugs.contains(slug) { result.insert(.deltaCore) }
+        if PlatformSlugToGameType.map(slug) != nil { result.insert(.deltaCore) }
         return result
     }
 

@@ -75,13 +75,16 @@ final class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
         }
 
         let supported = platformSupport.supportedEngines(for: platformSlug)
+        let pref = enginePreference.current
+        logger.info("LaunchEmulator: platformSlug='\(platformSlug)', preference=\(pref.rawValue), supported=\(supported.map { $0.rawValue })")
         let chosen: EmulatorEngine = {
-            switch enginePreference.current {
+            switch pref {
             case .web: return supported.contains(.web) ? .web : .deltaCore
             case .deltaCore: return supported.contains(.deltaCore) ? .deltaCore : .web
             case .auto: return platformSupport.preferred(for: platformSlug)
             }
         }()
+        logger.info("LaunchEmulator: chosen engine=\(chosen.rawValue)")
 
         switch chosen {
         case .web:
