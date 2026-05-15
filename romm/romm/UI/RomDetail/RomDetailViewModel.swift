@@ -31,6 +31,7 @@ class RomDetailViewModel {
     var showingEmulator: Bool = false
     var canPlayEmulator: Bool = false
     var showingEmulatorFeatureHint: Bool = false
+    var launchDecision: LaunchDecision? = nil
 
     private let logger = Logger.viewModel
 
@@ -307,7 +308,8 @@ class RomDetailViewModel {
         let result = await launchEmulatorUseCase.execute(rom: rom)
 
         switch result {
-        case .success:
+        case .success(let decision):
+            self.launchDecision = decision
             logger.info("Launching emulator for ROM: \(rom.name)")
             showingEmulator = true
 

@@ -7,13 +7,16 @@
 
 import Foundation
 
-/// Result of emulator pre-flight checks
+enum LaunchDecision {
+    case web(rom: Rom)
+    case deltaCore(rom: Rom, gameType: DeltaGameType)
+}
+
 enum EmulatorLaunchResult {
-    case success
+    case success(LaunchDecision)
     case failure(EmulatorLaunchError)
 }
 
-/// Possible errors when launching the emulator
 enum EmulatorLaunchError: LocalizedError {
     case noServerConfigured
     case unsupportedPlatform(String)
@@ -37,55 +40,59 @@ enum EmulatorLaunchError: LocalizedError {
     }
 }
 
-/// Use case to perform pre-flight checks before launching the emulator
 protocol PLaunchEmulatorUseCase {
     func execute(rom: Rom) async -> EmulatorLaunchResult
 }
 
-class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
+final class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
     private let tokenProvider: PTokenProvider
     private let checkEmulatorSupport: PCheckEmulatorSupportUseCase
+    private let enginePreference: PEmulatorEnginePreference
+    private let platformSupport: PPlatformEngineSupport
     private let logger = Logger.viewModel
 
     init(
         tokenProvider: PTokenProvider = TokenProvider(),
-        checkEmulatorSupport: PCheckEmulatorSupportUseCase = CheckEmulatorSupportUseCase()
+        checkEmulatorSupport: PCheckEmulatorSupportUseCase = CheckEmulatorSupportUseCase(),
+        enginePreference: PEmulatorEnginePreference = EmulatorEnginePreference(),
+        platformSupport: PPlatformEngineSupport = PlatformEngineSupport()
     ) {
         self.tokenProvider = tokenProvider
         self.checkEmulatorSupport = checkEmulatorSupport
+        self.enginePreference = enginePreference
+        self.platformSupport = platformSupport
     }
 
-    /// Perform pre-flight checks before launching the emulator
-    /// - Parameter rom: The ROM to launch
-    /// - Returns: Success or failure with specific error
     func execute(rom: Rom) async -> EmulatorLaunchResult {
-        logger.info("Pre-flight checks for ROM: \(rom.name) (ID: \(rom.id))")
-
-        // Check 1: Server configured
         guard tokenProvider.getServerURL() != nil else {
-            logger.error("No server configured")
             return .failure(.noServerConfigured)
         }
-
-        // Check 2: Platform supported
         guard let platformSlug = rom.platformSlug else {
-            logger.error("ROM has no platform information")
             return .failure(.unsupportedPlatform("Unknown"))
         }
-
         guard checkEmulatorSupport.execute(platformSlug: platformSlug) else {
-            logger.error("Platform not supported: \(platformSlug)")
             return .failure(.unsupportedPlatform(platformSlug))
         }
 
-        // Check 3: ROM file name available (needed for server URL construction)
-        // Note: We don't check local file existence here as ROM might be on server
-        if rom.fileName == nil {
-            logger.warning("ROM has no fileName - will use ROM name as fallback")
-        }
+        let supported = platformSupport.supportedEngines(for: platformSlug)
+        let chosen: EmulatorEngine = {
+            switch enginePreference.current {
+            case .web: return supported.contains(.web) ? .web : .deltaCore
+            case .deltaCore: return supported.contains(.deltaCore) ? .deltaCore : .web
+            case .auto: return platformSupport.preferred(for: platformSlug)
+            }
+        }()
 
-        // All checks passed
-        logger.info("Pre-flight checks passed for ROM: \(rom.name)")
-        return .success
+        switch chosen {
+        case .web:
+            return .success(.web(rom: rom))
+        case .deltaCore:
+            guard let gameType = PlatformSlugToGameType.map(platformSlug) else {
+                return .success(.web(rom: rom))
+            }
+            return .success(.deltaCore(rom: rom, gameType: gameType))
+        case .auto:
+            return .success(.web(rom: rom))
+        }
     }
 }
