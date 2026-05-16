@@ -25,6 +25,10 @@ final class DeltaCoreSession {
         self.saveStore = saveStore
 
         let vc = GameViewController()
+        // Force view load so controllerView exists before assigning game.
+        // Otherwise prepareForGame() silently no-ops and the emulator core
+        // is never wired as a controller-input receiver — touches do nothing.
+        vc.loadViewIfNeeded()
         let game = Game(fileURL: gameURL, type: gameType)
         vc.game = game
         self.viewController = vc
@@ -35,6 +39,15 @@ final class DeltaCoreSession {
     func start() {
         loadBatteryIfAvailable()
         viewController.startEmulation()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self else { return }
+            let vc = self.viewController
+            let skin = vc.controllerView?.controllerSkin
+            let cvFrame = vc.controllerView?.frame ?? .zero
+            let viewFrame = vc.view.frame
+            let inWindow = vc.view.window != nil
+            print("[DeltaCoreSession] skin=\(skin == nil ? "nil" : "set") gameType=\(skin?.gameType.rawValue ?? "?") controllerViewFrame=\(cvFrame) viewFrame=\(viewFrame) inWindow=\(inWindow) isFirstResponder=\(vc.controllerView?.isFirstResponder ?? false)")
+        }
     }
 
     func pause() {
