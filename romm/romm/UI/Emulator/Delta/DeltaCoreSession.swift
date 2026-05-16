@@ -31,6 +31,9 @@ final class DeltaCoreSession {
         vc.loadViewIfNeeded()
         let game = Game(fileURL: gameURL, type: gameType)
         vc.game = game
+        // EmulatorCore ignores any GameController without an assigned
+        // playerIndex, so the on-screen controller skin must claim slot 0.
+        vc.controllerView?.playerIndex = 0
         self.viewController = vc
     }
 
