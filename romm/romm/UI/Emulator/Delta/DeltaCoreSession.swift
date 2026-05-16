@@ -4,14 +4,22 @@ import DeltaCore
 import GBADeltaCore
 
 @MainActor
-final class DeltaCoreSession {
+final class DeltaCoreSession: NSObject, GameViewControllerDelegate {
 
     private let gameURL: URL
     private let gameType: GameType
     private let saveStore: PSaveStore
     private let romId: Int
 
+    var onMenuRequested: (() -> Void)?
+
     let viewController: GameViewController
+
+    // MARK: - GameViewControllerDelegate
+
+    func gameViewController(_ gameViewController: GameViewController, handleMenuInputFrom gameController: GameController) {
+        onMenuRequested?()
+    }
 
     // Captured after setting vc.game, since setting game triggers emulatorCore creation.
     private var emulatorCore: EmulatorCore? {
@@ -35,6 +43,12 @@ final class DeltaCoreSession {
         // playerIndex, so the on-screen controller skin must claim slot 0.
         vc.controllerView?.playerIndex = 0
         self.viewController = vc
+        super.init()
+        vc.delegate = self
+    }
+
+    func hasState(slot: Int) -> Bool {
+        (try? saveStore.readState(romId: romId, slot: slot)) != nil
     }
 
     // MARK: - Lifecycle
@@ -42,15 +56,6 @@ final class DeltaCoreSession {
     func start() {
         loadBatteryIfAvailable()
         viewController.startEmulation()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let self else { return }
-            let vc = self.viewController
-            let skin = vc.controllerView?.controllerSkin
-            let cvFrame = vc.controllerView?.frame ?? .zero
-            let viewFrame = vc.view.frame
-            let inWindow = vc.view.window != nil
-            print("[DeltaCoreSession] skin=\(skin == nil ? "nil" : "set") gameType=\(skin?.gameType.rawValue ?? "?") controllerViewFrame=\(cvFrame) viewFrame=\(viewFrame) inWindow=\(inWindow) isFirstResponder=\(vc.controllerView?.isFirstResponder ?? false)")
-        }
     }
 
     func pause() {
