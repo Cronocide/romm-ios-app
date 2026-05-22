@@ -1,7 +1,14 @@
 import Foundation
 import Observation
+import SwiftUI
 import DeltaCore
 import GBADeltaCore
+import SNESDeltaCore
+import GPGXDeltaCore
+import NESDeltaCore
+import GBCDeltaCore
+import N64DeltaCore
+import MelonDSDeltaCore
 
 @Observable
 @MainActor
@@ -10,6 +17,7 @@ final class DeltaEmulatorViewModel {
     let gameType: DeltaGameType
     var errorMessage: String?
     var session: DeltaCoreSession?
+    var isLoading: Bool = true
 
     private let localROMRepo: PLocalROMRepository
     private let resolver: PROMFileResolver
@@ -31,9 +39,11 @@ final class DeltaEmulatorViewModel {
     }
 
     func bootstrap() {
+        isLoading = true
         do {
             guard let downloaded = try localROMRepo.getDownloadedROM(byId: rom.id) else {
-                errorMessage = "ROM bitte zuerst herunterladen."
+                errorMessage = "Please download the ROM first."
+                isLoading = false
                 return
             }
             let base = localROMRepo.romsBaseURL
@@ -42,7 +52,8 @@ final class DeltaEmulatorViewModel {
             let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? -1
             print("[DeltaEmulatorVM] ROM url=\(url.path) exists=\(exists) size=\(size)")
             if !exists {
-                errorMessage = "ROM-Datei nicht gefunden: \(url.lastPathComponent)"
+                errorMessage = "ROM file not found: \(url.lastPathComponent)"
+                isLoading = false
                 return
             }
             let deltaType = Self.deltaCoreGameType(for: gameType)
@@ -51,9 +62,17 @@ final class DeltaEmulatorViewModel {
                 romId: rom.id, saveStore: saveStore
             )
             session?.start()
+            // Give the emulator a moment to render the first frame before hiding the loader.
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                withAnimation(.easeOut(duration: 0.3)) {
+                    isLoading = false
+                }
+            }
         } catch {
-            errorMessage = "Konnte ROM-Datei nicht öffnen: \(error.localizedDescription)"
+            errorMessage = "Could not open ROM file: \(error.localizedDescription)"
             logger.error("DeltaCore launch failed: \(error)")
+            isLoading = false
         }
     }
 
@@ -65,6 +84,12 @@ final class DeltaEmulatorViewModel {
     private static func deltaCoreGameType(for type: DeltaGameType) -> GameType {
         switch type {
         case .gba: return GBA.core.gameType
+        case .snes: return SNES.core.gameType
+        case .genesis: return GPGX.core.gameType
+        case .nes: return NES.core.gameType
+        case .gbc: return GBC.core.gameType
+        case .n64: return N64.core.gameType
+        case .ds: return MelonDS.core.gameType
         }
     }
 }
