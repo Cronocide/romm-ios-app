@@ -7,6 +7,7 @@ struct PlatformROMsListView: View {
     let onDelete: (DownloadedROM) -> Void
 
     @State private var launchDecision: LaunchDecision?
+    @State private var launchingRomId: Int?
     private let launchUseCase: PLaunchEmulatorUseCase = DefaultDependencyFactory.shared.makeLaunchEmulatorUseCase()
 
     var body: some View {
@@ -14,13 +15,19 @@ struct PlatformROMsListView: View {
             ForEach(roms) { rom in
                 Button {
                     // Tap to play (if supported)
-                    if isPlatformSupported(rom.platformSlug) {
+                    if isPlatformSupported(rom.platformSlug) && launchingRomId == nil {
+                        launchingRomId = rom.id
                         Task { await launch(rom: rom) }
                     }
                 } label: {
-                    ROMInfoView(rom: rom, isPlayable: isPlatformSupported(rom.platformSlug))
+                    ROMInfoView(
+                        rom: rom,
+                        isPlayable: isPlatformSupported(rom.platformSlug),
+                        isLaunching: launchingRomId == rom.id
+                    )
                 }
                 .buttonStyle(.plain)
+                .disabled(launchingRomId != nil && launchingRomId != rom.id)
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button(role: .destructive) {
                         onDelete(rom)
@@ -36,6 +43,7 @@ struct PlatformROMsListView: View {
         .navigationTitle(platformName)
         .navigationBarTitleDisplayMode(.inline)
         .fullScreenCover(item: $launchDecision, onDismiss: {
+            launchingRomId = nil
             OrientationLock.set(.portrait, rotateTo: .portrait)
         }) { decision in
             EmulatorRouterView(decision: decision)
@@ -44,9 +52,17 @@ struct PlatformROMsListView: View {
     }
 
     private func launch(rom: DownloadedROM) async {
+        let start = Date()
         let result = await launchUseCase.execute(rom: rom.toRom())
+        let elapsed = Date().timeIntervalSince(start)
+        let minVisible: TimeInterval = 0.45
+        if elapsed < minVisible {
+            try? await Task.sleep(nanoseconds: UInt64((minVisible - elapsed) * 1_000_000_000))
+        }
         if case .success(let decision) = result {
             launchDecision = decision
+        } else {
+            launchingRomId = nil
         }
     }
 
@@ -71,6 +87,7 @@ struct PlatformROMsListView: View {
 private struct ROMInfoView: View {
     let rom: DownloadedROM
     let isPlayable: Bool
+    var isLaunching: Bool = false
 
     var body: some View {
         HStack {
@@ -102,8 +119,12 @@ private struct ROMInfoView: View {
 
             Spacer()
 
-            // Play indicator for playable ROMs
-            if isPlayable {
+            if isLaunching {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .tint(.green)
+                    .frame(width: 24, height: 24)
+            } else if isPlayable {
                 Image(systemName: "play.circle.fill")
                     .font(.title2)
                     .foregroundColor(.green)
@@ -111,6 +132,7 @@ private struct ROMInfoView: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
+        .opacity(isLaunching ? 0.7 : 1)
     }
 }
 

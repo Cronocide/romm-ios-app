@@ -125,6 +125,13 @@ struct SettingsView: View {
                     }
                 }
 
+                NavigationLink(destination: BIOSSettingsView()) {
+                    HStack {
+                        Image(systemName: "cpu")
+                        Text("BIOS Files")
+                    }
+                }
+
                 NavigationLink(destination: LicensesView()) {
                     HStack {
                         Image(systemName: "doc.text")

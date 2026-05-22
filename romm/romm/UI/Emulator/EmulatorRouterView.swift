@@ -16,6 +16,8 @@ struct EmulatorRouterView: View {
             EmulatorView(rom: rom)
         case .deltaCore(let rom, let gameType):
             DeltaEmulatorView(rom: rom, gameType: gameType)
+        case .libretro(let rom, let core):
+            LibretroEmulatorView(rom: rom, core: core)
         }
     }
 }

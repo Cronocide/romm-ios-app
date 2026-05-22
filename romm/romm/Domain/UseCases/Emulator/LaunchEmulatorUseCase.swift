@@ -10,11 +10,13 @@ import Foundation
 enum LaunchDecision: Identifiable {
     case web(rom: Rom)
     case deltaCore(rom: Rom, gameType: DeltaGameType)
+    case libretro(rom: Rom, core: LibretroCore)
 
     var id: String {
         switch self {
         case .web(let rom): return "web-\(rom.id)"
         case .deltaCore(let rom, _): return "delta-\(rom.id)"
+        case .libretro(let rom, _): return "libretro-\(rom.id)"
         }
     }
 }
@@ -90,9 +92,20 @@ final class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
         print("[LaunchEmulator] platformSlug='\(platformSlug)', preference=\(pref.rawValue), supported=\(supported.map { $0.rawValue })")
         let chosen: EmulatorEngine = {
             switch pref {
-            case .web: return supported.contains(.web) ? .web : .deltaCore
-            case .deltaCore: return supported.contains(.deltaCore) ? .deltaCore : .web
-            case .auto: return platformSupport.preferred(for: platformSlug)
+            case .web:
+                if supported.contains(.web) { return .web }
+                if supported.contains(.deltaCore) { return .deltaCore }
+                return supported.contains(.libretro) ? .libretro : .web
+            case .deltaCore:
+                if supported.contains(.deltaCore) { return .deltaCore }
+                if supported.contains(.libretro) { return .libretro }
+                return .web
+            case .libretro:
+                if supported.contains(.libretro) { return .libretro }
+                if supported.contains(.deltaCore) { return .deltaCore }
+                return .web
+            case .auto:
+                return platformSupport.preferred(for: platformSlug)
             }
         }()
         print("[LaunchEmulator] chosen engine=\(chosen.rawValue)")
@@ -105,6 +118,11 @@ final class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
                 return .success(.web(rom: rom))
             }
             return .success(.deltaCore(rom: rom, gameType: gameType))
+        case .libretro:
+            guard let core = PlatformSlugToLibretroCore.map(platformSlug) else {
+                return .success(.web(rom: rom))
+            }
+            return .success(.libretro(rom: rom, core: core))
         case .auto:
             return .success(.web(rom: rom))
         }

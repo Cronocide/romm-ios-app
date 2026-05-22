@@ -1,45 +1,53 @@
 import Foundation
 import Observation
 import SwiftUI
-import DeltaCore
-import GBADeltaCore
-import SNESDeltaCore
-import GPGXDeltaCore
-import NESDeltaCore
-import GBCDeltaCore
-import N64DeltaCore
-import MelonDSDeltaCore
 
 @Observable
 @MainActor
-final class DeltaEmulatorViewModel {
+final class LibretroEmulatorViewModel {
     let rom: Rom
-    let gameType: DeltaGameType
+    let core: LibretroCore
     var errorMessage: String?
-    var session: DeltaCoreSession?
+    var session: LibretroSession?
     var isLoading: Bool = true
 
     private let localROMRepo: PLocalROMRepository
     private let resolver: PROMFileResolver
     private let saveStore: PSaveStore
+    private let biosSync: PBIOSSyncUseCase
     private let logger = Logger.viewModel
 
     init(
         rom: Rom,
-        gameType: DeltaGameType,
+        core: LibretroCore,
         localROMRepo: PLocalROMRepository,
         resolver: PROMFileResolver = ROMFileResolver(),
-        saveStore: PSaveStore = LocalSaveStore()
+        saveStore: PSaveStore = LocalSaveStore(),
+        biosSync: PBIOSSyncUseCase = BIOSSyncUseCase()
     ) {
         self.rom = rom
-        self.gameType = gameType
+        self.core = core
         self.localROMRepo = localROMRepo
         self.resolver = resolver
         self.saveStore = saveStore
+        self.biosSync = biosSync
     }
 
     func bootstrap() {
         isLoading = true
+        Task { @MainActor in
+            let missing = await biosSync.missingMandatory(for: core)
+            if !missing.isEmpty {
+                let names = missing.map { $0.fileName }.joined(separator: ", ")
+                errorMessage = "BIOS fehlt für \(core.displayName): \(names). In Einstellungen → BIOS Files herunterladen."
+                isLoading = false
+                return
+            }
+            self.bootstrapAfterBIOSCheck()
+        }
+    }
+
+    private func bootstrapAfterBIOSCheck() {
         do {
             guard let downloaded = try localROMRepo.getDownloadedROM(byId: rom.id) else {
                 errorMessage = "Please download the ROM first."
@@ -47,22 +55,21 @@ final class DeltaEmulatorViewModel {
                 return
             }
             let base = localROMRepo.romsBaseURL
-            let url = try resolver.resolve(rom: downloaded, baseURL: base, gameType: gameType)
+            let url = try resolver.resolve(
+                rom: downloaded,
+                baseURL: base,
+                allowedExtensions: core.allowedExtensions
+            )
             let exists = FileManager.default.fileExists(atPath: url.path)
-            let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? -1
-            print("[DeltaEmulatorVM] ROM url=\(url.path) exists=\(exists) size=\(size)")
+            print("[LibretroVM] ROM url=\(url.path) exists=\(exists)")
             if !exists {
                 errorMessage = "ROM file not found: \(url.lastPathComponent)"
                 isLoading = false
                 return
             }
-            let deltaType = Self.deltaCoreGameType(for: gameType)
-            session = DeltaCoreSession(
-                gameURL: url, gameType: deltaType,
-                romId: rom.id, saveStore: saveStore
-            )
-            session?.start()
-            // Give the emulator a moment to render the first frame before hiding the loader.
+            let s = LibretroSession(gameURL: url, core: core, romId: rom.id, saveStore: saveStore)
+            session = s
+            s.start()
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 1_200_000_000)
                 withAnimation(.easeOut(duration: 0.3)) {
@@ -71,7 +78,7 @@ final class DeltaEmulatorViewModel {
             }
         } catch {
             errorMessage = "Could not open ROM file: \(error.localizedDescription)"
-            logger.error("DeltaCore launch failed: \(error)")
+            logger.error("Libretro launch failed: \(error)")
             isLoading = false
         }
     }
@@ -79,17 +86,5 @@ final class DeltaEmulatorViewModel {
     func teardown() {
         session?.stop()
         session = nil
-    }
-
-    private static func deltaCoreGameType(for type: DeltaGameType) -> GameType {
-        switch type {
-        case .gba: return GBA.core.gameType
-        case .snes: return SNES.core.gameType
-        case .genesis: return GPGX.core.gameType
-        case .nes: return NES.core.gameType
-        case .gbc: return GBC.core.gameType
-        case .n64: return N64.core.gameType
-        case .ds: return MelonDS.core.gameType
-        }
     }
 }

@@ -69,6 +69,10 @@ protocol PRommAPIClient {
     func addPlatform(name: String, slug: String) async throws -> PlatformSchema
     func deletePlatform(id: Int) async throws -> String
 
+    // Firmware API Wrapper methods
+    func getPlatformFirmware(platformId: Int) async throws -> [FirmwareSchema]
+    func downloadFirmwareContent(id: Int, fileName: String) async throws -> Data
+
     // Heartbeat API Wrapper methods
     func getHeartbeat() async throws -> HeartbeatResponse
     func getHeartbeat(from serverURL: String) async throws -> HeartbeatResponse

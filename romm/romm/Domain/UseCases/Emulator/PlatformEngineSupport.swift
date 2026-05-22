@@ -17,12 +17,14 @@ final class PlatformEngineSupport: PPlatformEngineSupport {
         var result: Set<EmulatorEngine> = []
         if webSupport.execute(platformSlug: slug) { result.insert(.web) }
         if PlatformSlugToGameType.map(slug) != nil { result.insert(.deltaCore) }
+        if PlatformSlugToLibretroCore.map(slug) != nil { result.insert(.libretro) }
         return result
     }
 
     func preferred(for platformSlug: String) -> EmulatorEngine {
         let supported = supportedEngines(for: platformSlug)
         if supported.contains(.web) { return .web }
-        return .deltaCore
+        if supported.contains(.deltaCore) { return .deltaCore }
+        return .libretro
     }
 }

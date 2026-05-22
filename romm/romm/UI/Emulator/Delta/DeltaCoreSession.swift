@@ -21,7 +21,6 @@ final class DeltaCoreSession: NSObject, GameViewControllerDelegate {
         onMenuRequested?()
     }
 
-    // Captured after setting vc.game, since setting game triggers emulatorCore creation.
     private var emulatorCore: EmulatorCore? {
         viewController.emulatorCore
     }
@@ -33,22 +32,36 @@ final class DeltaCoreSession: NSObject, GameViewControllerDelegate {
         self.saveStore = saveStore
 
         let vc = GameViewController()
-        // Force view load so controllerView exists before assigning game.
-        // Otherwise prepareForGame() silently no-ops and the emulator core
-        // is never wired as a controller-input receiver — touches do nothing.
         vc.loadViewIfNeeded()
         let game = Game(fileURL: gameURL, type: gameType)
         vc.game = game
-        // EmulatorCore ignores any GameController without an assigned
-        // playerIndex, so the on-screen controller skin must claim slot 0.
         vc.controllerView?.playerIndex = 0
         self.viewController = vc
         super.init()
         vc.delegate = self
     }
 
+    // MARK: - Slot info
+
     func hasState(slot: Int) -> Bool {
         (try? saveStore.readState(romId: romId, slot: slot)) != nil
+    }
+
+    func stateModifiedAt(slot: Int) -> Date? {
+        saveStore.stateModifiedAt(romId: romId, slot: slot)
+    }
+
+    func thumbnail(slot: Int) -> UIImage? {
+        guard let data = try? saveStore.readThumbnail(romId: romId, slot: slot) else { return nil }
+        return UIImage(data: data)
+    }
+
+    func hasUndoSave(slot: Int) -> Bool { saveStore.hasUndoSave(romId: romId, slot: slot) }
+    func hasUndoLoad() -> Bool { saveStore.hasUndoLoad(romId: romId) }
+
+    func undoLoadThumbnail() -> UIImage? {
+        guard let data = try? saveStore.readUndoLoadThumbnail(romId: romId) else { return nil }
+        return UIImage(data: data)
     }
 
     // MARK: - Lifecycle
@@ -56,36 +69,102 @@ final class DeltaCoreSession: NSObject, GameViewControllerDelegate {
     func start() {
         loadBatteryIfAvailable()
         viewController.startEmulation()
+        attachExternalControllers()
+        observeControllerConnections()
     }
 
-    func pause() {
-        viewController.pauseEmulation()
-    }
-
-    func resume() {
-        viewController.resumeEmulation()
-    }
+    func pause() { viewController.pauseEmulation() }
+    func resume() { viewController.resumeEmulation() }
 
     func stop() {
         flushBattery()
+        detachExternalControllers()
+        NotificationCenter.default.removeObserver(self)
         emulatorCore?.stop()
     }
 
-    // MARK: - Save States
+    // MARK: - External Controllers
+
+    private func attachExternalControllers() {
+        guard let core = emulatorCore else { return }
+        var nextIndex = 0
+        for controller in ExternalGameControllerManager.shared.connectedControllers {
+            controller.playerIndex = nextIndex
+            controller.addReceiver(core)
+            controller.addReceiver(viewController)
+            nextIndex += 1
+        }
+        updateOnScreenControlsVisibility()
+    }
+
+    private func detachExternalControllers() {
+        guard let core = emulatorCore else { return }
+        for controller in ExternalGameControllerManager.shared.connectedControllers {
+            controller.removeReceiver(core)
+            controller.removeReceiver(viewController)
+        }
+    }
+
+    private func observeControllerConnections() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(externalControllerDidConnect(_:)),
+            name: .externalGameControllerDidConnect,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(externalControllerDidDisconnect(_:)),
+            name: .externalGameControllerDidDisconnect,
+            object: nil
+        )
+    }
+
+    @objc private func externalControllerDidConnect(_ notification: Notification) {
+        guard let controller = notification.object as? GameController,
+              let core = emulatorCore else { return }
+        let usedIndexes = Set(ExternalGameControllerManager.shared.connectedControllers.compactMap { $0.playerIndex })
+        var nextIndex = 0
+        while usedIndexes.contains(nextIndex) { nextIndex += 1 }
+        controller.playerIndex = nextIndex
+        controller.addReceiver(core)
+        controller.addReceiver(viewController)
+        updateOnScreenControlsVisibility()
+    }
+
+    @objc private func externalControllerDidDisconnect(_ notification: Notification) {
+        guard let controller = notification.object as? GameController,
+              let core = emulatorCore else { return }
+        controller.removeReceiver(core)
+        controller.removeReceiver(viewController)
+        updateOnScreenControlsVisibility()
+    }
+
+    private func updateOnScreenControlsVisibility() {
+        let hasExternal = !ExternalGameControllerManager.shared.connectedControllers.isEmpty
+        viewController.controllerView?.isHidden = hasExternal
+    }
+
+    // MARK: - Save / Load
 
     func saveState(slot: Int) throws {
         guard let core = emulatorCore else { return }
+        try saveStore.backupSlotForUndoSave(romId: romId, slot: slot)
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("state-\(UUID().uuidString).dltastate")
         core.saveSaveState(to: tmp)
         let data = try Data(contentsOf: tmp)
         try saveStore.writeState(romId: romId, slot: slot, data: data)
+        if let thumb = currentThumbnailPNG() {
+            try saveStore.writeThumbnail(romId: romId, slot: slot, data: thumb)
+        }
         try? FileManager.default.removeItem(at: tmp)
     }
 
     func loadState(slot: Int) throws {
         guard let core = emulatorCore else { return }
         guard let data = try saveStore.readState(romId: romId, slot: slot) else { return }
+        try captureUndoLoadSnapshot(core: core)
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("state-\(UUID().uuidString).dltastate")
         try data.write(to: tmp)
@@ -93,14 +172,39 @@ final class DeltaCoreSession: NSObject, GameViewControllerDelegate {
         try? FileManager.default.removeItem(at: tmp)
     }
 
+    func undoSave(slot: Int) throws {
+        _ = try saveStore.restoreSlotFromUndoSave(romId: romId, slot: slot)
+    }
+
+    func undoLoad() throws {
+        guard let core = emulatorCore else { return }
+        guard let data = try saveStore.readUndoLoadState(romId: romId) else { return }
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("state-\(UUID().uuidString).dltastate")
+        try data.write(to: tmp)
+        try core.load(SaveState(fileURL: tmp, gameType: gameType))
+        try? FileManager.default.removeItem(at: tmp)
+        try saveStore.clearUndoLoad(romId: romId)
+    }
+
+    // MARK: - Helpers
+
+    private func currentThumbnailPNG() -> Data? {
+        guard let image = emulatorCore?.videoManager.snapshot() else { return nil }
+        return image.pngData()
+    }
+
+    private func captureUndoLoadSnapshot(core: EmulatorCore) throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("undoload-\(UUID().uuidString).dltastate")
+        core.saveSaveState(to: tmp)
+        let data = try Data(contentsOf: tmp)
+        let thumb = currentThumbnailPNG()
+        try saveStore.writeUndoLoadSnapshot(romId: romId, stateData: data, thumbnailData: thumb)
+        try? FileManager.default.removeItem(at: tmp)
+    }
+
     // MARK: - Battery
-    //
-    // DeltaCore manages the battery save automatically via `EmulatorCore.save()` writing to
-    // `game.gameSaveURL` (a .sav file next to the ROM). There is no `GameSave` type or
-    // `emulatorCore.gameSave` property in the live API.
-    //
-    // Strategy: before start(), seed game.gameSaveURL from our store so DeltaCore picks it up
-    // on load. After stop(), read game.gameSaveURL back into our store.
 
     private func loadBatteryIfAvailable() {
         guard let data = try? saveStore.readBattery(romId: romId) else { return }
@@ -109,7 +213,6 @@ final class DeltaCoreSession: NSObject, GameViewControllerDelegate {
     }
 
     private func flushBattery() {
-        // Trigger DeltaCore's internal battery flush to gameSaveURL, then copy to our store.
         emulatorCore?.save()
         let savURL = Game(fileURL: gameURL, type: gameType).gameSaveURL
         if let data = try? Data(contentsOf: savURL) {

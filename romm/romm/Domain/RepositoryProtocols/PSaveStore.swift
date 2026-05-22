@@ -8,4 +8,20 @@ protocol PSaveStore {
     func readState(romId: Int, slot: Int) throws -> Data?
     func writeState(romId: Int, slot: Int, data: Data) throws
     func deleteState(romId: Int, slot: Int) throws
+    func stateModifiedAt(romId: Int, slot: Int) -> Date?
+
+    func readThumbnail(romId: Int, slot: Int) throws -> Data?
+    func writeThumbnail(romId: Int, slot: Int, data: Data) throws
+
+    // Undo Save: snapshot existing slot before overwrite
+    func backupSlotForUndoSave(romId: Int, slot: Int) throws
+    func restoreSlotFromUndoSave(romId: Int, slot: Int) throws -> Bool
+    func hasUndoSave(romId: Int, slot: Int) -> Bool
+
+    // Undo Load: snapshot running emulator before loading another slot
+    func writeUndoLoadSnapshot(romId: Int, stateData: Data, thumbnailData: Data?) throws
+    func readUndoLoadState(romId: Int) throws -> Data?
+    func readUndoLoadThumbnail(romId: Int) throws -> Data?
+    func hasUndoLoad(romId: Int) -> Bool
+    func clearUndoLoad(romId: Int) throws
 }

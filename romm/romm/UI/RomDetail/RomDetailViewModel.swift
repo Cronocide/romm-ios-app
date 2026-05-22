@@ -32,6 +32,7 @@ class RomDetailViewModel {
     var canPlayEmulator: Bool = false
     var showingEmulatorFeatureHint: Bool = false
     var launchDecision: LaunchDecision? = nil
+    var isLaunchingEmulator: Bool = false
 
     private let logger = Logger.viewModel
 
@@ -306,7 +307,7 @@ class RomDetailViewModel {
             return
         }
 
-        // Use dedicated UseCase for pre-flight checks
+        isLaunchingEmulator = true
         let result = await launchEmulatorUseCase.execute(rom: rom)
 
         switch result {
@@ -317,6 +318,11 @@ class RomDetailViewModel {
         case .failure(let error):
             logger.error("Failed to launch emulator: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
+            isLaunchingEmulator = false
         }
+    }
+
+    func emulatorPresentationDidEnd() {
+        isLaunchingEmulator = false
     }
 }
