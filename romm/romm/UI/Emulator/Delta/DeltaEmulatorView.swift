@@ -32,10 +32,13 @@ struct DeltaEmulatorView: View {
         }
         .animation(.easeOut(duration: 0.25), value: viewModel.isLoading)
         .onAppear {
+            OrientationLock.set([.portrait, .landscapeLeft, .landscapeRight])
             viewModel.bootstrap()
             viewModel.session?.onMenuRequested = { showMenu = true }
         }
-        .onDisappear { viewModel.teardown() }
+        .onDisappear {
+            viewModel.teardown()
+        }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active: viewModel.session?.resume()

@@ -28,5 +28,7 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera access is needed to scan QR codes for device pairing</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Microphone access is required to emulate the Nintendo DS built-in microphone used by some games.</string>
 </dict>
 </plist>

@@ -3,6 +3,22 @@ import UIKit
 import DeltaCore
 import GBADeltaCore
 
+/// GameViewController subclass that forces the on-screen controller skin to
+/// reload after a rotation. DeltaCore only loads the skin image on initial
+/// layout, so without this the portrait skin stays active in landscape and the
+/// controller renders as a centered portrait-aspect block.
+final class RommGameViewController: GameViewController {
+    override func viewWillTransition(
+        to size: CGSize,
+        with coordinator: UIViewControllerTransitionCoordinator
+    ) {
+        super.viewWillTransition(to: size, with: coordinator)
+        coordinator.animate(alongsideTransition: nil) { [weak self] _ in
+            self?.controllerView?.updateControllerSkin()
+        }
+    }
+}
+
 @MainActor
 final class DeltaCoreSession: NSObject, GameViewControllerDelegate {
 
@@ -31,7 +47,7 @@ final class DeltaCoreSession: NSObject, GameViewControllerDelegate {
         self.romId = romId
         self.saveStore = saveStore
 
-        let vc = GameViewController()
+        let vc = RommGameViewController()
         vc.loadViewIfNeeded()
         let game = Game(fileURL: gameURL, type: gameType)
         vc.game = game
