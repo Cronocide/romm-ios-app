@@ -38,7 +38,6 @@ struct DeltaEmulatorView: View {
         }
         .onDisappear {
             viewModel.teardown()
-            OrientationLock.set(.portrait, rotateTo: .portrait)
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {

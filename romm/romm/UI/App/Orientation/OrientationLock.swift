@@ -54,10 +54,14 @@ enum OrientationLock {
         rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
         topViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
 
-        if #available(iOS 16.0, *), let rotateTo {
+        if #available(iOS 16.0, *) {
             let requestedMask: UIInterfaceOrientationMask
-            let forcedMask = orientationMask(for: rotateTo)
-            requestedMask = mask.intersection(forcedMask).isEmpty ? mask : forcedMask
+            if let rotateTo {
+                let forcedMask = orientationMask(for: rotateTo)
+                requestedMask = mask.intersection(forcedMask).isEmpty ? mask : forcedMask
+            } else {
+                requestedMask = mask
+            }
 
             let preferences = UIWindowScene.GeometryPreferences.iOS(
                 interfaceOrientations: requestedMask
