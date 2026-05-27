@@ -161,6 +161,11 @@ final class LibretroTouchControllerView: UIView {
     private let menuButton = UIButton(type: .custom)
     var onMenuTapped: (() -> Void)?
 
+    /// Vergrößert die Trefferzone für Face/Shoulder-Buttons (visuell unverändert).
+    private let hitSlop: CGFloat = 14
+    private let dpadSlop: CGFloat = 18
+    private let haptic = UIImpactFeedbackGenerator(style: .light)
+
     // MARK: - Init
 
     override init(frame: CGRect) {
@@ -168,6 +173,7 @@ final class LibretroTouchControllerView: UIView {
         isMultipleTouchEnabled = true
         backgroundColor = .clear
         buildLayout()
+        haptic.prepare()
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -313,8 +319,20 @@ final class LibretroTouchControllerView: UIView {
     // MARK: - Touch
 
     private func faceButton(at point: CGPoint) -> FaceButton? {
-        // Face/shoulder zones don't overlap; first match wins.
-        return faceButtons.first { $0.frame.contains(point) }
+        // Trefferzone wird via hitSlop ringsum vergrößert; Zonen überlappen sich
+        // in der Praxis nicht stark, der nächstgelegene Treffer gewinnt.
+        var best: (button: FaceButton, distance: CGFloat)?
+        for b in faceButtons {
+            let expanded = b.frame.insetBy(dx: -hitSlop, dy: -hitSlop)
+            guard expanded.contains(point) else { continue }
+            let dx = point.x - b.frame.midX
+            let dy = point.y - b.frame.midY
+            let dist = dx * dx + dy * dy
+            if best == nil || dist < best!.distance {
+                best = (b, dist)
+            }
+        }
+        return best?.button
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -337,9 +355,10 @@ final class LibretroTouchControllerView: UIView {
         let key = ObjectIdentifier(touch)
         let point = touch.location(in: self)
 
-        // D-Pad ownership: claimed by first touch that lands inside dpad.frame,
-        // released when that touch lifts (slide outside is still allowed).
-        if dpadTouch == nil, !ended, dpad.frame.contains(point) {
+        // D-Pad ownership: claimed by first touch that lands inside dpad.frame
+        // (mit dpadSlop), released when that touch lifts (slide outside is allowed).
+        if dpadTouch == nil, !ended,
+           dpad.frame.insetBy(dx: -dpadSlop, dy: -dpadSlop).contains(point) {
             dpadTouch = touch
         }
         if dpadTouch === touch {
@@ -367,6 +386,7 @@ final class LibretroTouchControllerView: UIView {
             if let hit {
                 hit.isPressed = true
                 LibretroFrontend.shared.setButton(hit.button, pressed: true)
+                haptic.impactOccurred(intensity: 0.55)
             }
         }
         if ended {
@@ -379,6 +399,7 @@ final class LibretroTouchControllerView: UIView {
     private var currentDpadButtons: Set<LibretroABI.JoypadButton> = []
 
     private func applyDpad(_ direction: DPadView.Direction) {
+        let previous = dpad.currentDirection
         dpad.currentDirection = direction
         let target = Set(direction.buttons)
         for b in currentDpadButtons.subtracting(target) {
@@ -388,5 +409,9 @@ final class LibretroTouchControllerView: UIView {
             LibretroFrontend.shared.setButton(b, pressed: true)
         }
         currentDpadButtons = target
+        // Leichter Tick bei Richtungswechsel — nicht bei Release auf .none.
+        if direction != previous, direction != .none {
+            haptic.impactOccurred(intensity: 0.4)
+        }
     }
 }
