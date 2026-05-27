@@ -187,8 +187,10 @@ struct RomDetailView: View {
                             )
                         }
                     }
-                    .fullScreenCover(isPresented: $viewModel.showingEmulator) {
-                        EmulatorView(rom: currentSelectedRom)
+                    .fullScreenCover(item: $viewModel.launchDecision, onDismiss: {
+                        viewModel.emulatorPresentationDidEnd()
+                    }) { decision in
+                        EmulatorRouterView(decision: decision)
                     }
                     .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
                         Button("OK") {
@@ -363,23 +365,34 @@ struct RomDetailView: View {
             // Play Button (TestFlight & Debug only)
             if Bundle.main.isTestFlightBuild || Bundle.main.isDebugBuild {
                 Button(action: {
+                    guard !viewModel.isLaunchingEmulator else { return }
                     Task {
                         await viewModel.launchEmulator(rom: currentSelectedRom)
                     }
                 }) {
-                    Label("Play", systemImage: "play.circle.fill")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color.green)
-                        )
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                    HStack(spacing: 8) {
+                        if viewModel.isLaunchingEmulator {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .tint(.white)
+                            Text("Starting…")
+                                .font(.headline)
+                        } else {
+                            Label("Play", systemImage: "play.circle.fill")
+                                .font(.headline)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.green)
+                    )
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
                 }
                 .opacity(viewModel.canPlayEmulator ? 1.0 : 0.6)
-                .disabled(!viewModel.canPlayEmulator)
+                .disabled(!viewModel.canPlayEmulator || viewModel.isLaunchingEmulator)
                 .accessibility(hint: Text("Play this ROM in the emulator"))
             }
 

@@ -1,0 +1,24 @@
+[submodule "Vendor/DeltaCore"]
+	path = Vendor/DeltaCore
+	url = https://github.com/rileytestut/DeltaCore.git
+[submodule "Vendor/GBADeltaCore"]
+	path = Vendor/GBADeltaCore
+	url = https://github.com/ilyas-hallak/GBADeltaCore.git
+[submodule "Vendor/SNESDeltaCore"]
+	path = Vendor/SNESDeltaCore
+	url = https://github.com/ilyas-hallak/SNESDeltaCore.git
+[submodule "Vendor/GPGXDeltaCore"]
+	path = Vendor/GPGXDeltaCore
+	url = https://github.com/rileytestut/GPGXDeltaCore.git
+[submodule "Vendor/NESDeltaCore"]
+	path = Vendor/NESDeltaCore
+	url = https://github.com/rileytestut/NESDeltaCore.git
+[submodule "Vendor/GBCDeltaCore"]
+	path = Vendor/GBCDeltaCore
+	url = https://github.com/rileytestut/GBCDeltaCore.git
+[submodule "Vendor/N64DeltaCore"]
+	path = Vendor/N64DeltaCore
+	url = https://github.com/rileytestut/N64DeltaCore.git
+[submodule "Vendor/MelonDSDeltaCore"]
+	path = Vendor/MelonDSDeltaCore
+	url = https://github.com/rileytestut/MelonDSDeltaCore.git

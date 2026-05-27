@@ -117,6 +117,20 @@ struct SettingsView: View {
                         Text("Image Cache Settings")
                     }
                 }
+
+                NavigationLink(destination: EmulatorEngineSettingsView()) {
+                    HStack {
+                        Image(systemName: "gamecontroller")
+                        Text("Emulator Engine")
+                    }
+                }
+
+                NavigationLink(destination: LicensesView()) {
+                    HStack {
+                        Image(systemName: "doc.text")
+                        Text("Lizenzen")
+                    }
+                }
             }
 
             // Experimental Features Section (TestFlight & Debug only)

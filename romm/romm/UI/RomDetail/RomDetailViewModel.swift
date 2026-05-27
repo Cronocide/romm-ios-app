@@ -31,6 +31,8 @@ class RomDetailViewModel {
     var showingEmulator: Bool = false
     var canPlayEmulator: Bool = false
     var showingEmulatorFeatureHint: Bool = false
+    var launchDecision: LaunchDecision? = nil
+    var isLaunchingEmulator: Bool = false
 
     private let logger = Logger.viewModel
 
@@ -297,23 +299,30 @@ class RomDetailViewModel {
     }
 
     func launchEmulator(rom: Rom) async {
+        print("[RomDetailVM] launchEmulator tapped for rom id=\(rom.id)")
         // Check if experimental feature is enabled first
         guard ExperimentalFeatureSettings.shared.isEmulatorEnabled else {
+            print("[RomDetailVM] experimental emulator disabled — showing hint")
             showingEmulatorFeatureHint = true
             return
         }
 
-        // Use dedicated UseCase for pre-flight checks
+        isLaunchingEmulator = true
         let result = await launchEmulatorUseCase.execute(rom: rom)
 
         switch result {
-        case .success:
-            logger.info("Launching emulator for ROM: \(rom.name)")
-            showingEmulator = true
+        case .success(let decision):
+            logger.info("Launching emulator for ROM: \(rom.name) — decision: \(String(describing: decision))")
+            self.launchDecision = decision
 
         case .failure(let error):
             logger.error("Failed to launch emulator: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
+            isLaunchingEmulator = false
         }
+    }
+
+    func emulatorPresentationDidEnd() {
+        isLaunchingEmulator = false
     }
 }
