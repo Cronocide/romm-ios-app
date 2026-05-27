@@ -92,20 +92,9 @@ final class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
         print("[LaunchEmulator] platformSlug='\(platformSlug)', preference=\(pref.rawValue), supported=\(supported.map { $0.rawValue })")
         let chosen: EmulatorEngine = {
             switch pref {
-            case .web:
-                if supported.contains(.web) { return .web }
-                if supported.contains(.native) { return .native }
-                return supported.contains(.libretro) ? .libretro : .web
-            case .native:
-                if supported.contains(.native) { return .native }
-                if supported.contains(.libretro) { return .libretro }
-                return .web
-            case .libretro:
-                if supported.contains(.libretro) { return .libretro }
-                if supported.contains(.native) { return .native }
-                return .web
-            case .auto:
-                return platformSupport.preferred(for: platformSlug)
+            case .web: return supported.contains(.web) ? .web : .native
+            case .native: return supported.contains(.native) ? .native : .web
+            case .auto: return platformSupport.preferred(for: platformSlug)
             }
         }()
         print("[LaunchEmulator] chosen engine=\(chosen.rawValue)")
@@ -114,15 +103,13 @@ final class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
         case .web:
             return .success(.web(rom: rom))
         case .native:
-            guard let gameType = PlatformSlugToGameType.map(platformSlug) else {
-                return .success(.web(rom: rom))
+            if let gameType = PlatformSlugToGameType.map(platformSlug) {
+                return .success(.native(rom: rom, gameType: gameType))
             }
-            return .success(.native(rom: rom, gameType: gameType))
-        case .libretro:
-            guard let core = PlatformSlugToLibretroCore.map(platformSlug) else {
-                return .success(.web(rom: rom))
+            if let core = PlatformSlugToLibretroCore.map(platformSlug) {
+                return .success(.libretro(rom: rom, core: core))
             }
-            return .success(.libretro(rom: rom, core: core))
+            return .success(.web(rom: rom))
         case .auto:
             return .success(.web(rom: rom))
         }
