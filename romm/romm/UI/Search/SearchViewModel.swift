@@ -69,18 +69,30 @@ class SearchViewModel {
     private func execute(query: String) async {
         isLoading = true
         errorMessage = nil
-        defer { isLoading = false }
+        defer {
+            if !Task.isCancelled { isLoading = false }
+        }
 
         do {
-            searchResults = try await searchRomsUseCase.execute(query: query)
+            let results = try await searchRomsUseCase.execute(query: query)
+            guard !Task.isCancelled else { return }
+            searchResults = results
         } catch is CancellationError {
-            // Search was cancelled – leave results unchanged
+            return
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            return
         } catch {
+            guard !Task.isCancelled else { return }
             do {
-                searchResults = try await DefaultDependencyFactory.shared.romsRepository.searchRomsLegacy(query: query)
+                let legacy = try await DefaultDependencyFactory.shared.romsRepository.searchRomsLegacy(query: query)
+                guard !Task.isCancelled else { return }
+                searchResults = legacy
             } catch is CancellationError {
-                // Search was cancelled – leave results unchanged
+                return
+            } catch let urlError as URLError where urlError.code == .cancelled {
+                return
             } catch let legacyError {
+                guard !Task.isCancelled else { return }
                 errorMessage = "Suche fehlgeschlagen: \(legacyError.localizedDescription)"
                 searchResults = []
             }
