@@ -9,12 +9,12 @@ import Foundation
 
 enum LaunchDecision: Identifiable {
     case web(rom: Rom)
-    case deltaCore(rom: Rom, gameType: DeltaGameType)
+    case native(rom: Rom, gameType: DeltaGameType)
 
     var id: String {
         switch self {
         case .web(let rom): return "web-\(rom.id)"
-        case .deltaCore(let rom, _): return "delta-\(rom.id)"
+        case .native(let rom, _): return "native-\(rom.id)"
         }
     }
 }
@@ -61,7 +61,7 @@ final class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
     init(
         tokenProvider: PTokenProvider = TokenProvider(),
         checkEmulatorSupport: PCheckEmulatorSupportUseCase = CheckEmulatorSupportUseCase(),
-        enginePreference: PEmulatorEnginePreference = EmulatorEnginePreference(),
+        enginePreference: PEmulatorEnginePreference = UserDefaultsEmulatorEnginePreferenceStore(),
         platformSupport: PPlatformEngineSupport = PlatformEngineSupport()
     ) {
         self.tokenProvider = tokenProvider
@@ -90,8 +90,8 @@ final class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
         print("[LaunchEmulator] platformSlug='\(platformSlug)', preference=\(pref.rawValue), supported=\(supported.map { $0.rawValue })")
         let chosen: EmulatorEngine = {
             switch pref {
-            case .web: return supported.contains(.web) ? .web : .deltaCore
-            case .deltaCore: return supported.contains(.deltaCore) ? .deltaCore : .web
+            case .web: return supported.contains(.web) ? .web : .native
+            case .native: return supported.contains(.native) ? .native : .web
             case .auto: return platformSupport.preferred(for: platformSlug)
             }
         }()
@@ -100,11 +100,11 @@ final class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
         switch chosen {
         case .web:
             return .success(.web(rom: rom))
-        case .deltaCore:
+        case .native:
             guard let gameType = PlatformSlugToGameType.map(platformSlug) else {
                 return .success(.web(rom: rom))
             }
-            return .success(.deltaCore(rom: rom, gameType: gameType))
+            return .success(.native(rom: rom, gameType: gameType))
         case .auto:
             return .success(.web(rom: rom))
         }

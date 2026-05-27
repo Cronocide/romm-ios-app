@@ -14,8 +14,8 @@ struct EmulatorRouterView: View {
         switch decision {
         case .web(let rom):
             EmulatorView(rom: rom)
-        case .deltaCore(let rom, let gameType):
-            DeltaEmulatorView(rom: rom, gameType: gameType)
+        case .native(let rom, let gameType):
+            NativeEmulatorView(rom: rom, gameType: gameType)
         }
     }
 }
