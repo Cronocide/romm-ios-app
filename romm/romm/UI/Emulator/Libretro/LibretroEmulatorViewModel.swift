@@ -10,6 +10,7 @@ final class LibretroEmulatorViewModel {
     var errorMessage: String?
     var session: LibretroSession?
     var isLoading: Bool = true
+    var onMenuRequested: (() -> Void)?
 
     private let localROMRepo: PLocalROMRepository
     private let resolver: PROMFileResolver
@@ -68,6 +69,7 @@ final class LibretroEmulatorViewModel {
                 return
             }
             let s = LibretroSession(gameURL: url, core: core, romId: rom.id, saveStore: saveStore)
+            s.onMenuRequested = { [weak self] in self?.onMenuRequested?() }
             session = s
             s.start()
             Task { @MainActor in

@@ -1,6 +1,6 @@
 import Foundation
 import Darwin
-import UIKit
+import AVFoundation
 
 /// Minimaler libretro-Frontend: dlopen + Symbolauflösung + Run-Loop.
 ///
@@ -28,6 +28,8 @@ final class LibretroFrontend {
     private var systemDir: String = ""
     private var saveDir: String = ""
     private var runTimer: DispatchSourceTimer?
+    private var runTimerSuspended: Bool = false
+    fileprivate var frameCount: UInt64 = 0
 
     // Symbols
     private var retro_init: LibretroABI.RetroInit?
@@ -50,6 +52,102 @@ final class LibretroFrontend {
     private var retro_unserialize: LibretroABI.RetroUnserialize?
 
     weak var videoSink: LibretroVideoSink?
+
+    // MARK: - Input state (Joypad port 0)
+    /// Index = JoypadButton.rawValue. Atomar via MainActor-Isolation.
+    fileprivate var buttonState: [Bool] = Array(repeating: false, count: 16)
+
+    func setButton(_ button: LibretroABI.JoypadButton, pressed: Bool) {
+        buttonState[Int(button.rawValue)] = pressed
+    }
+
+    func clearAllButtons() {
+        for i in 0..<buttonState.count { buttonState[i] = false }
+    }
+
+    // MARK: - Audio
+    private let audioEngine = AVAudioEngine()
+    private var audioSourceNode: AVAudioSourceNode?
+    /// Shared ringbuffer + idx werden vom Audio-Thread (renderAudio) und MainActor
+    /// (enqueueAudio) gemeinsam genutzt. NSLock schützt vor Race.
+    nonisolated(unsafe) fileprivate static let audioRingLock = NSLock()
+    nonisolated(unsafe) fileprivate static var audioRing: [Int16] = Array(repeating: 0, count: 44100 * 2 * 2)
+    nonisolated(unsafe) fileprivate static var audioWriteIdx: Int = 0
+    nonisolated(unsafe) fileprivate static var audioReadIdx: Int = 0
+
+    fileprivate func startAudio(sampleRate: Double) {
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .default, options: [])
+        try? session.setActive(true, options: [])
+
+        let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 2)!
+        let node = AVAudioSourceNode { _, _, frameCount, audioBufferList in
+            let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
+            return Self.renderAudio(into: abl, frameCount: Int(frameCount))
+        }
+        audioSourceNode = node
+        audioEngine.attach(node)
+        audioEngine.connect(node, to: audioEngine.mainMixerNode, format: format)
+        do {
+            try audioEngine.start()
+            print("[Libretro] audio engine started @\(sampleRate)Hz")
+        } catch {
+            print("[Libretro] audio start failed: \(error)")
+        }
+    }
+
+    fileprivate func stopAudio() {
+        audioEngine.stop()
+        if let node = audioSourceNode {
+            audioEngine.detach(node)
+            audioSourceNode = nil
+        }
+        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+    }
+
+    fileprivate func enqueueAudio(_ samples: UnsafePointer<Int16>, frames: Int) {
+        let count = frames * 2 // stereo
+        Self.audioRingLock.lock()
+        for i in 0..<count {
+            Self.audioRing[Self.audioWriteIdx] = samples[i]
+            Self.audioWriteIdx = (Self.audioWriteIdx + 1) % Self.audioRing.count
+            if Self.audioWriteIdx == Self.audioReadIdx {
+                Self.audioReadIdx = (Self.audioReadIdx + 1) % Self.audioRing.count
+            }
+        }
+        Self.audioRingLock.unlock()
+    }
+
+    nonisolated private static func renderAudio(into abl: UnsafeMutableAudioBufferListPointer, frameCount: Int) -> OSStatus {
+        let left = abl[0].mData!.assumingMemoryBound(to: Float.self)
+        let right = abl.count > 1 ? abl[1].mData!.assumingMemoryBound(to: Float.self) : nil
+        let interleaved = right == nil
+
+        audioRingLock.lock()
+        if interleaved {
+            let needed = frameCount * 2
+            var i = 0
+            while i < needed && audioReadIdx != audioWriteIdx {
+                left[i] = Float(audioRing[audioReadIdx]) / 32768.0
+                audioReadIdx = (audioReadIdx + 1) % audioRing.count
+                i += 1
+            }
+            while i < needed { left[i] = 0; i += 1 }
+        } else {
+            var fi = 0
+            while fi < frameCount && audioReadIdx != audioWriteIdx {
+                left[fi] = Float(audioRing[audioReadIdx]) / 32768.0
+                audioReadIdx = (audioReadIdx + 1) % audioRing.count
+                if audioReadIdx == audioWriteIdx { right![fi] = 0; fi += 1; break }
+                right![fi] = Float(audioRing[audioReadIdx]) / 32768.0
+                audioReadIdx = (audioReadIdx + 1) % audioRing.count
+                fi += 1
+            }
+            while fi < frameCount { left[fi] = 0; right![fi] = 0; fi += 1 }
+        }
+        audioRingLock.unlock()
+        return noErr
+    }
 
     // MARK: - Public API
 
@@ -114,6 +212,8 @@ final class LibretroFrontend {
         print("[Libretro] AV: \(av.geometry.base_width)x\(av.geometry.base_height) @\(av.timing.fps)Hz audio=\(av.timing.sample_rate)Hz")
 
         retro_set_controller_port_device?(0, LibretroABI.DEVICE_JOYPAD)
+
+        startAudio(sampleRate: av.timing.sample_rate > 0 ? av.timing.sample_rate : 44100)
     }
 
     func startRunLoop() {
@@ -126,16 +226,62 @@ final class LibretroFrontend {
         }
         timer.resume()
         self.runTimer = timer
+        self.runTimerSuspended = false
     }
 
     func stop() {
-        runTimer?.cancel()
+        if let timer = runTimer {
+            // DispatchSourceTimer crasht beim cancel() im suspendierten Zustand.
+            if runTimerSuspended { timer.resume(); runTimerSuspended = false }
+            timer.cancel()
+        }
         runTimer = nil
+        stopAudio()
+        clearAllButtons()
         retro_unload_game?()
         retro_deinit?()
         if let h = handle {
             dlclose(h)
             handle = nil
+        }
+    }
+
+    func pause() {
+        guard !runTimerSuspended, let timer = runTimer else { return }
+        timer.suspend()
+        runTimerSuspended = true
+        clearAllButtons()
+        audioEngine.pause()
+    }
+
+    func resume() {
+        if !audioEngine.isRunning {
+            try? audioEngine.start()
+        }
+        guard runTimerSuspended, let timer = runTimer else { return }
+        timer.resume()
+        runTimerSuspended = false
+    }
+
+    // MARK: - Save / Load state
+
+    func saveStateData() -> Data? {
+        guard let sizeFn = retro_serialize_size, let serFn = retro_serialize else { return nil }
+        let size = sizeFn()
+        guard size > 0 else { return nil }
+        var data = Data(count: size)
+        let ok = data.withUnsafeMutableBytes { raw -> Bool in
+            guard let base = raw.baseAddress else { return false }
+            return serFn(base, size)
+        }
+        return ok ? data : nil
+    }
+
+    func loadStateData(_ data: Data) -> Bool {
+        guard let unserFn = retro_unserialize else { return false }
+        return data.withUnsafeBytes { raw -> Bool in
+            guard let base = raw.baseAddress else { return false }
+            return unserFn(base, data.count)
         }
     }
 
@@ -177,27 +323,42 @@ final class LibretroFrontend {
 
     private static let videoRefreshCallback: LibretroABI.VideoRefreshFn = { data, width, height, pitch in
         MainActor.assumeIsolated {
-            LibretroFrontend.shared.videoSink?.libretroDidProduceFrame(
+            let s = LibretroFrontend.shared
+            s.frameCount &+= 1
+            if s.frameCount <= 5 || s.frameCount % 60 == 0 {
+                print("[Libretro] frame #\(s.frameCount) data=\(data != nil ? "ptr" : "nil") \(width)x\(height) pitch=\(pitch) fmt=\(s.pixelFormat)")
+            }
+            s.videoSink?.libretroDidProduceFrame(
                 data: data, width: width, height: height, pitch: pitch,
-                pixelFormat: LibretroFrontend.shared.pixelFormat
+                pixelFormat: s.pixelFormat
             )
         }
     }
 
-    private static let audioSampleCallback: LibretroABI.AudioSampleFn = { _, _ in
-        // TODO: AudioEngine
+    private static let audioSampleCallback: LibretroABI.AudioSampleFn = { left, right in
+        var pair: [Int16] = [left, right]
+        pair.withUnsafeBufferPointer { buf in
+            MainActor.assumeIsolated {
+                LibretroFrontend.shared.enqueueAudio(buf.baseAddress!, frames: 1)
+            }
+        }
     }
 
-    private static let audioBatchCallback: LibretroABI.AudioSampleBatchFn = { _, frames in
-        // TODO: AudioEngine
+    private static let audioBatchCallback: LibretroABI.AudioSampleBatchFn = { data, frames in
+        guard let data = data else { return frames }
+        MainActor.assumeIsolated {
+            LibretroFrontend.shared.enqueueAudio(data, frames: frames)
+        }
         return frames
     }
 
     private static let inputPollCallback: LibretroABI.InputPollFn = { }
 
-    private static let inputStateCallback: LibretroABI.InputStateFn = { _, _, _, _ in
-        // TODO: Input
-        return 0
+    private static let inputStateCallback: LibretroABI.InputStateFn = { port, device, _, id in
+        guard port == 0, device == LibretroABI.DEVICE_JOYPAD, id < 16 else { return 0 }
+        return MainActor.assumeIsolated {
+            LibretroFrontend.shared.buttonState[Int(id)] ? 1 : 0
+        }
     }
 
     // MARK: - Environment dispatch

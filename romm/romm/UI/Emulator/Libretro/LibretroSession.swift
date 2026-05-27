@@ -21,6 +21,9 @@ final class LibretroSession: NSObject {
         self.saveStore = saveStore
         self.viewController = LibretroGameViewController(core: core, gameURL: gameURL)
         super.init()
+        self.viewController.controllerView.onMenuTapped = { [weak self] in
+            self?.onMenuRequested?()
+        }
     }
 
     // MARK: - Lifecycle
@@ -48,16 +51,64 @@ final class LibretroSession: NSObject {
         }
     }
 
-    func pause() { /* TODO: timer pause */ }
-    func resume() { /* TODO: timer resume */ }
+    func pause() { frontend.pause() }
+    func resume() { frontend.resume() }
 
     func stop() {
         frontend.stop()
         frontend.videoSink = nil
     }
 
+    // MARK: - Save state API (mirrors DeltaCoreSession)
+
     func hasState(slot: Int) -> Bool {
         (try? saveStore.readState(romId: romId, slot: slot)) != nil
+    }
+
+    func stateModifiedAt(slot: Int) -> Date? {
+        saveStore.stateModifiedAt(romId: romId, slot: slot)
+    }
+
+    func thumbnail(slot: Int) -> UIImage? {
+        guard let data = try? saveStore.readThumbnail(romId: romId, slot: slot) else { return nil }
+        return UIImage(data: data)
+    }
+
+    func hasUndoSave(slot: Int) -> Bool { saveStore.hasUndoSave(romId: romId, slot: slot) }
+    func hasUndoLoad() -> Bool { saveStore.hasUndoLoad(romId: romId) }
+
+    func saveState(slot: Int) throws {
+        guard let data = frontend.saveStateData() else {
+            throw LibretroFrontend.FrontendError.symbolMissing("retro_serialize")
+        }
+        try saveStore.backupSlotForUndoSave(romId: romId, slot: slot)
+        try saveStore.writeState(romId: romId, slot: slot, data: data)
+        if let thumb = viewController.videoView.snapshot()?.pngData() {
+            try saveStore.writeThumbnail(romId: romId, slot: slot, data: thumb)
+        }
+    }
+
+    func loadState(slot: Int) throws {
+        guard let data = try saveStore.readState(romId: romId, slot: slot) else { return }
+        if let snapshot = frontend.saveStateData() {
+            let thumb = viewController.videoView.snapshot()?.pngData()
+            try saveStore.writeUndoLoadSnapshot(romId: romId, stateData: snapshot, thumbnailData: thumb)
+        }
+        guard frontend.loadStateData(data) else {
+            throw LibretroFrontend.FrontendError.symbolMissing("retro_unserialize")
+        }
+    }
+
+    func undoSave(slot: Int) throws {
+        _ = try saveStore.restoreSlotFromUndoSave(romId: romId, slot: slot)
+    }
+
+    func undoLoad() throws {
+        guard let data = try saveStore.readUndoLoadState(romId: romId) else { return }
+        guard frontend.loadStateData(data) else {
+            throw LibretroFrontend.FrontendError.symbolMissing("retro_unserialize")
+        }
+        try saveStore.clearUndoLoad(romId: romId)
     }
 
     // MARK: - Paths
@@ -107,6 +158,7 @@ final class LibretroGameViewController: UIViewController {
     private let core: LibretroCore
     private let gameURL: URL
     let videoView = LibretroVideoView()
+    let controllerView = LibretroTouchControllerView()
     private let errorLabel = UILabel()
 
     init(core: LibretroCore, gameURL: URL) {
@@ -130,6 +182,15 @@ final class LibretroGameViewController: UIViewController {
             videoView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
 
+        controllerView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(controllerView)
+        NSLayoutConstraint.activate([
+            controllerView.topAnchor.constraint(equalTo: view.topAnchor),
+            controllerView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            controllerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            controllerView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        ])
+
         errorLabel.numberOfLines = 0
         errorLabel.textColor = .systemRed
         errorLabel.textAlignment = .center
@@ -148,5 +209,16 @@ final class LibretroGameViewController: UIViewController {
     func showError(_ message: String) {
         errorLabel.text = message
         errorLabel.isHidden = false
+    }
+
+    override func viewWillTransition(
+        to size: CGSize,
+        with coordinator: UIViewControllerTransitionCoordinator
+    ) {
+        super.viewWillTransition(to: size, with: coordinator)
+        coordinator.animate(alongsideTransition: { [weak self] _ in
+            self?.controllerView.setNeedsLayout()
+            self?.controllerView.layoutIfNeeded()
+        })
     }
 }

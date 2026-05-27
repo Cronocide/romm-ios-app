@@ -32,7 +32,11 @@ final class LibretroVideoView: UIView, LibretroVideoSink {
 
         switch pixelFormat {
         case .rgb565:
-            bitmapInfo = CGBitmapInfo(rawValue: CGImageByteOrderInfo.order16Little.rawValue)
+            bitmapInfo = CGBitmapInfo(rawValue:
+                CGImagePixelFormatInfo.RGB565.rawValue |
+                CGImageByteOrderInfo.order16Little.rawValue |
+                CGImageAlphaInfo.none.rawValue
+            )
             bitsPerComponent = 5
             bitsPerPixel = 16
         case .xrgb8888:
@@ -44,8 +48,9 @@ final class LibretroVideoView: UIView, LibretroVideoSink {
             bitsPerPixel = 32
         case .rgb1555:
             bitmapInfo = CGBitmapInfo(rawValue:
-                CGImageAlphaInfo.noneSkipFirst.rawValue |
-                CGImageByteOrderInfo.order16Little.rawValue
+                CGImagePixelFormatInfo.RGB555.rawValue |
+                CGImageByteOrderInfo.order16Little.rawValue |
+                CGImageAlphaInfo.noneSkipFirst.rawValue
             )
             bitsPerComponent = 5
             bitsPerPixel = 16
@@ -74,5 +79,13 @@ final class LibretroVideoView: UIView, LibretroVideoSink {
         ) else { return }
 
         layer.contents = image
+        lastCGImage = image
+    }
+
+    private var lastCGImage: CGImage?
+
+    func snapshot() -> UIImage? {
+        guard let image = lastCGImage else { return nil }
+        return UIImage(cgImage: image)
     }
 }
