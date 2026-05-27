@@ -6,28 +6,13 @@
 //
 
 import UIKit
-import DeltaCore
-import GBADeltaCore
-import SNESDeltaCore
-import GPGXDeltaCore
-import NESDeltaCore
-import GBCDeltaCore
-import N64DeltaCore
-import MelonDSDeltaCore
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        Delta.register(GBA.core)
-        Delta.register(SNES.core)
-        Delta.register(GPGX.core)
-        Delta.register(NES.core)
-        Delta.register(GBC.core)
-        Delta.register(N64.core)
-        Delta.register(MelonDS.core)
-        ExternalGameControllerManager.shared.startMonitoring()
+        AppBootstrap.run()
         return true
     }
 
