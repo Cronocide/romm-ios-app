@@ -9,13 +9,13 @@ import Foundation
 
 enum LaunchDecision: Identifiable {
     case web(rom: Rom)
-    case deltaCore(rom: Rom, gameType: DeltaGameType)
+    case native(rom: Rom, gameType: DeltaGameType)
     case libretro(rom: Rom, core: LibretroCore)
 
     var id: String {
         switch self {
         case .web(let rom): return "web-\(rom.id)"
-        case .deltaCore(let rom, _): return "delta-\(rom.id)"
+        case .native(let rom, _): return "native-\(rom.id)"
         case .libretro(let rom, _): return "libretro-\(rom.id)"
         }
     }
@@ -63,7 +63,7 @@ final class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
     init(
         tokenProvider: PTokenProvider = TokenProvider(),
         checkEmulatorSupport: PCheckEmulatorSupportUseCase = CheckEmulatorSupportUseCase(),
-        enginePreference: PEmulatorEnginePreference = EmulatorEnginePreference(),
+        enginePreference: PEmulatorEnginePreference = UserDefaultsEmulatorEnginePreferenceStore(),
         platformSupport: PPlatformEngineSupport = PlatformEngineSupport()
     ) {
         self.tokenProvider = tokenProvider
@@ -94,15 +94,15 @@ final class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
             switch pref {
             case .web:
                 if supported.contains(.web) { return .web }
-                if supported.contains(.deltaCore) { return .deltaCore }
+                if supported.contains(.native) { return .native }
                 return supported.contains(.libretro) ? .libretro : .web
-            case .deltaCore:
-                if supported.contains(.deltaCore) { return .deltaCore }
+            case .native:
+                if supported.contains(.native) { return .native }
                 if supported.contains(.libretro) { return .libretro }
                 return .web
             case .libretro:
                 if supported.contains(.libretro) { return .libretro }
-                if supported.contains(.deltaCore) { return .deltaCore }
+                if supported.contains(.native) { return .native }
                 return .web
             case .auto:
                 return platformSupport.preferred(for: platformSlug)
@@ -113,11 +113,11 @@ final class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
         switch chosen {
         case .web:
             return .success(.web(rom: rom))
-        case .deltaCore:
+        case .native:
             guard let gameType = PlatformSlugToGameType.map(platformSlug) else {
                 return .success(.web(rom: rom))
             }
-            return .success(.deltaCore(rom: rom, gameType: gameType))
+            return .success(.native(rom: rom, gameType: gameType))
         case .libretro:
             guard let core = PlatformSlugToLibretroCore.map(platformSlug) else {
                 return .success(.web(rom: rom))

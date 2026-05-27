@@ -17,9 +17,9 @@ struct EmulatorEnginePreferenceTests {
     @Test func persistsAcrossInstances() {
         let defaults = makeDefaults()
         let pref1 = EmulatorEnginePreference(userDefaults: defaults)
-        pref1.current = .deltaCore
+        pref1.current = .native
         let pref2 = EmulatorEnginePreference(userDefaults: defaults)
-        #expect(pref2.current == .deltaCore)
+        #expect(pref2.current == .native)
     }
 
     @Test func unknownRawValueFallsBackToWeb() {

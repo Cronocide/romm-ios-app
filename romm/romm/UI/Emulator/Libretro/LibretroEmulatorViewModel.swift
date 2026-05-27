@@ -23,7 +23,7 @@ final class LibretroEmulatorViewModel {
         core: LibretroCore,
         localROMRepo: PLocalROMRepository,
         resolver: PROMFileResolver = ROMFileResolver(),
-        saveStore: PSaveStore = LocalSaveStore(),
+        saveStore: PSaveStore = LocalSaveStoreRepository(),
         biosSync: PBIOSSyncUseCase = BIOSSyncUseCase()
     ) {
         self.rom = rom

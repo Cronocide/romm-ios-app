@@ -5,7 +5,7 @@ struct PlatformEngineSupportTests {
     @Test func gbaSupportsBothEngines() {
         let support = PlatformEngineSupport()
         let engines = support.supportedEngines(for: "gba")
-        #expect(engines.contains(.deltaCore))
+        #expect(engines.contains(.native))
         #expect(engines.contains(.web))
     }
 
@@ -13,7 +13,7 @@ struct PlatformEngineSupportTests {
         let support = PlatformEngineSupport()
         let engines = support.supportedEngines(for: "psx")
         #expect(engines.contains(.web))
-        #expect(!engines.contains(.deltaCore))
+        #expect(!engines.contains(.native))
     }
 
     @Test func unknownPlatformReturnsEmpty() {
@@ -28,6 +28,6 @@ struct PlatformEngineSupportTests {
 
     @Test func slugIsCaseInsensitive() {
         let support = PlatformEngineSupport()
-        #expect(support.supportedEngines(for: "GBA").contains(.deltaCore))
+        #expect(support.supportedEngines(for: "GBA").contains(.native))
     }
 }

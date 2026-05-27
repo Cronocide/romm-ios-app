@@ -9,7 +9,7 @@ import Testing
 struct EmulatorEngineTests {
     @Test func rawValuesArePersisted() {
         #expect(EmulatorEngine.web.rawValue == "web")
-        #expect(EmulatorEngine.deltaCore.rawValue == "deltaCore")
+        #expect(EmulatorEngine.native.rawValue == "native")
         #expect(EmulatorEngine.auto.rawValue == "auto")
     }
 

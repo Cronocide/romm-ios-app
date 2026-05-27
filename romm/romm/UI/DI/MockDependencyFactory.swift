@@ -31,7 +31,7 @@ class MockDependencyFactory: PDependencyFactory {
     var fileValidationService: PFileValidationService
 
     // Emulator engine
-    lazy var enginePreference: PEmulatorEnginePreference = EmulatorEnginePreference()
+    lazy var enginePreference: PEmulatorEnginePreference = UserDefaultsEmulatorEnginePreferenceStore()
     
     init(
         authRepository: PAuthRepository? = nil,
@@ -300,5 +300,19 @@ class MockDependencyFactory: PDependencyFactory {
             enginePreference: enginePreference,
             platformSupport: makePlatformEngineSupport()
         )
+    }
+
+    lazy var saveStore: PSaveStore = LocalSaveStoreRepository()
+
+    func makeGetDownloadedROMUseCase() -> PGetDownloadedROMUseCase {
+        GetDownloadedROMUseCase(localROMRepository: localROMRepository)
+    }
+
+    func makeResolveROMFileUseCase() -> PResolveROMFileUseCase {
+        ResolveROMFileUseCase()
+    }
+
+    func makeEmulatorSaveStatesUseCase() -> PEmulatorSaveStatesUseCase {
+        EmulatorSaveStatesUseCase(saveStore: saveStore)
     }
 }
