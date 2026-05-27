@@ -84,6 +84,9 @@ protocol PDependencyFactory {
     // Emulator Use Cases
     func makeCheckEmulatorSupportUseCase() -> PCheckEmulatorSupportUseCase
     func makeLaunchEmulatorUseCase() -> PLaunchEmulatorUseCase
+    func makeGetDownloadedROMUseCase() -> PGetDownloadedROMUseCase
+    func makeResolveROMFileUseCase() -> PResolveROMFileUseCase
+    func makeEmulatorSaveStatesUseCase() -> PEmulatorSaveStatesUseCase
 
     // Emulator Engine
     var enginePreference: PEmulatorEnginePreference { get }
@@ -335,7 +338,7 @@ class DefaultDependencyFactory: PDependencyFactory {
         CheckEmulatorSupportUseCase()
     }
 
-    lazy var enginePreference: PEmulatorEnginePreference = EmulatorEnginePreference()
+    lazy var enginePreference: PEmulatorEnginePreference = UserDefaultsEmulatorEnginePreferenceStore()
 
     func makePlatformEngineSupport() -> PPlatformEngineSupport {
         PlatformEngineSupport()
@@ -348,6 +351,20 @@ class DefaultDependencyFactory: PDependencyFactory {
             enginePreference: enginePreference,
             platformSupport: makePlatformEngineSupport()
         )
+    }
+
+    lazy var saveStore: PSaveStore = LocalSaveStoreRepository()
+
+    func makeGetDownloadedROMUseCase() -> PGetDownloadedROMUseCase {
+        GetDownloadedROMUseCase(localROMRepository: localROMRepository)
+    }
+
+    func makeResolveROMFileUseCase() -> PResolveROMFileUseCase {
+        ResolveROMFileUseCase()
+    }
+
+    func makeEmulatorSaveStatesUseCase() -> PEmulatorSaveStatesUseCase {
+        EmulatorSaveStatesUseCase(saveStore: saveStore)
     }
 
     // MARK: - SFTP ViewModels

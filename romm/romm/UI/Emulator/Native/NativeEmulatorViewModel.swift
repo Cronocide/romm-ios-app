@@ -12,57 +12,51 @@ import MelonDSDeltaCore
 
 @Observable
 @MainActor
-final class DeltaEmulatorViewModel {
+final class NativeEmulatorViewModel {
     let rom: Rom
     let gameType: DeltaGameType
     var errorMessage: String?
-    var session: DeltaCoreSession?
+    var session: NativeEmulatorSession?
     var isLoading: Bool = true
 
-    private let localROMRepo: PLocalROMRepository
-    private let resolver: PROMFileResolver
-    private let saveStore: PSaveStore
+    private let getDownloadedROM: PGetDownloadedROMUseCase
+    private let resolveROMFile: PResolveROMFileUseCase
+    private let saveStates: PEmulatorSaveStatesUseCase
     private let logger = Logger.viewModel
 
     init(
         rom: Rom,
         gameType: DeltaGameType,
-        localROMRepo: PLocalROMRepository,
-        resolver: PROMFileResolver = ROMFileResolver(),
-        saveStore: PSaveStore = LocalSaveStore()
+        getDownloadedROM: PGetDownloadedROMUseCase,
+        resolveROMFile: PResolveROMFileUseCase,
+        saveStates: PEmulatorSaveStatesUseCase
     ) {
         self.rom = rom
         self.gameType = gameType
-        self.localROMRepo = localROMRepo
-        self.resolver = resolver
-        self.saveStore = saveStore
+        self.getDownloadedROM = getDownloadedROM
+        self.resolveROMFile = resolveROMFile
+        self.saveStates = saveStates
     }
 
     func bootstrap() {
         isLoading = true
         do {
-            guard let downloaded = try localROMRepo.getDownloadedROM(byId: rom.id) else {
-                errorMessage = "Please download the ROM first."
-                isLoading = false
-                return
-            }
-            let base = localROMRepo.romsBaseURL
-            let url = try resolver.resolve(rom: downloaded, baseURL: base, gameType: gameType)
+            let resolved = try getDownloadedROM.execute(romId: rom.id)
+            let url = try resolveROMFile.execute(rom: resolved.rom, baseURL: resolved.baseURL, gameType: gameType)
             let exists = FileManager.default.fileExists(atPath: url.path)
             let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? -1
-            print("[DeltaEmulatorVM] ROM url=\(url.path) exists=\(exists) size=\(size)")
+            print("[NativeEmulatorVM] ROM url=\(url.path) exists=\(exists) size=\(size)")
             if !exists {
                 errorMessage = "ROM file not found: \(url.lastPathComponent)"
                 isLoading = false
                 return
             }
             let deltaType = Self.deltaCoreGameType(for: gameType)
-            session = DeltaCoreSession(
+            session = NativeEmulatorSession(
                 gameURL: url, gameType: deltaType,
-                romId: rom.id, saveStore: saveStore
+                romId: rom.id, saveStates: saveStates
             )
             session?.start()
-            // Give the emulator a moment to render the first frame before hiding the loader.
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 1_200_000_000)
                 withAnimation(.easeOut(duration: 0.3)) {
@@ -70,8 +64,8 @@ final class DeltaEmulatorViewModel {
                 }
             }
         } catch {
-            errorMessage = "Could not open ROM file: \(error.localizedDescription)"
-            logger.error("DeltaCore launch failed: \(error)")
+            errorMessage = error.localizedDescription
+            logger.error("Native emulator launch failed: \(error)")
             isLoading = false
         }
     }

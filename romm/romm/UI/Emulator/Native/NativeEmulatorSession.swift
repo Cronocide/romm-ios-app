@@ -20,11 +20,11 @@ final class RommGameViewController: GameViewController {
 }
 
 @MainActor
-final class DeltaCoreSession: NSObject, GameViewControllerDelegate {
+final class NativeEmulatorSession: NSObject, GameViewControllerDelegate {
 
     private let gameURL: URL
     private let gameType: GameType
-    private let saveStore: PSaveStore
+    private let saveStates: PEmulatorSaveStatesUseCase
     private let romId: Int
 
     var onMenuRequested: (() -> Void)?
@@ -41,11 +41,11 @@ final class DeltaCoreSession: NSObject, GameViewControllerDelegate {
         viewController.emulatorCore
     }
 
-    init(gameURL: URL, gameType: GameType, romId: Int, saveStore: PSaveStore) {
+    init(gameURL: URL, gameType: GameType, romId: Int, saveStates: PEmulatorSaveStatesUseCase) {
         self.gameURL = gameURL
         self.gameType = gameType
         self.romId = romId
-        self.saveStore = saveStore
+        self.saveStates = saveStates
 
         let vc = RommGameViewController()
         vc.loadViewIfNeeded()
@@ -60,23 +60,23 @@ final class DeltaCoreSession: NSObject, GameViewControllerDelegate {
     // MARK: - Slot info
 
     func hasState(slot: Int) -> Bool {
-        (try? saveStore.readState(romId: romId, slot: slot)) != nil
+        (try? saveStates.readState(romId: romId, slot: slot)) != nil
     }
 
     func stateModifiedAt(slot: Int) -> Date? {
-        saveStore.stateModifiedAt(romId: romId, slot: slot)
+        saveStates.stateModifiedAt(romId: romId, slot: slot)
     }
 
     func thumbnail(slot: Int) -> UIImage? {
-        guard let data = try? saveStore.readThumbnail(romId: romId, slot: slot) else { return nil }
+        guard let data = try? saveStates.readThumbnail(romId: romId, slot: slot) else { return nil }
         return UIImage(data: data)
     }
 
-    func hasUndoSave(slot: Int) -> Bool { saveStore.hasUndoSave(romId: romId, slot: slot) }
-    func hasUndoLoad() -> Bool { saveStore.hasUndoLoad(romId: romId) }
+    func hasUndoSave(slot: Int) -> Bool { saveStates.hasUndoSave(romId: romId, slot: slot) }
+    func hasUndoLoad() -> Bool { saveStates.hasUndoLoad(romId: romId) }
 
     func undoLoadThumbnail() -> UIImage? {
-        guard let data = try? saveStore.readUndoLoadThumbnail(romId: romId) else { return nil }
+        guard let data = try? saveStates.readUndoLoadThumbnail(romId: romId) else { return nil }
         return UIImage(data: data)
     }
 
@@ -165,21 +165,21 @@ final class DeltaCoreSession: NSObject, GameViewControllerDelegate {
 
     func saveState(slot: Int) throws {
         guard let core = emulatorCore else { return }
-        try saveStore.backupSlotForUndoSave(romId: romId, slot: slot)
+        try saveStates.backupSlotForUndoSave(romId: romId, slot: slot)
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("state-\(UUID().uuidString).dltastate")
         core.saveSaveState(to: tmp)
         let data = try Data(contentsOf: tmp)
-        try saveStore.writeState(romId: romId, slot: slot, data: data)
+        try saveStates.writeState(romId: romId, slot: slot, data: data)
         if let thumb = currentThumbnailPNG() {
-            try saveStore.writeThumbnail(romId: romId, slot: slot, data: thumb)
+            try saveStates.writeThumbnail(romId: romId, slot: slot, data: thumb)
         }
         try? FileManager.default.removeItem(at: tmp)
     }
 
     func loadState(slot: Int) throws {
         guard let core = emulatorCore else { return }
-        guard let data = try saveStore.readState(romId: romId, slot: slot) else { return }
+        guard let data = try saveStates.readState(romId: romId, slot: slot) else { return }
         try captureUndoLoadSnapshot(core: core)
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("state-\(UUID().uuidString).dltastate")
@@ -189,18 +189,18 @@ final class DeltaCoreSession: NSObject, GameViewControllerDelegate {
     }
 
     func undoSave(slot: Int) throws {
-        _ = try saveStore.restoreSlotFromUndoSave(romId: romId, slot: slot)
+        _ = try saveStates.restoreSlotFromUndoSave(romId: romId, slot: slot)
     }
 
     func undoLoad() throws {
         guard let core = emulatorCore else { return }
-        guard let data = try saveStore.readUndoLoadState(romId: romId) else { return }
+        guard let data = try saveStates.readUndoLoadState(romId: romId) else { return }
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("state-\(UUID().uuidString).dltastate")
         try data.write(to: tmp)
         try core.load(SaveState(fileURL: tmp, gameType: gameType))
         try? FileManager.default.removeItem(at: tmp)
-        try saveStore.clearUndoLoad(romId: romId)
+        try saveStates.clearUndoLoad(romId: romId)
     }
 
     // MARK: - Helpers
@@ -216,14 +216,14 @@ final class DeltaCoreSession: NSObject, GameViewControllerDelegate {
         core.saveSaveState(to: tmp)
         let data = try Data(contentsOf: tmp)
         let thumb = currentThumbnailPNG()
-        try saveStore.writeUndoLoadSnapshot(romId: romId, stateData: data, thumbnailData: thumb)
+        try saveStates.writeUndoLoadSnapshot(romId: romId, stateData: data, thumbnailData: thumb)
         try? FileManager.default.removeItem(at: tmp)
     }
 
     // MARK: - Battery
 
     private func loadBatteryIfAvailable() {
-        guard let data = try? saveStore.readBattery(romId: romId) else { return }
+        guard let data = try? saveStates.readBattery(romId: romId) else { return }
         let savURL = Game(fileURL: gameURL, type: gameType).gameSaveURL
         try? data.write(to: savURL)
     }
@@ -232,7 +232,7 @@ final class DeltaCoreSession: NSObject, GameViewControllerDelegate {
         emulatorCore?.save()
         let savURL = Game(fileURL: gameURL, type: gameType).gameSaveURL
         if let data = try? Data(contentsOf: savURL) {
-            try? saveStore.writeBattery(romId: romId, data: data)
+            try? saveStates.writeBattery(romId: romId, data: data)
         }
     }
 }

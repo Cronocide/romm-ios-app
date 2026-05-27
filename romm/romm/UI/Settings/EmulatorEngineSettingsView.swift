@@ -14,11 +14,11 @@ struct EmulatorEngineSettingsView: View {
             Section(header: Text("Engine")) {
                 Picker("Engine", selection: $selection) {
                     Text("Web (EmulatorJS)").tag(EmulatorEngine.web)
-                    Text("DeltaCore (Beta)").tag(EmulatorEngine.deltaCore)
+                    Text("Native (DeltaCore, etc.)").tag(EmulatorEngine.native)
                 }
                 .pickerStyle(.inline)
             }
-            Section(footer: Text("DeltaCore runs emulation natively. Supported platforms: Game Boy / Color, GBA, NES, SNES, N64, Nintendo DS, Sega Genesis. Other platforms fall back to Web automatically.")) { EmptyView() }
+            Section(footer: Text("Native runs emulation on-device via embedded cores (currently DeltaCore for Game Boy / Color, GBA, NES, SNES, N64, Nintendo DS, Sega Genesis). Other platforms fall back to Web automatically.")) { EmptyView() }
         }
         .navigationTitle("Emulator")
         .onChange(of: selection) { _, new in preference.current = new }
