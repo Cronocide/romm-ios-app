@@ -36,6 +36,7 @@ final class LibretroSession: NSObject {
             let corePath = try locateCoreDylib()
             let systemDir = libretroSystemDirectory().path
             let saveDir = libretroSaveDirectory().path
+            ensureDefaultMemoryCards(saveDir: saveDir)
             print("[Libretro] core=\(corePath)")
             print("[Libretro] system=\(systemDir) save=\(saveDir)")
             try frontend.load(
@@ -149,6 +150,22 @@ final class LibretroSession: NSObject {
         documentsDirectory().appendingPathComponent("LibretroSaves", isDirectory: true)
     }
 
+    /// pcsx_rearmed reads `<save>/pcsx-card1.mcd` (and card2) as the PSX memory cards.
+    /// If the file is missing, the core refuses to mount a card at all — games show
+    /// "no memory card". A 128 KB blank file is enough: the PSX BIOS / game's own
+    /// formatter will initialize it on first write.
+    private func ensureDefaultMemoryCards(saveDir: String) {
+        guard core == .pcsxRearmed else { return }
+        let fm = FileManager.default
+        try? fm.createDirectory(atPath: saveDir, withIntermediateDirectories: true)
+        for name in ["pcsx-card1.mcd", "pcsx-card2.mcd"] {
+            let path = (saveDir as NSString).appendingPathComponent(name)
+            guard !fm.fileExists(atPath: path) else { continue }
+            let blank = Data(count: 128 * 1024)
+            try? blank.write(to: URL(fileURLWithPath: path))
+        }
+    }
+
     private func documentsDirectory() -> URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
@@ -175,11 +192,17 @@ final class LibretroGameViewController: UIViewController {
 
         videoView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(videoView)
+        let widthLimit = videoView.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor)
+        let heightLimit = videoView.heightAnchor.constraint(lessThanOrEqualTo: view.heightAnchor)
+        let widthFill = videoView.widthAnchor.constraint(equalTo: view.widthAnchor)
+        widthFill.priority = .defaultHigh
+        let heightFill = videoView.heightAnchor.constraint(equalTo: view.heightAnchor)
+        heightFill.priority = .defaultHigh
         NSLayoutConstraint.activate([
-            videoView.topAnchor.constraint(equalTo: view.topAnchor),
-            videoView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            videoView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            videoView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+            videoView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            videoView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            videoView.widthAnchor.constraint(equalTo: videoView.heightAnchor, multiplier: 16.0 / 9.0),
+            widthLimit, heightLimit, widthFill, heightFill
         ])
 
         controllerView.translatesAutoresizingMaskIntoConstraints = false
