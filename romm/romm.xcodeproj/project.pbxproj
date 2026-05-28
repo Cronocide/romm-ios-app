@@ -23,8 +23,7 @@
 		5D93A1742FBF68F400086CE8 /* N64DeltaCore_RSP.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5D93A1502FBF67E300086CE8 /* N64DeltaCore_RSP.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5D93A1752FBF68F400086CE8 /* N64DeltaCore_Video.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5D93A1522FBF67E300086CE8 /* N64DeltaCore_Video.framework */; };
 		5D93A1762FBF68F400086CE8 /* N64DeltaCore_Video.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5D93A1522FBF67E300086CE8 /* N64DeltaCore_Video.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		5D93A8962FC2419700086CE8 /* pcsx_rearmed_libretro_ios.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5D93A8932FC2419700086CE8 /* pcsx_rearmed_libretro_ios.dylib */; };
-		5D93A8982FC241F000086CE8 /* pcsx_rearmed_libretro_ios.dylib in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5D93A8932FC2419700086CE8 /* pcsx_rearmed_libretro_ios.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		5D93A8982FC241F000086CE8 /* pcsx_rearmed_libretro_ios.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5D93A8932FC2419700086CE8 /* pcsx_rearmed_libretro_ios.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		5D9D918E2E5F8F21009AF769 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 5D9D918D2E5F8F21009AF769 /* Kingfisher */; };
 		5DAA110000000007ABCD0007 /* SNESDeltaCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DAA110000000003ABCD0003 /* SNESDeltaCore.framework */; };
 		5DAA110000000008ABCD0008 /* SNESDeltaCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5DAA110000000003ABCD0003 /* SNESDeltaCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -147,7 +146,7 @@
 				5D93A1722FBF682D00086CE8 /* MelonDSDeltaCore.framework in Embed Frameworks */,
 				5DF893FC2FB7D26D0083B111 /* GBADeltaCore.framework in Embed Frameworks */,
 				5D93A16C2FBF681C00086CE8 /* NESDeltaCore.framework in Embed Frameworks */,
-				5D93A8982FC241F000086CE8 /* pcsx_rearmed_libretro_ios.dylib in Embed Frameworks */,
+				5D93A8982FC241F000086CE8 /* pcsx_rearmed_libretro_ios.framework in Embed Frameworks */,
 				5D93A1312FBF55D300086CE8 /* GPGXDeltaCore.framework in Embed Frameworks */,
 				5DAA110000000008ABCD0008 /* SNESDeltaCore.framework in Embed Frameworks */,
 			);
@@ -163,7 +162,7 @@
 		5D93A1412FBF67E300086CE8 /* N64DeltaCore.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = N64DeltaCore.xcodeproj; path = ../Vendor/N64DeltaCore/N64DeltaCore.xcodeproj; sourceTree = SOURCE_ROOT; };
 		5D93A1532FBF67E900086CE8 /* MelonDSDeltaCore.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = MelonDSDeltaCore.xcodeproj; path = ../Vendor/MelonDSDeltaCore/MelonDSDeltaCore.xcodeproj; sourceTree = SOURCE_ROOT; };
 		5D93A15F2FBF67EF00086CE8 /* GBCDeltaCore.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = GBCDeltaCore.xcodeproj; path = ../Vendor/GBCDeltaCore/GBCDeltaCore.xcodeproj; sourceTree = SOURCE_ROOT; };
-		5D93A8932FC2419700086CE8 /* pcsx_rearmed_libretro_ios.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = pcsx_rearmed_libretro_ios.dylib; sourceTree = "<group>"; };
+		5D93A8932FC2419700086CE8 /* pcsx_rearmed_libretro_ios.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = pcsx_rearmed_libretro_ios.framework; sourceTree = "<group>"; };
 		5DA7E4202E43D870003680D9 /* romm.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = romm.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5DA7E4332E43D872003680D9 /* rommTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = rommTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5DA7E43D2E43D872003680D9 /* rommUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = rommUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -217,7 +216,6 @@
 				5D93A1732FBF68F400086CE8 /* N64DeltaCore_RSP.framework in Frameworks */,
 				5D93A16B2FBF681C00086CE8 /* NESDeltaCore.framework in Frameworks */,
 				5DF893FB2FB7D26D0083B111 /* GBADeltaCore.framework in Frameworks */,
-				5D93A8962FC2419700086CE8 /* pcsx_rearmed_libretro_ios.dylib in Frameworks */,
 				5DAA110000000007ABCD0007 /* SNESDeltaCore.framework in Frameworks */,
 				5DF8940F2FB7D79F0083B111 /* ZIPFoundation.framework in Frameworks */,
 				5D93A16D2FBF682000086CE8 /* GBCDeltaCore.framework in Frameworks */,
@@ -298,7 +296,7 @@
 		5D93A8952FC2419700086CE8 /* Libretro */ = {
 			isa = PBXGroup;
 			children = (
-				5D93A8932FC2419700086CE8 /* pcsx_rearmed_libretro_ios.dylib */,
+				5D93A8932FC2419700086CE8 /* pcsx_rearmed_libretro_ios.framework */,
 			);
 			name = Libretro;
 			path = ../Vendor/Libretro;
@@ -758,14 +756,12 @@
 		5DA7E4482E43D872003680D9 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = romm/romm.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 28;
+				CURRENT_PROJECT_VERSION = 35;
 				DEVELOPMENT_TEAM = 8J69P655GN;
-				EMBEDDED_CONTENT_CONTAINS_SWIFT = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -806,14 +802,12 @@
 		5DA7E4492E43D872003680D9 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = romm/romm.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 28;
+				CURRENT_PROJECT_VERSION = 35;
 				DEVELOPMENT_TEAM = 8J69P655GN;
-				EMBEDDED_CONTENT_CONTAINS_SWIFT = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -856,7 +850,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 28;
+				CURRENT_PROJECT_VERSION = 35;
 				DEVELOPMENT_TEAM = 8J69P655GN;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
@@ -879,7 +873,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 28;
+				CURRENT_PROJECT_VERSION = 35;
 				DEVELOPMENT_TEAM = 8J69P655GN;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
@@ -901,7 +895,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 28;
+				CURRENT_PROJECT_VERSION = 35;
 				DEVELOPMENT_TEAM = 8J69P655GN;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
@@ -923,7 +917,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 28;
+				CURRENT_PROJECT_VERSION = 35;
 				DEVELOPMENT_TEAM = 8J69P655GN;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
