@@ -8,10 +8,7 @@ struct LibretroEmulatorView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     init(rom: Rom, core: LibretroCore, factory: PDependencyFactory = DefaultDependencyFactory.shared) {
-        self._viewModel = SwiftUI.State(wrappedValue: LibretroEmulatorViewModel(
-            rom: rom, core: core,
-            localROMRepo: factory.localROMRepository
-        ))
+        self._viewModel = SwiftUI.State(wrappedValue: factory.makeLibretroEmulatorViewModel(rom: rom, core: core))
     }
 
     var body: some View {

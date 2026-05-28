@@ -61,10 +61,10 @@ final class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
     private let logger = Logger.viewModel
 
     init(
-        tokenProvider: PTokenProvider = TokenProvider(),
-        checkEmulatorSupport: PCheckEmulatorSupportUseCase = CheckEmulatorSupportUseCase(),
-        enginePreference: PEmulatorEnginePreference = UserDefaultsEmulatorEnginePreferenceStore(),
-        platformSupport: PPlatformEngineSupport = PlatformEngineSupport()
+        tokenProvider: PTokenProvider,
+        checkEmulatorSupport: PCheckEmulatorSupportUseCase,
+        enginePreference: PEmulatorEnginePreference,
+        platformSupport: PPlatformEngineSupport
     ) {
         self.tokenProvider = tokenProvider
         self.checkEmulatorSupport = checkEmulatorSupport

@@ -15,7 +15,7 @@ final class BIOSSettingsViewModel: ObservableObject {
     private let useCase: PBIOSSyncUseCase
     private let cores: [LibretroCore] = [.pcsxRearmed]
 
-    init(useCase: PBIOSSyncUseCase = BIOSSyncUseCase()) {
+    init(useCase: PBIOSSyncUseCase) {
         self.useCase = useCase
     }
 
@@ -47,7 +47,11 @@ final class BIOSSettingsViewModel: ObservableObject {
 }
 
 struct BIOSSettingsView: View {
-    @StateObject private var viewModel = BIOSSettingsViewModel()
+    @StateObject private var viewModel: BIOSSettingsViewModel
+
+    init(factory: PDependencyFactory = DefaultDependencyFactory.shared) {
+        _viewModel = StateObject(wrappedValue: BIOSSettingsViewModel(useCase: factory.makeBIOSSyncUseCase()))
+    }
 
     var body: some View {
         Form {

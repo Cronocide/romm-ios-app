@@ -7,18 +7,18 @@ final class LibretroSession: NSObject {
     private let gameURL: URL
     private let core: LibretroCore
     private let romId: Int
-    private let saveStore: PSaveStore
+    private let saveStates: PEmulatorSaveStatesUseCase
     private let frontend = LibretroFrontend.shared
 
     var onMenuRequested: (() -> Void)?
 
     let viewController: LibretroGameViewController
 
-    init(gameURL: URL, core: LibretroCore, romId: Int, saveStore: PSaveStore) {
+    init(gameURL: URL, core: LibretroCore, romId: Int, saveStates: PEmulatorSaveStatesUseCase) {
         self.gameURL = gameURL
         self.core = core
         self.romId = romId
-        self.saveStore = saveStore
+        self.saveStates = saveStates
         self.viewController = LibretroGameViewController(core: core, gameURL: gameURL)
         super.init()
         self.viewController.controllerView.onMenuTapped = { [weak self] in
@@ -62,37 +62,37 @@ final class LibretroSession: NSObject {
     // MARK: - Save state API (mirrors DeltaCoreSession)
 
     func hasState(slot: Int) -> Bool {
-        (try? saveStore.readState(romId: romId, slot: slot)) != nil
+        (try? saveStates.readState(romId: romId, slot: slot)) != nil
     }
 
     func stateModifiedAt(slot: Int) -> Date? {
-        saveStore.stateModifiedAt(romId: romId, slot: slot)
+        saveStates.stateModifiedAt(romId: romId, slot: slot)
     }
 
     func thumbnail(slot: Int) -> UIImage? {
-        guard let data = try? saveStore.readThumbnail(romId: romId, slot: slot) else { return nil }
+        guard let data = try? saveStates.readThumbnail(romId: romId, slot: slot) else { return nil }
         return UIImage(data: data)
     }
 
-    func hasUndoSave(slot: Int) -> Bool { saveStore.hasUndoSave(romId: romId, slot: slot) }
-    func hasUndoLoad() -> Bool { saveStore.hasUndoLoad(romId: romId) }
+    func hasUndoSave(slot: Int) -> Bool { saveStates.hasUndoSave(romId: romId, slot: slot) }
+    func hasUndoLoad() -> Bool { saveStates.hasUndoLoad(romId: romId) }
 
     func saveState(slot: Int) throws {
         guard let data = frontend.saveStateData() else {
             throw LibretroFrontend.FrontendError.symbolMissing("retro_serialize")
         }
-        try saveStore.backupSlotForUndoSave(romId: romId, slot: slot)
-        try saveStore.writeState(romId: romId, slot: slot, data: data)
+        try saveStates.backupSlotForUndoSave(romId: romId, slot: slot)
+        try saveStates.writeState(romId: romId, slot: slot, data: data)
         if let thumb = viewController.videoView.snapshot()?.pngData() {
-            try saveStore.writeThumbnail(romId: romId, slot: slot, data: thumb)
+            try saveStates.writeThumbnail(romId: romId, slot: slot, data: thumb)
         }
     }
 
     func loadState(slot: Int) throws {
-        guard let data = try saveStore.readState(romId: romId, slot: slot) else { return }
+        guard let data = try saveStates.readState(romId: romId, slot: slot) else { return }
         if let snapshot = frontend.saveStateData() {
             let thumb = viewController.videoView.snapshot()?.pngData()
-            try saveStore.writeUndoLoadSnapshot(romId: romId, stateData: snapshot, thumbnailData: thumb)
+            try saveStates.writeUndoLoadSnapshot(romId: romId, stateData: snapshot, thumbnailData: thumb)
         }
         guard frontend.loadStateData(data) else {
             throw LibretroFrontend.FrontendError.symbolMissing("retro_unserialize")
@@ -100,15 +100,15 @@ final class LibretroSession: NSObject {
     }
 
     func undoSave(slot: Int) throws {
-        _ = try saveStore.restoreSlotFromUndoSave(romId: romId, slot: slot)
+        _ = try saveStates.restoreSlotFromUndoSave(romId: romId, slot: slot)
     }
 
     func undoLoad() throws {
-        guard let data = try saveStore.readUndoLoadState(romId: romId) else { return }
+        guard let data = try saveStates.readUndoLoadState(romId: romId) else { return }
         guard frontend.loadStateData(data) else {
             throw LibretroFrontend.FrontendError.symbolMissing("retro_unserialize")
         }
-        try saveStore.clearUndoLoad(romId: romId)
+        try saveStates.clearUndoLoad(romId: romId)
     }
 
     // MARK: - Paths

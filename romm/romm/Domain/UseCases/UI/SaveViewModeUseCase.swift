@@ -11,9 +11,14 @@ protocol PSaveViewModeUseCase {
     func execute(_ viewMode: ViewMode)
 }
 
-class SaveViewModeUseCase: PSaveViewModeUseCase {
-    
+final class SaveViewModeUseCase: PSaveViewModeUseCase {
+    private let repository: PViewModePreferenceRepository
+
+    init(repository: PViewModePreferenceRepository) {
+        self.repository = repository
+    }
+
     func execute(_ viewMode: ViewMode) {
-        UserDefaults.standard.set(viewMode.rawValue, forKey: "selectedViewMode")
+        repository.set(viewMode)
     }
 }

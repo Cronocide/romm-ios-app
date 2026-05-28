@@ -12,25 +12,25 @@ final class LibretroEmulatorViewModel {
     var isLoading: Bool = true
     var onMenuRequested: (() -> Void)?
 
-    private let localROMRepo: PLocalROMRepository
-    private let resolver: PROMFileResolver
-    private let saveStore: PSaveStore
+    private let getDownloadedROM: PGetDownloadedROMUseCase
+    private let resolveROMFile: PResolveROMFileUseCase
+    private let saveStates: PEmulatorSaveStatesUseCase
     private let biosSync: PBIOSSyncUseCase
     private let logger = Logger.viewModel
 
     init(
         rom: Rom,
         core: LibretroCore,
-        localROMRepo: PLocalROMRepository,
-        resolver: PROMFileResolver = ROMFileResolver(),
-        saveStore: PSaveStore = LocalSaveStoreRepository(),
-        biosSync: PBIOSSyncUseCase = BIOSSyncUseCase()
+        getDownloadedROM: PGetDownloadedROMUseCase,
+        resolveROMFile: PResolveROMFileUseCase,
+        saveStates: PEmulatorSaveStatesUseCase,
+        biosSync: PBIOSSyncUseCase
     ) {
         self.rom = rom
         self.core = core
-        self.localROMRepo = localROMRepo
-        self.resolver = resolver
-        self.saveStore = saveStore
+        self.getDownloadedROM = getDownloadedROM
+        self.resolveROMFile = resolveROMFile
+        self.saveStates = saveStates
         self.biosSync = biosSync
     }
 
@@ -50,15 +50,10 @@ final class LibretroEmulatorViewModel {
 
     private func bootstrapAfterBIOSCheck() {
         do {
-            guard let downloaded = try localROMRepo.getDownloadedROM(byId: rom.id) else {
-                errorMessage = "Please download the ROM first."
-                isLoading = false
-                return
-            }
-            let base = localROMRepo.romsBaseURL
-            let url = try resolver.resolve(
-                rom: downloaded,
-                baseURL: base,
+            let resolved = try getDownloadedROM.execute(romId: rom.id)
+            let url = try resolveROMFile.execute(
+                rom: resolved.rom,
+                baseURL: resolved.baseURL,
                 allowedExtensions: core.allowedExtensions
             )
             let exists = FileManager.default.fileExists(atPath: url.path)
@@ -68,7 +63,7 @@ final class LibretroEmulatorViewModel {
                 isLoading = false
                 return
             }
-            let s = LibretroSession(gameURL: url, core: core, romId: rom.id, saveStore: saveStore)
+            let s = LibretroSession(gameURL: url, core: core, romId: rom.id, saveStates: saveStates)
             s.onMenuRequested = { [weak self] in self?.onMenuRequested?() }
             session = s
             s.start()

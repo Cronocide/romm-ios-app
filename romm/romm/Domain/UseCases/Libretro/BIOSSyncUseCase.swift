@@ -10,19 +10,17 @@ protocol PBIOSSyncUseCase {
 
 final class BIOSSyncUseCase: PBIOSSyncUseCase {
     private let apiClient: PRommAPIClient
-    private let fileManager: FileManager
+    private let fileSystem: PFileSystemService
     private let logger = Logger.viewModel
 
-    init(apiClient: PRommAPIClient = RommAPIClient.shared,
-         fileManager: FileManager = .default) {
+    init(apiClient: PRommAPIClient, fileSystem: PFileSystemService) {
         self.apiClient = apiClient
-        self.fileManager = fileManager
+        self.fileSystem = fileSystem
     }
 
     func systemDirectory() -> URL {
-        let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let dir = docs.appendingPathComponent("LibretroSystem", isDirectory: true)
-        try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+        let dir = fileSystem.documentsDirectory().appendingPathComponent("LibretroSystem", isDirectory: true)
+        try? fileSystem.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
 
@@ -34,7 +32,7 @@ final class BIOSSyncUseCase: PBIOSSyncUseCase {
         return required.map { req in
             let localURL = dir.appendingPathComponent(req.fileName)
             let local: BIOSFileStatus.LocalState
-            if fileManager.fileExists(atPath: localURL.path) {
+            if fileSystem.fileExists(at: localURL) {
                 let md5 = BIOSFileHashing.md5(of: localURL) ?? ""
                 let size = BIOSFileHashing.fileSize(of: localURL) ?? 0
                 local = .present(md5: md5, sizeBytes: size)
@@ -70,22 +68,21 @@ final class BIOSSyncUseCase: PBIOSSyncUseCase {
         }
         let data = try await apiClient.downloadFirmwareContent(id: id, fileName: status.requirement.fileName)
         let target = systemDir.appendingPathComponent(status.requirement.fileName)
-        try data.write(to: target, options: .atomic)
+        try fileSystem.write(data, to: target)
         logger.info("BIOS gespeichert: \(target.path) (\(data.count) bytes)")
     }
 
     func missingMandatory(for core: LibretroCore) async -> [LibretroBIOSFile] {
-        // Wenn "at least one of" Regel gilt: prüfe ob mindestens eine vorliegt.
         let dir = systemDirectory()
         if let anyOf = LibretroBIOSRequirement.atLeastOneOfFileNames(for: core) {
             let hasAny = anyOf.contains { name in
-                fileManager.fileExists(atPath: dir.appendingPathComponent(name).path)
+                fileSystem.fileExists(at: dir.appendingPathComponent(name))
             }
             if hasAny { return [] }
         }
         let required = LibretroBIOSRequirement.files(for: core).filter { $0.required }
         return required.filter { req in
-            !fileManager.fileExists(atPath: dir.appendingPathComponent(req.fileName).path)
+            !fileSystem.fileExists(at: dir.appendingPathComponent(req.fileName))
         }
     }
 
@@ -94,7 +91,6 @@ final class BIOSSyncUseCase: PBIOSSyncUseCase {
         let slugs = Set(LibretroBIOSRequirement.platformSlugs(for: core).map { $0.lowercased() })
         let matches = platforms.filter { slugs.contains($0.slug.lowercased()) }
         if matches.isEmpty { return [] }
-        // Prefer embedded firmware (one round-trip); fallback zum dedizierten Endpoint.
         var firmware: [FirmwareSchema] = []
         for platform in matches {
             if let embedded = platform.firmware, !embedded.isEmpty {

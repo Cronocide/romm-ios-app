@@ -11,13 +11,14 @@ protocol PGetViewModeUseCase {
     func execute() -> ViewMode
 }
 
-class GetViewModeUseCase: PGetViewModeUseCase {
-    
+final class GetViewModeUseCase: PGetViewModeUseCase {
+    private let repository: PViewModePreferenceRepository
+
+    init(repository: PViewModePreferenceRepository) {
+        self.repository = repository
+    }
+
     func execute() -> ViewMode {
-        if let savedViewMode = UserDefaults.standard.string(forKey: "selectedViewMode"),
-           let mode = ViewMode(rawValue: savedViewMode) {
-            return mode
-        }
-        return .smallCard
+        repository.get()
     }
 }

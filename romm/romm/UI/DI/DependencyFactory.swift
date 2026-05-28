@@ -87,6 +87,8 @@ protocol PDependencyFactory {
     func makeGetDownloadedROMUseCase() -> PGetDownloadedROMUseCase
     func makeResolveROMFileUseCase() -> PResolveROMFileUseCase
     func makeEmulatorSaveStatesUseCase() -> PEmulatorSaveStatesUseCase
+    func makeBIOSSyncUseCase() -> PBIOSSyncUseCase
+    @MainActor func makeLibretroEmulatorViewModel(rom: Rom, core: LibretroCore) -> LibretroEmulatorViewModel
 
     // Emulator Engine
     var enginePreference: PEmulatorEnginePreference { get }
@@ -325,11 +327,11 @@ class DefaultDependencyFactory: PDependencyFactory {
     // MARK: - UI Use Cases
 
     func makeGetViewModeUseCase() -> PGetViewModeUseCase {
-        GetViewModeUseCase()
+        GetViewModeUseCase(repository: viewModePreferenceRepository)
     }
 
     func makeSaveViewModeUseCase() -> PSaveViewModeUseCase {
-        SaveViewModeUseCase()
+        SaveViewModeUseCase(repository: viewModePreferenceRepository)
     }
 
     // MARK: - Emulator Use Cases
@@ -354,17 +356,34 @@ class DefaultDependencyFactory: PDependencyFactory {
     }
 
     lazy var saveStore: PSaveStore = LocalSaveStoreRepository()
+    lazy var fileSystemService: PFileSystemService = DefaultFileSystemService()
+    lazy var viewModePreferenceRepository: PViewModePreferenceRepository = UserDefaultsViewModePreferenceStore()
 
     func makeGetDownloadedROMUseCase() -> PGetDownloadedROMUseCase {
         GetDownloadedROMUseCase(localROMRepository: localROMRepository)
     }
 
     func makeResolveROMFileUseCase() -> PResolveROMFileUseCase {
-        ResolveROMFileUseCase()
+        ResolveROMFileUseCase(resolver: ROMFileResolver(fileSystem: fileSystemService))
     }
 
     func makeEmulatorSaveStatesUseCase() -> PEmulatorSaveStatesUseCase {
         EmulatorSaveStatesUseCase(saveStore: saveStore)
+    }
+
+    func makeBIOSSyncUseCase() -> PBIOSSyncUseCase {
+        BIOSSyncUseCase(apiClient: apiClient, fileSystem: fileSystemService)
+    }
+
+    @MainActor func makeLibretroEmulatorViewModel(rom: Rom, core: LibretroCore) -> LibretroEmulatorViewModel {
+        LibretroEmulatorViewModel(
+            rom: rom,
+            core: core,
+            getDownloadedROM: makeGetDownloadedROMUseCase(),
+            resolveROMFile: makeResolveROMFileUseCase(),
+            saveStates: makeEmulatorSaveStatesUseCase(),
+            biosSync: makeBIOSSyncUseCase()
+        )
     }
 
     // MARK: - SFTP ViewModels
