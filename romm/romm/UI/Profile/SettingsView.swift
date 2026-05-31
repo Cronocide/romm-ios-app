@@ -118,13 +118,6 @@ struct SettingsView: View {
                     }
                 }
 
-                NavigationLink(destination: EmulatorEngineSettingsView()) {
-                    HStack {
-                        Image(systemName: "gamecontroller")
-                        Text("Emulator Engine")
-                    }
-                }
-
                 NavigationLink(destination: LicensesView()) {
                     HStack {
                         Image(systemName: "doc.text")
@@ -133,7 +126,7 @@ struct SettingsView: View {
                 }
             }
 
-            // Experimental Features Section (TestFlight & Debug only)
+            // Emulator Section (TestFlight & Debug only)
             if Bundle.main.isTestFlightBuild || Bundle.main.isDebugBuild {
                 Section {
                     Toggle(isOn: $experimentalSettings.isEmulatorEnabled) {
@@ -141,19 +134,59 @@ struct SettingsView: View {
                             Image(systemName: "gamecontroller")
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("In-App Emulator")
-                                Text("Plays ROMs directly in the app via EmulatorJS")
+                                Text("Plays ROMs directly in the app")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
                         }
                     }
+
+                    if experimentalSettings.isEmulatorEnabled {
+                        NavigationLink(destination: EmulatorEngineSettingsView()) {
+                            HStack {
+                                Image(systemName: "cpu.fill")
+                                Text("Emulator Engine")
+                            }
+                        }
+
+                        NavigationLink(destination: BIOSSettingsView()) {
+                            HStack {
+                                Image(systemName: "cpu")
+                                Text("BIOS Files")
+                            }
+                        }
+                    }
                 } header: {
-                    Text("Experimental Features")
+                    Text("Emulator")
                 } footer: {
-                    Text("These features are experimental and may be unstable. Only available in TestFlight builds.")
+                    Text("Experimental: play ROMs directly in the app. Only available in TestFlight and Debug builds.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+            }
+
+            Section {
+                VStack(spacing: 4) {
+                    Text("v\(appVersion) (\(buildNumber))")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    HStack(spacing: 4) {
+                        Text("From Bremen with")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("♥")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                    }
+
+                    Link("Ilyas Hallak", destination: URL(string: "https://ilyashallak.de")!)
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .listRowBackground(Color.clear)
             }
         }
         .navigationTitle("Settings")
@@ -172,28 +205,6 @@ struct SettingsView: View {
             }
         } message: {
             Text("This will delete all configuration settings including your server connection and credentials. You will be returned to the setup screen.")
-        }
-        .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 4) {
-                Text("v\(appVersion) (\(buildNumber))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                HStack(spacing: 4) {
-                    Text("From Bremen with")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text("♥")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                }
-                
-                Link("Ilyas Hallak", destination: URL(string: "https://ilyashallak.de")!)
-                    .font(.caption)
-                    .foregroundColor(.blue)
-            }
-            .padding()
-            .background(Color(.systemGroupedBackground))
         }
     }
     

@@ -25,18 +25,6 @@ struct LocalDeviceDetailView: View {
             await viewModel.loadDownloadedROMsAsync()
             await viewModel.refreshStorageInfo()
         }
-        .alert("Delete ROM?", isPresented: $viewModel.showingDeleteConfirmation) {
-            Button("Cancel", role: .cancel) {
-                viewModel.romToDelete = nil
-            }
-            Button("Delete", role: .destructive) {
-                viewModel.deleteROM()
-            }
-        } message: {
-            if let rom = viewModel.romToDelete {
-                Text("Are you sure you want to delete \(rom.name)? This will remove all files (\(rom.formattedSize)).")
-            }
-        }
         .alert("Error", isPresented: .constant(viewModel.error != nil)) {
             Button("OK") {
                 viewModel.error = nil
@@ -80,9 +68,9 @@ struct LocalDeviceDetailView: View {
                         NavigationLink {
                             PlatformROMsListView(
                                 platformName: platformName,
-                                roms: roms,
+                                viewModel: viewModel,
                                 onDelete: { rom in
-                                    viewModel.confirmDelete(rom)
+                                    viewModel.deleteROM(rom)
                                 }
                             )
                         } label: {

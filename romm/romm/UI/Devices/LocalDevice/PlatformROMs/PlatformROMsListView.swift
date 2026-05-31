@@ -3,11 +3,19 @@ import SwiftUI
 /// Shows list of ROMs for a specific platform
 struct PlatformROMsListView: View {
     let platformName: String
-    let roms: [DownloadedROM]
+    /// Read reactively from the parent's @Observable view model so the list
+    /// updates after a delete — passing a snapshot `[DownloadedROM]` left the
+    /// pushed detail view stuck on stale data while the parent reloaded.
+    let viewModel: LocalDeviceDetailViewModel
     let onDelete: (DownloadedROM) -> Void
+
+    private var roms: [DownloadedROM] {
+        viewModel.romsByPlatform[platformName] ?? []
+    }
 
     @State private var launchDecision: LaunchDecision?
     @State private var launchingRomId: Int?
+    @State private var romPendingDelete: DownloadedROM?
     private let launchUseCase: PLaunchEmulatorUseCase = DefaultDependencyFactory.shared.makeLaunchEmulatorUseCase()
 
     var body: some View {
@@ -30,7 +38,7 @@ struct PlatformROMsListView: View {
                 .disabled(launchingRomId != nil && launchingRomId != rom.id)
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button(role: .destructive) {
-                        onDelete(rom)
+                        romPendingDelete = rom
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
@@ -48,6 +56,23 @@ struct PlatformROMsListView: View {
         }) { decision in
             EmulatorRouterView(decision: decision)
                 .ignoresSafeArea()
+        }
+        .confirmationDialog(
+            "Delete ROM?",
+            isPresented: Binding(
+                get: { romPendingDelete != nil },
+                set: { if !$0 { romPendingDelete = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: romPendingDelete
+        ) { rom in
+            Button("Delete \(rom.name)", role: .destructive) {
+                onDelete(rom)
+                romPendingDelete = nil
+            }
+            Button("Cancel", role: .cancel) { romPendingDelete = nil }
+        } message: { rom in
+            Text("This will remove all files (\(rom.formattedSize)).")
         }
     }
 

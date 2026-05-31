@@ -143,9 +143,6 @@ class LocalROMRepository: PLocalROMRepository {
 
     func deleteDownloadedROM(_ rom: DownloadedROM) throws {
         let romDirectoryURL = romsBaseURL.appendingPathComponent(rom.localDirectory)
-
-        // Delete the entire ROM directory if it exists
-        // If it doesn't exist, consider the deletion successful (already gone)
         if fileManager.fileExists(atPath: romDirectoryURL.path) {
             try fileManager.removeItem(at: romDirectoryURL)
         }
@@ -211,11 +208,14 @@ class LocalROMRepository: PLocalROMRepository {
             ))
         }
 
-        // Get relative path from ROMs directory
-        let relativePath = romDirectory.path.replacingOccurrences(
-            of: romsBaseURL.path + "/",
-            with: ""
-        )
+        let standardizedRomDir = romDirectory.standardizedFileURL.path
+        let standardizedBase = romsBaseURL.standardizedFileURL.path
+        let relativePath: String
+        if standardizedRomDir.hasPrefix(standardizedBase + "/") {
+            relativePath = String(standardizedRomDir.dropFirst(standardizedBase.count + 1))
+        } else {
+            relativePath = romDirectory.lastPathComponent
+        }
 
         return DownloadedROM(
             id: metadata.romId,

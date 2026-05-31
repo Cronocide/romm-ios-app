@@ -2,13 +2,13 @@ import Testing
 import Foundation
 @testable import romm
 
-struct LocalSaveStoreTests {
+struct LocalSaveStoreRepositoryTests {
 
-    private func makeStore() -> (LocalSaveStore, URL) {
+    private func makeStore() -> (LocalSaveStoreRepository, URL) {
         let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("LocalSaveStoreTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("LocalSaveStoreRepositoryTests-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
-        return (LocalSaveStore(rootDirectory: tmp), tmp)
+        return (LocalSaveStoreRepository(rootDirectory: tmp), tmp)
     }
 
     @Test func batteryRoundtrip() throws {

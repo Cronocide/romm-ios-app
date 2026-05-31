@@ -10,11 +10,13 @@ import Foundation
 enum LaunchDecision: Identifiable {
     case web(rom: Rom)
     case native(rom: Rom, gameType: DeltaGameType)
+    case libretro(rom: Rom, core: LibretroCore)
 
     var id: String {
         switch self {
         case .web(let rom): return "web-\(rom.id)"
         case .native(let rom, _): return "native-\(rom.id)"
+        case .libretro(let rom, _): return "libretro-\(rom.id)"
         }
     }
 }
@@ -59,10 +61,10 @@ final class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
     private let logger = Logger.viewModel
 
     init(
-        tokenProvider: PTokenProvider = TokenProvider(),
-        checkEmulatorSupport: PCheckEmulatorSupportUseCase = CheckEmulatorSupportUseCase(),
-        enginePreference: PEmulatorEnginePreference = UserDefaultsEmulatorEnginePreferenceStore(),
-        platformSupport: PPlatformEngineSupport = PlatformEngineSupport()
+        tokenProvider: PTokenProvider,
+        checkEmulatorSupport: PCheckEmulatorSupportUseCase,
+        enginePreference: PEmulatorEnginePreference,
+        platformSupport: PPlatformEngineSupport
     ) {
         self.tokenProvider = tokenProvider
         self.checkEmulatorSupport = checkEmulatorSupport
@@ -101,10 +103,13 @@ final class LaunchEmulatorUseCase: PLaunchEmulatorUseCase {
         case .web:
             return .success(.web(rom: rom))
         case .native:
-            guard let gameType = PlatformSlugToGameType.map(platformSlug) else {
-                return .success(.web(rom: rom))
+            if let gameType = PlatformSlugToGameType.map(platformSlug) {
+                return .success(.native(rom: rom, gameType: gameType))
             }
-            return .success(.native(rom: rom, gameType: gameType))
+            if let core = PlatformSlugToLibretroCore.map(platformSlug) {
+                return .success(.libretro(rom: rom, core: core))
+            }
+            return .success(.web(rom: rom))
         case .auto:
             return .success(.web(rom: rom))
         }

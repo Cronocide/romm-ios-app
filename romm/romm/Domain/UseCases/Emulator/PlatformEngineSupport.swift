@@ -16,7 +16,9 @@ final class PlatformEngineSupport: PPlatformEngineSupport {
         let slug = platformSlug.lowercased()
         var result: Set<EmulatorEngine> = []
         if webSupport.execute(platformSlug: slug) { result.insert(.web) }
-        if PlatformSlugToGameType.map(slug) != nil { result.insert(.native) }
+        if PlatformSlugToGameType.map(slug) != nil || PlatformSlugToLibretroCore.map(slug) != nil {
+            result.insert(.native)
+        }
         return result
     }
 

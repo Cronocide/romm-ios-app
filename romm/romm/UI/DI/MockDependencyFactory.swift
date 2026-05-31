@@ -32,6 +32,7 @@ class MockDependencyFactory: PDependencyFactory {
 
     // Emulator engine
     lazy var enginePreference: PEmulatorEnginePreference = UserDefaultsEmulatorEnginePreferenceStore()
+    lazy var libretroAspectRatioPreference: PLibretroAspectRatioPreference = InMemoryLibretroAspectRatioPreference()
     
     init(
         authRepository: PAuthRepository? = nil,
@@ -234,12 +235,15 @@ class MockDependencyFactory: PDependencyFactory {
     
     // MARK: - UI Use Cases
     
+    lazy var fileSystemService: PFileSystemService = DefaultFileSystemService()
+    lazy var viewModePreferenceRepository: PViewModePreferenceRepository = UserDefaultsViewModePreferenceStore()
+
     func makeGetViewModeUseCase() -> PGetViewModeUseCase {
-        GetViewModeUseCase()
+        GetViewModeUseCase(repository: viewModePreferenceRepository)
     }
-    
+
     func makeSaveViewModeUseCase() -> PSaveViewModeUseCase {
-        SaveViewModeUseCase()
+        SaveViewModeUseCase(repository: viewModePreferenceRepository)
     }
     
     // MARK: - SFTP ViewModels
@@ -309,10 +313,26 @@ class MockDependencyFactory: PDependencyFactory {
     }
 
     func makeResolveROMFileUseCase() -> PResolveROMFileUseCase {
-        ResolveROMFileUseCase()
+        ResolveROMFileUseCase(resolver: ROMFileResolver(fileSystem: fileSystemService))
     }
 
     func makeEmulatorSaveStatesUseCase() -> PEmulatorSaveStatesUseCase {
         EmulatorSaveStatesUseCase(saveStore: saveStore)
+    }
+
+    func makeBIOSSyncUseCase() -> PBIOSSyncUseCase {
+        BIOSSyncUseCase(apiClient: apiClient, fileSystem: fileSystemService)
+    }
+
+    @MainActor func makeLibretroEmulatorViewModel(rom: Rom, core: LibretroCore) -> LibretroEmulatorViewModel {
+        LibretroEmulatorViewModel(
+            rom: rom,
+            core: core,
+            getDownloadedROM: makeGetDownloadedROMUseCase(),
+            resolveROMFile: makeResolveROMFileUseCase(),
+            saveStates: makeEmulatorSaveStatesUseCase(),
+            biosSync: makeBIOSSyncUseCase(),
+            aspectRatioPreference: libretroAspectRatioPreference
+        )
     }
 }

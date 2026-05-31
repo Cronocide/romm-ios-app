@@ -69,6 +69,10 @@ protocol PRommAPIClient {
     func addPlatform(name: String, slug: String) async throws -> PlatformSchema
     func deletePlatform(id: Int) async throws -> String
 
+    // Firmware API Wrapper methods
+    func getPlatformFirmware(platformId: Int) async throws -> [FirmwareSchema]
+    func downloadFirmwareContent(id: Int, fileName: String) async throws -> Data
+
     // Heartbeat API Wrapper methods
     func getHeartbeat() async throws -> HeartbeatResponse
     func getHeartbeat(from serverURL: String) async throws -> HeartbeatResponse
@@ -131,7 +135,7 @@ class RommAPIClient: PRommAPIClient {
         } else {
             let configuration = URLSessionConfiguration.default
             configuration.timeoutIntervalForRequest = 30.0
-            configuration.timeoutIntervalForResource = 60.0
+            configuration.timeoutIntervalForResource = 60 * 60
             configuration.waitsForConnectivity = true
             configuration.allowsCellularAccess = true
             configuration.allowsExpensiveNetworkAccess = true
@@ -266,6 +270,9 @@ class RommAPIClient: PRommAPIClient {
         request.timeoutInterval = 60.0
 
         logger.debug("Download URL: \(url.absoluteString)")
+        #if DEBUG
+        logger.debug("Download Auth header (debug-only): \(authHeader)")
+        #endif
 
         return try await withCheckedThrowingContinuation { continuation in
             var progressObservation: NSKeyValueObservation?
@@ -293,6 +300,19 @@ class RommAPIClient: PRommAPIClient {
                 }
 
                 self?.logger.logNetworkRequest(method: HTTPMethod.get.rawValue, url: path, statusCode: httpResponse.statusCode)
+                let headerKeys = ["Content-Length", "Content-Type", "Content-Encoding", "Transfer-Encoding", "Location", "Server", "X-Accel-Redirect"]
+                let headerDump = headerKeys.compactMap { key -> String? in
+                    guard let value = httpResponse.value(forHTTPHeaderField: key) else { return nil }
+                    return "\(key)=\(value)"
+                }.joined(separator: " | ")
+                self?.logger.info("Download response headers: \(headerDump)")
+                if let tempURL,
+                   let data = try? Data(contentsOf: tempURL) {
+                    self?.logger.info("Download body bytes received: \(data.count)")
+                    if data.count <= 512, let body = String(data: data, encoding: .utf8) {
+                        self?.logger.info("Download body preview: \(body)")
+                    }
+                }
 
                 switch httpResponse.statusCode {
                 case 200...299:

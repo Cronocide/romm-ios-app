@@ -11,7 +11,7 @@ private final class StubSupport: PPlatformEngineSupport {
     var engines: Set<EmulatorEngine> = []
     func supportedEngines(for platformSlug: String) -> Set<EmulatorEngine> { engines }
     func preferred(for platformSlug: String) -> EmulatorEngine {
-        engines.contains(.web) ? .web : .deltaCore
+        engines.contains(.web) ? .web : .native
     }
 }
 
@@ -68,19 +68,19 @@ struct LaunchEmulatorUseCaseTests {
     }
 
     @Test func deltaPreferenceReturnsDeltaDecisionForGBA() async {
-        let support = StubSupport(); support.engines = [.web, .deltaCore]
+        let support = StubSupport(); support.engines = [.web, .native]
         let useCase = LaunchEmulatorUseCase(
             tokenProvider: StubTokenProvider(),
             checkEmulatorSupport: StubCheckSupport(),
-            enginePreference: StubPreference(.deltaCore),
+            enginePreference: StubPreference(.native),
             platformSupport: support
         )
         let result = await useCase.execute(rom: makeRom(slug: "gba"))
         if case .success(let decision) = result,
-           case .deltaCore(_, let gameType) = decision {
+           case .native(_, let gameType) = decision {
             #expect(gameType == .gba)
         } else {
-            Issue.record("expected .deltaCore(.gba) decision")
+            Issue.record("expected .native(.gba) decision")
         }
     }
 
@@ -89,7 +89,7 @@ struct LaunchEmulatorUseCaseTests {
         let useCase = LaunchEmulatorUseCase(
             tokenProvider: StubTokenProvider(),
             checkEmulatorSupport: StubCheckSupport(),
-            enginePreference: StubPreference(.deltaCore),
+            enginePreference: StubPreference(.native),
             platformSupport: support
         )
         let result = await useCase.execute(rom: makeRom(slug: "psx"))

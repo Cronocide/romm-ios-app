@@ -8,14 +8,34 @@ import GBADeltaCore
 /// layout, so without this the portrait skin stays active in landscape and the
 /// controller renders as a centered portrait-aspect block.
 final class RommGameViewController: GameViewController {
+    private var didApplyInitialSkin = false
+
     override func viewWillTransition(
         to size: CGSize,
         with coordinator: UIViewControllerTransitionCoordinator
     ) {
         super.viewWillTransition(to: size, with: coordinator)
         coordinator.animate(alongsideTransition: nil) { [weak self] _ in
-            self?.controllerView?.updateControllerSkin()
+            self?.reapplyControllerSkin()
         }
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        guard !didApplyInitialSkin,
+              view.window != nil,
+              view.bounds.width > 0, view.bounds.height > 0 else { return }
+        didApplyInitialSkin = true
+        reapplyControllerSkin()
+    }
+
+    /// Reassign the controller skin to rebuild `gameViews` for dual-screen
+    /// systems (e.g. Nintendo DS). Setting `controllerSkin` posts the change
+    /// notification that triggers `GameViewController.updateGameViews()`,
+    /// which `updateControllerSkin()` alone does not do.
+    private func reapplyControllerSkin() {
+        guard let cv = controllerView, let skin = cv.controllerSkin else { return }
+        cv.controllerSkin = skin
     }
 }
 
@@ -93,6 +113,10 @@ final class NativeEmulatorSession: NSObject, GameViewControllerDelegate {
     func resume() { viewController.resumeEmulation() }
 
     func stop() {
+        // Pause the render thread before flushing battery — DeltaCore expects
+        // the emulator to be paused around save(), otherwise the save can race
+        // with an in-flight frame and crash.
+        viewController.pauseEmulation()
         flushBattery()
         detachExternalControllers()
         NotificationCenter.default.removeObserver(self)

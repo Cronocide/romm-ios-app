@@ -13,13 +13,17 @@ enum DeltaGameType: String {
 
 enum ROMFileResolverError: Error, Equatable {
     case noMatchingFile(gameType: DeltaGameType)
+    case noMatchingExtension
 }
 
 protocol PROMFileResolver {
     func resolve(rom: DownloadedROM, baseURL: URL, gameType: DeltaGameType) throws -> URL
+    func resolve(rom: DownloadedROM, baseURL: URL, allowedExtensions: Set<String>) throws -> URL
 }
 
 final class ROMFileResolver: PROMFileResolver {
+
+    private let fileSystem: PFileSystemService
 
     private let extensions: [DeltaGameType: Set<String>] = [
         .gba: ["gba"],
@@ -31,10 +35,26 @@ final class ROMFileResolver: PROMFileResolver {
         .ds: ["nds", "dsi", "ids", "srl"]
     ]
 
+    init(fileSystem: PFileSystemService) {
+        self.fileSystem = fileSystem
+    }
+
     func resolve(rom: DownloadedROM, baseURL: URL, gameType: DeltaGameType) throws -> URL {
         let allowed = extensions[gameType] ?? []
+        do {
+            return try resolveInternal(rom: rom, baseURL: baseURL, allowed: allowed)
+        } catch ROMFileResolverError.noMatchingExtension {
+            throw ROMFileResolverError.noMatchingFile(gameType: gameType)
+        }
+    }
+
+    func resolve(rom: DownloadedROM, baseURL: URL, allowedExtensions: Set<String>) throws -> URL {
+        return try resolveInternal(rom: rom, baseURL: baseURL, allowed: allowedExtensions)
+    }
+
+    private func resolveInternal(rom: DownloadedROM, baseURL: URL, allowed: Set<String>) throws -> URL {
         let available = rom.files.map { $0.fileName }
-        print("[ROMFileResolver] gameType=\(gameType.rawValue) allowed=\(allowed) files=\(available)")
+        print("[ROMFileResolver] allowed=\(allowed) files=\(available)")
 
         if let direct = rom.files.first(where: { allowed.contains(($0.fileName as NSString).pathExtension.lowercased()) }) {
             return try locate(file: direct.fileName, rom: rom, baseURL: baseURL)
@@ -42,30 +62,25 @@ final class ROMFileResolver: PROMFileResolver {
 
         if let zipFile = rom.files.first(where: { ($0.fileName as NSString).pathExtension.lowercased() == "zip" }) {
             let zipURL = try locate(file: zipFile.fileName, rom: rom, baseURL: baseURL)
-            return try extractROM(from: zipURL, allowed: allowed, gameType: gameType)
+            return try extractROM(from: zipURL, allowed: allowed)
         }
 
-        throw ROMFileResolverError.noMatchingFile(gameType: gameType)
+        throw ROMFileResolverError.noMatchingExtension
     }
 
     private func locate(file fileName: String, rom: DownloadedROM, baseURL: URL) throws -> URL {
-        let fm = FileManager.default
         let primary = baseURL
             .appendingPathComponent(rom.localDirectory, isDirectory: true)
             .appendingPathComponent(fileName)
-        if fm.fileExists(atPath: primary.path) {
+        if fileSystem.fileExists(at: primary) {
             return primary
         }
-        if let platformDirs = try? fm.contentsOfDirectory(
-            at: baseURL,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ) {
+        if let platformDirs = try? fileSystem.contentsOfDirectory(at: baseURL, skipHidden: true) {
             for platformDir in platformDirs {
                 let candidate = platformDir
                     .appendingPathComponent(rom.name, isDirectory: true)
                     .appendingPathComponent(fileName)
-                if fm.fileExists(atPath: candidate.path) {
+                if fileSystem.fileExists(at: candidate) {
                     return candidate
                 }
             }
@@ -73,20 +88,19 @@ final class ROMFileResolver: PROMFileResolver {
         return primary
     }
 
-    private func extractROM(from zipURL: URL, allowed: Set<String>, gameType: DeltaGameType) throws -> URL {
-        let fm = FileManager.default
-        let cacheDir = fm.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+    private func extractROM(from zipURL: URL, allowed: Set<String>) throws -> URL {
+        let cacheDir = fileSystem.cachesDirectory()
             .appendingPathComponent("UnzippedROMs", isDirectory: true)
             .appendingPathComponent(zipURL.deletingPathExtension().lastPathComponent, isDirectory: true)
 
-        if fm.fileExists(atPath: cacheDir.path),
+        if fileSystem.fileExists(at: cacheDir),
            let existing = firstROM(in: cacheDir, allowed: allowed) {
             print("[ROMFileResolver] cached unzip hit: \(existing.path)")
             return existing
         }
 
-        try? fm.removeItem(at: cacheDir)
-        try fm.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        try? fileSystem.removeItem(at: cacheDir)
+        try fileSystem.createDirectory(at: cacheDir, withIntermediateDirectories: true)
 
         let archive = try Archive(url: zipURL, accessMode: .read)
         for entry in archive where allowed.contains((entry.path as NSString).pathExtension.lowercased()) {
@@ -96,13 +110,11 @@ final class ROMFileResolver: PROMFileResolver {
             return dest
         }
 
-        throw ROMFileResolverError.noMatchingFile(gameType: gameType)
+        throw ROMFileResolverError.noMatchingExtension
     }
 
     private func firstROM(in dir: URL, allowed: Set<String>) -> URL? {
-        guard let contents = try? FileManager.default.contentsOfDirectory(
-            at: dir, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
-        ) else { return nil }
+        guard let contents = try? fileSystem.contentsOfDirectory(at: dir, skipHidden: true) else { return nil }
         return contents.first { allowed.contains($0.pathExtension.lowercased()) }
     }
 
