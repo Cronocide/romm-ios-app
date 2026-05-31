@@ -50,6 +50,10 @@ final class LibretroFrontend {
     private var retro_serialize_size: LibretroABI.RetroSerializeSize?
     private var retro_serialize: LibretroABI.RetroSerialize?
     private var retro_unserialize: LibretroABI.RetroUnserialize?
+    private var retro_get_memory_data: LibretroABI.RetroGetMemoryData?
+    private var retro_get_memory_size: LibretroABI.RetroGetMemorySize?
+
+    private var sramURL: URL?
 
     weak var videoSink: LibretroVideoSink?
 
@@ -201,6 +205,11 @@ final class LibretroFrontend {
         }
         guard loaded else { throw FrontendError.loadGameFailed }
 
+        let romBase = (gamePath as NSString).lastPathComponent
+        let stem = (romBase as NSString).deletingPathExtension
+        self.sramURL = URL(fileURLWithPath: saveDir).appendingPathComponent("\(stem).srm")
+        loadSRAMFromDisk()
+
         var av = LibretroABI.SystemAVInfo(
             geometry: .init(base_width: 0, base_height: 0, max_width: 0, max_height: 0, aspect_ratio: 0),
             timing: .init(fps: 60, sample_rate: 44100)
@@ -230,6 +239,7 @@ final class LibretroFrontend {
     }
 
     func stop() {
+        guard handle != nil else { return }
         if let timer = runTimer {
             // DispatchSourceTimer crasht beim cancel() im suspendierten Zustand.
             if runTimerSuspended { timer.resume(); runTimerSuspended = false }
@@ -238,23 +248,41 @@ final class LibretroFrontend {
         runTimer = nil
         stopAudio()
         clearAllButtons()
+        writeSRAMToDisk()
+        sramURL = nil
         retro_unload_game?()
         retro_deinit?()
         if let h = handle {
             dlclose(h)
             handle = nil
         }
+        // Drop stale C function pointers into the now-unmapped dylib so a
+        // delayed pause/resume from a stray scenePhase callback can't jump
+        // into freed text segments.
+        retro_init = nil; retro_deinit = nil
+        retro_get_system_info = nil; retro_get_system_av_info = nil
+        retro_set_environment = nil; retro_set_video_refresh = nil
+        retro_set_audio_sample = nil; retro_set_audio_sample_batch = nil
+        retro_set_input_poll = nil; retro_set_input_state = nil
+        retro_set_controller_port_device = nil
+        retro_run = nil; retro_reset = nil
+        retro_load_game = nil; retro_unload_game = nil
+        retro_serialize_size = nil; retro_serialize = nil; retro_unserialize = nil
+        retro_get_memory_data = nil; retro_get_memory_size = nil
     }
 
     func pause() {
+        guard handle != nil else { return }
         guard !runTimerSuspended, let timer = runTimer else { return }
         timer.suspend()
         runTimerSuspended = true
         clearAllButtons()
         audioEngine.pause()
+        writeSRAMToDisk()
     }
 
     func resume() {
+        guard handle != nil else { return }
         if !audioEngine.isRunning {
             try? audioEngine.start()
         }
@@ -306,6 +334,39 @@ final class LibretroFrontend {
         retro_serialize_size             = try? sym("retro_serialize_size")
         retro_serialize                  = try? sym("retro_serialize")
         retro_unserialize                = try? sym("retro_unserialize")
+        retro_get_memory_data            = try? sym("retro_get_memory_data")
+        retro_get_memory_size            = try? sym("retro_get_memory_size")
+    }
+
+    // MARK: - SRAM (memory card / battery) persistence
+
+    private func sramBuffer() -> UnsafeMutableRawBufferPointer? {
+        guard let dataFn = retro_get_memory_data, let sizeFn = retro_get_memory_size else { return nil }
+        let size = sizeFn(LibretroABI.MEMORY_SAVE_RAM)
+        guard size > 0, let base = dataFn(LibretroABI.MEMORY_SAVE_RAM) else { return nil }
+        return UnsafeMutableRawBufferPointer(start: base, count: size)
+    }
+
+    fileprivate func loadSRAMFromDisk() {
+        guard let url = sramURL, let buf = sramBuffer() else { return }
+        guard let data = try? Data(contentsOf: url) else {
+            print("[Libretro] SRAM: no existing file at \(url.lastPathComponent), starting blank (\(buf.count) bytes)")
+            return
+        }
+        let n = min(data.count, buf.count)
+        data.copyBytes(to: buf.bindMemory(to: UInt8.self).baseAddress!, count: n)
+        print("[Libretro] SRAM: loaded \(n) bytes from \(url.lastPathComponent)")
+    }
+
+    fileprivate func writeSRAMToDisk() {
+        guard let url = sramURL, let buf = sramBuffer() else { return }
+        let data = Data(bytes: buf.baseAddress!, count: buf.count)
+        do {
+            try data.write(to: url, options: .atomic)
+            print("[Libretro] SRAM: wrote \(data.count) bytes to \(url.lastPathComponent)")
+        } catch {
+            print("[Libretro] SRAM: write failed: \(error)")
+        }
     }
 
     private func sym<T>(_ name: String) throws -> T {
@@ -389,8 +450,25 @@ final class LibretroFrontend {
             return true
 
         case LibretroABI.ENVIRONMENT_GET_VARIABLE:
-            // Core fragt nach Option-Wert. Wir liefern noch keine -> NULL.
-            data?.assumingMemoryBound(to: LibretroABI.Variable.self).pointee.value = nil
+            // pcsx_rearmed default `pcsx_rearmed_memcard1 = "disabled"` means the core
+            // never allocates the SAVE_RAM buffer -- so retro_get_memory_size(0) returns
+            // 0 and our .srm load/save is a silent no-op. Forcing "libretro" enables
+            // the frontend-managed memory card path.
+            guard let data = data else { return false }
+            let v = data.assumingMemoryBound(to: LibretroABI.Variable.self)
+            guard let keyPtr = v.pointee.key else { v.pointee.value = nil; return false }
+            let key = String(cString: keyPtr)
+            let answer: String?
+            switch key {
+            case "pcsx_rearmed_memcard1": answer = "libretro"
+            case "pcsx_rearmed_memcard2": answer = "disabled"
+            default: answer = nil
+            }
+            if let answer = answer {
+                v.pointee.value = UnsafePointer(Self.cachedCString(answer))
+                return true
+            }
+            v.pointee.value = nil
             return false
 
         case LibretroABI.ENVIRONMENT_SET_PERFORMANCE_LEVEL,
@@ -407,15 +485,15 @@ final class LibretroFrontend {
 
     // C-Strings ablegen, sodass libretro sie referenzieren kann.
     nonisolated(unsafe) private static var cStringStorage: [String: UnsafeMutablePointer<CChar>] = [:]
+    fileprivate static func cachedCString(_ value: String) -> UnsafeMutablePointer<CChar> {
+        if let existing = cStringStorage[value] { return existing }
+        let ptr = strdup(value)!
+        cStringStorage[value] = ptr
+        return ptr
+    }
     private func writeCString(_ value: String, into data: UnsafeMutableRawPointer?) {
         guard let data = data else { return }
-        let ptr: UnsafeMutablePointer<CChar>
-        if let existing = Self.cStringStorage[value] {
-            ptr = existing
-        } else {
-            ptr = strdup(value)
-            Self.cStringStorage[value] = ptr
-        }
+        let ptr = Self.cachedCString(value)
         data.assumingMemoryBound(to: UnsafePointer<CChar>?.self).pointee = UnsafePointer(ptr)
     }
 }

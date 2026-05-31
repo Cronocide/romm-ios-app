@@ -31,6 +31,12 @@ enum LibretroABI {
     static let ENVIRONMENT_GET_SAVE_DIRECTORY: UInt32 = 31
     static let ENVIRONMENT_GET_INPUT_BITMASKS: UInt32 = 51 | 0x10000
 
+    // MARK: - Memory types (retro_get_memory_data/size)
+    static let MEMORY_SAVE_RAM: UInt32 = 0
+    static let MEMORY_RTC: UInt32 = 1
+    static let MEMORY_SYSTEM_RAM: UInt32 = 2
+    static let MEMORY_VIDEO_RAM: UInt32 = 3
+
     // MARK: - Input devices
     static let DEVICE_NONE: UInt32 = 0
     static let DEVICE_JOYPAD: UInt32 = 1
@@ -112,4 +118,6 @@ enum LibretroABI {
     typealias RetroUnserialize = @convention(c) (UnsafeRawPointer, Int) -> Bool
     typealias RetroLoadGame = @convention(c) (UnsafeRawPointer?) -> Bool
     typealias RetroUnloadGame = @convention(c) () -> Void
+    typealias RetroGetMemoryData = @convention(c) (UInt32) -> UnsafeMutableRawPointer?
+    typealias RetroGetMemorySize = @convention(c) (UInt32) -> Int
 }

@@ -36,7 +36,6 @@ final class LibretroSession: NSObject {
             let corePath = try locateCoreDylib()
             let systemDir = libretroSystemDirectory().path
             let saveDir = libretroSaveDirectory().path
-            ensureDefaultMemoryCards(saveDir: saveDir)
             print("[Libretro] core=\(corePath)")
             print("[Libretro] system=\(systemDir) save=\(saveDir)")
             try frontend.load(
@@ -55,9 +54,16 @@ final class LibretroSession: NSObject {
     func pause() { frontend.pause() }
     func resume() { frontend.resume() }
 
+    func reloadAspectRatio() {
+        viewController.applyAspectConstraints()
+    }
+
     func stop() {
-        frontend.stop()
+        // Unwire the sink BEFORE tearing down the core: pcsx_rearmed can emit a
+        // final video frame during retro_unload_game / retro_deinit, and after
+        // dlclose() any CGImage backed by core memory would crash on render.
         frontend.videoSink = nil
+        frontend.stop()
     }
 
     // MARK: - Save state API (mirrors DeltaCoreSession)
@@ -150,22 +156,6 @@ final class LibretroSession: NSObject {
         documentsDirectory().appendingPathComponent("LibretroSaves", isDirectory: true)
     }
 
-    /// pcsx_rearmed reads `<save>/pcsx-card1.mcd` (and card2) as the PSX memory cards.
-    /// If the file is missing, the core refuses to mount a card at all — games show
-    /// "no memory card". A 128 KB blank file is enough: the PSX BIOS / game's own
-    /// formatter will initialize it on first write.
-    private func ensureDefaultMemoryCards(saveDir: String) {
-        guard core == .pcsxRearmed else { return }
-        let fm = FileManager.default
-        try? fm.createDirectory(atPath: saveDir, withIntermediateDirectories: true)
-        for name in ["pcsx-card1.mcd", "pcsx-card2.mcd"] {
-            let path = (saveDir as NSString).appendingPathComponent(name)
-            guard !fm.fileExists(atPath: path) else { continue }
-            let blank = Data(count: 128 * 1024)
-            try? blank.write(to: URL(fileURLWithPath: path))
-        }
-    }
-
     private func documentsDirectory() -> URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
@@ -177,6 +167,7 @@ final class LibretroGameViewController: UIViewController {
     let videoView = LibretroVideoView()
     let controllerView = LibretroTouchControllerView()
     private let errorLabel = UILabel()
+    private var aspectConstraint: NSLayoutConstraint?
 
     init(core: LibretroCore, gameURL: URL) {
         self.core = core
@@ -192,18 +183,7 @@ final class LibretroGameViewController: UIViewController {
 
         videoView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(videoView)
-        let widthLimit = videoView.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor)
-        let heightLimit = videoView.heightAnchor.constraint(lessThanOrEqualTo: view.heightAnchor)
-        let widthFill = videoView.widthAnchor.constraint(equalTo: view.widthAnchor)
-        widthFill.priority = .defaultHigh
-        let heightFill = videoView.heightAnchor.constraint(equalTo: view.heightAnchor)
-        heightFill.priority = .defaultHigh
-        NSLayoutConstraint.activate([
-            videoView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            videoView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            videoView.widthAnchor.constraint(equalTo: videoView.heightAnchor, multiplier: 16.0 / 9.0),
-            widthLimit, heightLimit, widthFill, heightFill
-        ])
+        applyAspectConstraints()
 
         controllerView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(controllerView)
@@ -243,5 +223,46 @@ final class LibretroGameViewController: UIViewController {
             self?.controllerView.setNeedsLayout()
             self?.controllerView.layoutIfNeeded()
         })
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // Pick up changes made from settings while paused in the menu overlay.
+        applyAspectConstraints()
+    }
+
+    /// Re-installs the aspect constraint for `videoView` based on the user's
+    /// preference. Only PSX (libretro) games go through this controller, so we
+    /// just read the PSX preference directly.
+    func applyAspectConstraints() {
+        aspectConstraint?.isActive = false
+        aspectConstraint = nil
+
+        // Common constraints — center + don't exceed view bounds, prefer to fill.
+        // We rebuild from scratch to keep this idempotent across pref changes.
+        view.constraints
+            .filter { ($0.firstItem as? UIView) === videoView || ($0.secondItem as? UIView) === videoView }
+            .forEach { view.removeConstraint($0) }
+
+        let widthLimit = videoView.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor)
+        let heightLimit = videoView.heightAnchor.constraint(lessThanOrEqualTo: view.heightAnchor)
+        let widthFill = videoView.widthAnchor.constraint(equalTo: view.widthAnchor)
+        widthFill.priority = .defaultHigh
+        let heightFill = videoView.heightAnchor.constraint(equalTo: view.heightAnchor)
+        heightFill.priority = .defaultHigh
+
+        NSLayoutConstraint.activate([
+            videoView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            videoView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            widthLimit, heightLimit, widthFill, heightFill
+        ])
+
+        if let ratio = LibretroAspectRatioPreference.psx.ratio {
+            let c = videoView.widthAnchor.constraint(equalTo: videoView.heightAnchor, multiplier: ratio)
+            c.isActive = true
+            aspectConstraint = c
+        }
+
+        view.layoutIfNeeded()
     }
 }

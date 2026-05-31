@@ -113,6 +113,10 @@ final class NativeEmulatorSession: NSObject, GameViewControllerDelegate {
     func resume() { viewController.resumeEmulation() }
 
     func stop() {
+        // Pause the render thread before flushing battery — DeltaCore expects
+        // the emulator to be paused around save(), otherwise the save can race
+        // with an in-flight frame and crash.
+        viewController.pauseEmulation()
         flushBattery()
         detachExternalControllers()
         NotificationCenter.default.removeObserver(self)

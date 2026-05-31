@@ -41,9 +41,13 @@ struct LibretroEmulatorView: View {
         }
         .onDisappear { viewModel.teardown() }
         .onChange(of: scenePhase) { _, phase in
+            // Gate on session presence: after teardown the session is nil,
+            // and a stray .background firing here would otherwise reach the
+            // singleton frontend with stale state.
+            guard let session = viewModel.session else { return }
             switch phase {
-            case .active: viewModel.session?.resume()
-            case .inactive, .background: viewModel.session?.pause()
+            case .active: session.resume()
+            case .inactive, .background: session.pause()
             @unknown default: break
             }
         }
@@ -77,6 +81,7 @@ private struct LibretroMenuSheet: View {
     @SwiftUI.State private var statusMessage: String?
     @SwiftUI.State private var refreshTick: Int = 0
     @SwiftUI.State private var showQuitConfirmation = false
+    @AppStorage(LibretroAspectRatioPreference.psxKey) private var aspectRaw: String = LibretroAspectRatio.fourThree.rawValue
 
     private let slots = Array(1...20)
 
@@ -84,16 +89,19 @@ private struct LibretroMenuSheet: View {
         NavigationStack {
             ZStack {
                 Color.black.ignoresSafeArea()
-                VStack(spacing: 0) {
-                    detailHeader
-                    actionButtons
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 12)
-                    Divider().background(Color.white.opacity(0.1))
-                    slotList
+                ScrollView {
+                    VStack(spacing: 0) {
+                        detailHeader
+                        compactControls
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 12)
+                        actionButtons
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 12)
+                    }
                 }
             }
-            .navigationTitle("Save States")
+            .navigationTitle("Menu")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarBackground(Color.black.opacity(0.9), for: .navigationBar)
@@ -123,18 +131,18 @@ private struct LibretroMenuSheet: View {
         VStack(spacing: 10) {
             previewArea
             HStack(spacing: 8) {
-                Text("Slot \(selectedSlot)")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                Spacer()
                 if let date = session?.stateModifiedAt(slot: selectedSlot) {
-                    Text(date.formatted(date: .abbreviated, time: .shortened))
+                    Label(date.formatted(date: .abbreviated, time: .shortened), systemImage: "clock")
                         .font(.subheadline)
                         .foregroundColor(.white.opacity(0.6))
                 } else {
-                    Text("Empty")
+                    Label("Empty slot", systemImage: "tray")
                         .font(.subheadline)
                         .foregroundColor(.white.opacity(0.5))
+                }
+                Spacer()
+                if session?.hasState(slot: selectedSlot) == true {
+                    Circle().fill(.green).frame(width: 8, height: 8)
                 }
             }
             if let statusMessage {
@@ -146,6 +154,53 @@ private struct LibretroMenuSheet: View {
         }
         .padding(16)
         .id(refreshTick)
+    }
+
+    private var compactControls: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("Save Slot")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.7))
+                Spacer()
+                Menu {
+                    Picker("Slot", selection: $selectedSlot) {
+                        ForEach(slots, id: \.self) { slot in
+                            let occupied = session?.hasState(slot: slot) == true
+                            Text(occupied ? "Slot \(slot) •" : "Slot \(slot)").tag(slot)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Slot \(selectedSlot)")
+                            .font(.body.weight(.semibold))
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(0.08))
+                    .clipShape(Capsule())
+                    .foregroundColor(.white)
+                }
+            }
+            HStack {
+                Text("Aspect Ratio")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.7))
+                Spacer()
+                Picker("Aspect", selection: $aspectRaw) {
+                    ForEach(LibretroAspectRatio.allCases) { ratio in
+                        Text(ratio.displayName).tag(ratio.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 240)
+                .onChange(of: aspectRaw) { _, _ in
+                    session?.reloadAspectRatio()
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -173,56 +228,6 @@ private struct LibretroMenuSheet: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
-    }
-
-    private var slotList: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(slots, id: \.self) { slot in
-                    slotRow(slot)
-                    if slot != slots.last {
-                        Divider().background(Color.white.opacity(0.06))
-                            .padding(.leading, 16)
-                    }
-                }
-            }
-        }
-        .background(Color.black)
-    }
-
-    @ViewBuilder
-    private func slotRow(_ slot: Int) -> some View {
-        let isSelected = slot == selectedSlot
-        let occupied = session?.hasState(slot: slot) == true
-        Button {
-            selectedSlot = slot
-        } label: {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                        .frame(width: 26, height: 26)
-                    if isSelected {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.accentColor)
-                    }
-                }
-                Text("Slot \(slot)")
-                    .font(.body)
-                    .foregroundColor(.white)
-                Spacer()
-                if occupied {
-                    Circle().fill(.green).frame(width: 6, height: 6)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(isSelected ? Color.white.opacity(0.06) : Color.clear)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 
     private var actionButtons: some View {
