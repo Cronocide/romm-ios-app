@@ -89,14 +89,10 @@ class LocalDeviceDetailViewModel {
         showingDeleteConfirmation = true
     }
 
-    func deleteROM() {
-        guard let rom = romToDelete else { return }
-
+    func deleteROM(_ rom: DownloadedROM) {
         do {
             try repository.deleteDownloadedROM(rom)
-            romToDelete = nil
-            showingDeleteConfirmation = false
-            loadDownloadedROMs()
+            Task { await loadDownloadedROMsAsync() }
         } catch {
             self.error = "Failed to delete ROM: \(error.localizedDescription)"
         }

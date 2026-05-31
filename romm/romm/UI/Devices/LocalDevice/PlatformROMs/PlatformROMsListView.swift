@@ -8,6 +8,7 @@ struct PlatformROMsListView: View {
 
     @State private var launchDecision: LaunchDecision?
     @State private var launchingRomId: Int?
+    @State private var romPendingDelete: DownloadedROM?
     private let launchUseCase: PLaunchEmulatorUseCase = DefaultDependencyFactory.shared.makeLaunchEmulatorUseCase()
 
     var body: some View {
@@ -30,7 +31,7 @@ struct PlatformROMsListView: View {
                 .disabled(launchingRomId != nil && launchingRomId != rom.id)
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button(role: .destructive) {
-                        onDelete(rom)
+                        romPendingDelete = rom
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
@@ -48,6 +49,22 @@ struct PlatformROMsListView: View {
         }) { decision in
             EmulatorRouterView(decision: decision)
                 .ignoresSafeArea()
+        }
+        .alert(
+            "Delete ROM?",
+            isPresented: Binding(
+                get: { romPendingDelete != nil },
+                set: { if !$0 { romPendingDelete = nil } }
+            ),
+            presenting: romPendingDelete
+        ) { rom in
+            Button("Cancel", role: .cancel) { romPendingDelete = nil }
+            Button("Delete", role: .destructive) {
+                onDelete(rom)
+                romPendingDelete = nil
+            }
+        } message: { rom in
+            Text("Are you sure you want to delete \(rom.name)? This will remove all files (\(rom.formattedSize)).")
         }
     }
 
