@@ -15,10 +15,22 @@ class ProfileViewModel {
     private let logger = Logger.viewModel
     private let logoutUseCase: LogoutUseCase
     private let clearSetupConfigurationUseCase: PClearSetupConfigurationUseCase
-    
+    private let getGroupRomsUseCase: PGetGroupRomsUseCase
+    private let saveGroupRomsUseCase: PSaveGroupRomsUseCase
+
+    var groupRomsByMetaId: Bool {
+        didSet {
+            guard oldValue != groupRomsByMetaId else { return }
+            saveGroupRomsUseCase.execute(groupRomsByMetaId)
+        }
+    }
+
     init(factory: PDependencyFactory = DefaultDependencyFactory.shared) {
         self.logoutUseCase = factory.makeLogoutUseCase()
         self.clearSetupConfigurationUseCase = factory.makeClearSetupConfigurationUseCase()
+        self.getGroupRomsUseCase = factory.makeGetGroupRomsUseCase()
+        self.saveGroupRomsUseCase = factory.makeSaveGroupRomsUseCase()
+        self.groupRomsByMetaId = getGroupRomsUseCase.execute()
     }
     
     func logout() {

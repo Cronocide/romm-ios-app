@@ -80,6 +80,8 @@ protocol PDependencyFactory {
     // UI Use Cases
     func makeGetViewModeUseCase() -> PGetViewModeUseCase
     func makeSaveViewModeUseCase() -> PSaveViewModeUseCase
+    func makeGetGroupRomsUseCase() -> PGetGroupRomsUseCase
+    func makeSaveGroupRomsUseCase() -> PSaveGroupRomsUseCase
 
     // Emulator Use Cases
     func makeCheckEmulatorSupportUseCase() -> PCheckEmulatorSupportUseCase
@@ -333,6 +335,14 @@ class DefaultDependencyFactory: PDependencyFactory {
 
     func makeSaveViewModeUseCase() -> PSaveViewModeUseCase {
         SaveViewModeUseCase(repository: viewModePreferenceRepository)
+    }
+
+    func makeGetGroupRomsUseCase() -> PGetGroupRomsUseCase {
+        GetGroupRomsUseCase()
+    }
+
+    func makeSaveGroupRomsUseCase() -> PSaveGroupRomsUseCase {
+        SaveGroupRomsUseCase()
     }
 
     // MARK: - Emulator Use Cases

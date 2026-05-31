@@ -33,6 +33,7 @@ extension RommAPIClient {
         orderDir: String? = nil,
         filters: RomFilters
     ) async throws -> CustomLimitOffsetPageSimpleRomSchema {
+        let groupByMetaId = GetGroupRomsUseCase().execute()
         let path = withQuery("api/roms", [
             ("with_char_index", withCharIndex.map(String.init)),
             ("search_term", searchTerm),
@@ -45,7 +46,7 @@ extension RommAPIClient {
             ("missing", filters.missing.map(String.init)),
             ("has_ra", filters.hasRa.map(String.init)),
             ("verified", filters.verified.map(String.init)),
-            ("group_by_meta_id", "false"),
+            ("group_by_meta_id", groupByMetaId ? "true" : "false"),
             ("genres", filters.selectedGenre),
             ("franchises", filters.selectedFranchise),
             ("collections", filters.selectedCollection),
