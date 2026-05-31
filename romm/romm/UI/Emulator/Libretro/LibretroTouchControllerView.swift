@@ -162,9 +162,9 @@ final class LibretroTouchControllerView: UIView {
     var onMenuTapped: (() -> Void)?
 
     /// Vergrößert die Trefferzone für Face/Shoulder-Buttons (visuell unverändert).
-    private let hitSlop: CGFloat = 14
-    private let dpadSlop: CGFloat = 18
-    private let haptic = UIImpactFeedbackGenerator(style: .light)
+    private let hitSlop: CGFloat = 28
+    private let dpadSlop: CGFloat = 32
+    private let haptic = UIImpactFeedbackGenerator(style: .medium)
 
     // MARK: - Init
 
@@ -386,7 +386,7 @@ final class LibretroTouchControllerView: UIView {
             if let hit {
                 hit.isPressed = true
                 LibretroFrontend.shared.setButton(hit.button, pressed: true)
-                haptic.impactOccurred(intensity: 0.55)
+                haptic.impactOccurred(intensity: 1.0)
             }
         }
         if ended {
@@ -411,7 +411,7 @@ final class LibretroTouchControllerView: UIView {
         currentDpadButtons = target
         // Leichter Tick bei Richtungswechsel — nicht bei Release auf .none.
         if direction != previous, direction != .none {
-            haptic.impactOccurred(intensity: 0.4)
+            haptic.impactOccurred(intensity: 0.85)
         }
     }
 }
