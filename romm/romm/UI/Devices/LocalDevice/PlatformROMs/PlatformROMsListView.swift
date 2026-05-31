@@ -3,8 +3,15 @@ import SwiftUI
 /// Shows list of ROMs for a specific platform
 struct PlatformROMsListView: View {
     let platformName: String
-    let roms: [DownloadedROM]
+    /// Read reactively from the parent's @Observable view model so the list
+    /// updates after a delete — passing a snapshot `[DownloadedROM]` left the
+    /// pushed detail view stuck on stale data while the parent reloaded.
+    let viewModel: LocalDeviceDetailViewModel
     let onDelete: (DownloadedROM) -> Void
+
+    private var roms: [DownloadedROM] {
+        viewModel.romsByPlatform[platformName] ?? []
+    }
 
     @State private var launchDecision: LaunchDecision?
     @State private var launchingRomId: Int?

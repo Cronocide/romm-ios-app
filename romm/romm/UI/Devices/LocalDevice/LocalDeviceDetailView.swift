@@ -68,7 +68,7 @@ struct LocalDeviceDetailView: View {
                         NavigationLink {
                             PlatformROMsListView(
                                 platformName: platformName,
-                                roms: roms,
+                                viewModel: viewModel,
                                 onDelete: { rom in
                                     viewModel.deleteROM(rom)
                                 }
