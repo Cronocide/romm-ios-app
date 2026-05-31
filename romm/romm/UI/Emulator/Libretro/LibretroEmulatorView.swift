@@ -4,11 +4,13 @@ import UIKit
 struct LibretroEmulatorView: View {
     @SwiftUI.State private var viewModel: LibretroEmulatorViewModel
     @SwiftUI.State private var showMenu = false
+    @SwiftUI.State private var isQuitting = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
     init(rom: Rom, core: LibretroCore, factory: PDependencyFactory = DefaultDependencyFactory.shared) {
-        self._viewModel = SwiftUI.State(wrappedValue: factory.makeLibretroEmulatorViewModel(rom: rom, core: core))
+        let vm = factory.makeLibretroEmulatorViewModel(rom: rom, core: core)
+        self._viewModel = SwiftUI.State(wrappedValue: vm)
     }
 
     var body: some View {
@@ -52,17 +54,22 @@ struct LibretroEmulatorView: View {
             }
         }
         .onChange(of: showMenu) { _, presented in
+            // Skip resume when the user is quitting — the emulator is about
+            // to be torn down, kicking the core run-loop back to life would
+            // race with dlclose().
             if presented {
                 viewModel.session?.pause()
-            } else {
+            } else if !isQuitting {
                 viewModel.session?.resume()
             }
         }
         .sheet(isPresented: $showMenu) {
             LibretroMenuSheet(
                 session: viewModel.session,
+                aspectRatioPreference: viewModel.aspectRatioPreference,
                 onResume: { showMenu = false },
                 onQuit: {
+                    isQuitting = true
                     showMenu = false
                     dismiss()
                 }
@@ -74,6 +81,7 @@ struct LibretroEmulatorView: View {
 
 private struct LibretroMenuSheet: View {
     let session: LibretroSession?
+    let aspectRatioPreference: PLibretroAspectRatioPreference
     let onResume: () -> Void
     let onQuit: () -> Void
 
@@ -81,7 +89,20 @@ private struct LibretroMenuSheet: View {
     @SwiftUI.State private var statusMessage: String?
     @SwiftUI.State private var refreshTick: Int = 0
     @SwiftUI.State private var showQuitConfirmation = false
-    @AppStorage(LibretroAspectRatioPreference.psxKey) private var aspectRaw: String = LibretroAspectRatio.fourThree.rawValue
+    @SwiftUI.State private var aspectRatio: LibretroAspectRatio
+
+    init(
+        session: LibretroSession?,
+        aspectRatioPreference: PLibretroAspectRatioPreference,
+        onResume: @escaping () -> Void,
+        onQuit: @escaping () -> Void
+    ) {
+        self.session = session
+        self.aspectRatioPreference = aspectRatioPreference
+        self.onResume = onResume
+        self.onQuit = onQuit
+        self._aspectRatio = SwiftUI.State(initialValue: aspectRatioPreference.psx)
+    }
 
     private let slots = Array(1...20)
 
@@ -189,14 +210,15 @@ private struct LibretroMenuSheet: View {
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.7))
                 Spacer()
-                Picker("Aspect", selection: $aspectRaw) {
+                Picker("Aspect", selection: $aspectRatio) {
                     ForEach(LibretroAspectRatio.allCases) { ratio in
-                        Text(ratio.displayName).tag(ratio.rawValue)
+                        Text(ratio.displayName).tag(ratio)
                     }
                 }
                 .pickerStyle(.segmented)
                 .frame(maxWidth: 240)
-                .onChange(of: aspectRaw) { _, _ in
+                .onChange(of: aspectRatio) { _, newValue in
+                    aspectRatioPreference.psx = newValue
                     session?.reloadAspectRatio()
                 }
             }

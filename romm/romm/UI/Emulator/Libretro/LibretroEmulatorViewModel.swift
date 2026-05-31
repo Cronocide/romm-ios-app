@@ -16,6 +16,7 @@ final class LibretroEmulatorViewModel {
     private let resolveROMFile: PResolveROMFileUseCase
     private let saveStates: PEmulatorSaveStatesUseCase
     private let biosSync: PBIOSSyncUseCase
+    let aspectRatioPreference: PLibretroAspectRatioPreference
     private let logger = Logger.viewModel
 
     init(
@@ -24,7 +25,8 @@ final class LibretroEmulatorViewModel {
         getDownloadedROM: PGetDownloadedROMUseCase,
         resolveROMFile: PResolveROMFileUseCase,
         saveStates: PEmulatorSaveStatesUseCase,
-        biosSync: PBIOSSyncUseCase
+        biosSync: PBIOSSyncUseCase,
+        aspectRatioPreference: PLibretroAspectRatioPreference
     ) {
         self.rom = rom
         self.core = core
@@ -32,6 +34,7 @@ final class LibretroEmulatorViewModel {
         self.resolveROMFile = resolveROMFile
         self.saveStates = saveStates
         self.biosSync = biosSync
+        self.aspectRatioPreference = aspectRatioPreference
     }
 
     func bootstrap() {
@@ -63,7 +66,13 @@ final class LibretroEmulatorViewModel {
                 isLoading = false
                 return
             }
-            let s = LibretroSession(gameURL: url, core: core, romId: rom.id, saveStates: saveStates)
+            let s = LibretroSession(
+                gameURL: url,
+                core: core,
+                romId: rom.id,
+                saveStates: saveStates,
+                aspectRatioPreference: aspectRatioPreference
+            )
             s.onMenuRequested = { [weak self] in self?.onMenuRequested?() }
             session = s
             s.start()

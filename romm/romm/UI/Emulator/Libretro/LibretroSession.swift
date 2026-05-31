@@ -8,18 +8,30 @@ final class LibretroSession: NSObject {
     private let core: LibretroCore
     private let romId: Int
     private let saveStates: PEmulatorSaveStatesUseCase
+    private let aspectRatioPreference: PLibretroAspectRatioPreference
     private let frontend = LibretroFrontend.shared
 
     var onMenuRequested: (() -> Void)?
 
     let viewController: LibretroGameViewController
 
-    init(gameURL: URL, core: LibretroCore, romId: Int, saveStates: PEmulatorSaveStatesUseCase) {
+    init(
+        gameURL: URL,
+        core: LibretroCore,
+        romId: Int,
+        saveStates: PEmulatorSaveStatesUseCase,
+        aspectRatioPreference: PLibretroAspectRatioPreference
+    ) {
         self.gameURL = gameURL
         self.core = core
         self.romId = romId
         self.saveStates = saveStates
-        self.viewController = LibretroGameViewController(core: core, gameURL: gameURL)
+        self.aspectRatioPreference = aspectRatioPreference
+        self.viewController = LibretroGameViewController(
+            core: core,
+            gameURL: gameURL,
+            aspectRatioPreference: aspectRatioPreference
+        )
         super.init()
         self.viewController.controllerView.onMenuTapped = { [weak self] in
             self?.onMenuRequested?()
@@ -164,14 +176,20 @@ final class LibretroSession: NSObject {
 final class LibretroGameViewController: UIViewController {
     private let core: LibretroCore
     private let gameURL: URL
+    private let aspectRatioPreference: PLibretroAspectRatioPreference
     let videoView = LibretroVideoView()
     let controllerView = LibretroTouchControllerView()
     private let errorLabel = UILabel()
     private var aspectConstraint: NSLayoutConstraint?
 
-    init(core: LibretroCore, gameURL: URL) {
+    init(
+        core: LibretroCore,
+        gameURL: URL,
+        aspectRatioPreference: PLibretroAspectRatioPreference
+    ) {
         self.core = core
         self.gameURL = gameURL
+        self.aspectRatioPreference = aspectRatioPreference
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -257,7 +275,7 @@ final class LibretroGameViewController: UIViewController {
             widthLimit, heightLimit, widthFill, heightFill
         ])
 
-        if let ratio = LibretroAspectRatioPreference.psx.ratio {
+        if let ratio = aspectRatioPreference.psx.ratio {
             let c = videoView.widthAnchor.constraint(equalTo: videoView.heightAnchor, multiplier: ratio)
             c.isActive = true
             aspectConstraint = c

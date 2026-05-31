@@ -92,6 +92,7 @@ protocol PDependencyFactory {
 
     // Emulator Engine
     var enginePreference: PEmulatorEnginePreference { get }
+    var libretroAspectRatioPreference: PLibretroAspectRatioPreference { get }
     func makePlatformEngineSupport() -> PPlatformEngineSupport
 
     // SFTP ViewModels
@@ -341,6 +342,7 @@ class DefaultDependencyFactory: PDependencyFactory {
     }
 
     lazy var enginePreference: PEmulatorEnginePreference = UserDefaultsEmulatorEnginePreferenceStore()
+    lazy var libretroAspectRatioPreference: PLibretroAspectRatioPreference = UserDefaultsLibretroAspectRatioPreferenceStore()
 
     func makePlatformEngineSupport() -> PPlatformEngineSupport {
         PlatformEngineSupport()
@@ -382,7 +384,8 @@ class DefaultDependencyFactory: PDependencyFactory {
             getDownloadedROM: makeGetDownloadedROMUseCase(),
             resolveROMFile: makeResolveROMFileUseCase(),
             saveStates: makeEmulatorSaveStatesUseCase(),
-            biosSync: makeBIOSSyncUseCase()
+            biosSync: makeBIOSSyncUseCase(),
+            aspectRatioPreference: libretroAspectRatioPreference
         )
     }
 
