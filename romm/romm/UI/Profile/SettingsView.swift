@@ -25,7 +25,8 @@ struct SettingsView: View {
     }
     
     var body: some View {
-        List {
+        @Bindable var profileVM = profileViewModel
+        return List {
             // User Section
             if let user = appData.currentUser {
                 Section("User") {
@@ -100,6 +101,23 @@ struct SettingsView: View {
                         Text("Server Statistics")
                     }
                 }
+            }
+
+            // Platforms Section
+            Section {
+                Toggle(isOn: $profileVM.groupRomsByMetaId) {
+                    HStack {
+                        Image(systemName: "rectangle.stack")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Group ROMs")
+                            Text("Group versions of the same ROM together in the gallery")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            } header: {
+                Text("Platforms")
             }
 
             // App Settings Section

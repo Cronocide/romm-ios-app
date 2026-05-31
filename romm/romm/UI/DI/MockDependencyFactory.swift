@@ -245,6 +245,14 @@ class MockDependencyFactory: PDependencyFactory {
     func makeSaveViewModeUseCase() -> PSaveViewModeUseCase {
         SaveViewModeUseCase(repository: viewModePreferenceRepository)
     }
+
+    func makeGetGroupRomsUseCase() -> PGetGroupRomsUseCase {
+        GetGroupRomsUseCase()
+    }
+
+    func makeSaveGroupRomsUseCase() -> PSaveGroupRomsUseCase {
+        SaveGroupRomsUseCase()
+    }
     
     // MARK: - SFTP ViewModels
     
