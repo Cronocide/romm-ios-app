@@ -50,21 +50,22 @@ struct PlatformROMsListView: View {
             EmulatorRouterView(decision: decision)
                 .ignoresSafeArea()
         }
-        .alert(
+        .confirmationDialog(
             "Delete ROM?",
             isPresented: Binding(
                 get: { romPendingDelete != nil },
                 set: { if !$0 { romPendingDelete = nil } }
             ),
+            titleVisibility: .visible,
             presenting: romPendingDelete
         ) { rom in
-            Button("Cancel", role: .cancel) { romPendingDelete = nil }
-            Button("Delete", role: .destructive) {
+            Button("Delete \(rom.name)", role: .destructive) {
                 onDelete(rom)
                 romPendingDelete = nil
             }
+            Button("Cancel", role: .cancel) { romPendingDelete = nil }
         } message: { rom in
-            Text("Are you sure you want to delete \(rom.name)? This will remove all files (\(rom.formattedSize)).")
+            Text("This will remove all files (\(rom.formattedSize)).")
         }
     }
 
