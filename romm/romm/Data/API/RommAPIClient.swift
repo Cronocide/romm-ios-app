@@ -77,6 +77,9 @@ protocol PRommAPIClient {
     func getHeartbeat() async throws -> HeartbeatResponse
     func getHeartbeat(from serverURL: String) async throws -> HeartbeatResponse
 
+    // ROM user props
+    func updateRomLastPlayed(id: Int) async throws -> RomUserSchema
+
     // Stats, Saves, States
     func getStats() async throws -> StatsReturn
     func getSaves(romId: Int) async throws -> [SaveSchema]

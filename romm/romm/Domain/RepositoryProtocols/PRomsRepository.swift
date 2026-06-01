@@ -25,6 +25,7 @@ protocol PRomsRepository {
     func getRomDetails(id: Int) async throws -> RomDetails
     func toggleRomFavorite(romId: Int, isFavorite: Bool) async throws
     func isRomFavorite(romId: Int) async throws -> Bool
+    func updateLastPlayed(romId: Int) async throws
     func searchRoms(query: String) async throws -> [Rom]
     func searchRomsLegacy(query: String) async throws -> [Rom]
 }

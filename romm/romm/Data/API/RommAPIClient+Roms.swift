@@ -87,12 +87,12 @@ extension RommAPIClient {
         return result
     }
 
-    func updateRomFavorite(id: Int, isFavorite: Bool) async throws -> RomUserSchema {
-        let updateBody = BodyUpdateRomUserApiRomsIdPropsPut(
+    func updateRomLastPlayed(id: Int) async throws -> RomUserSchema {
+        let body = BodyUpdateRomUserApiRomsIdPropsPut(
             updateLastPlayed: true,
             removeLastPlayed: false
         )
-        return try await put("api/roms/\(id)/props", body: updateBody, responseType: RomUserSchema.self)
+        return try await put("api/roms/\(id)/props", body: body, responseType: RomUserSchema.self)
     }
 
     func getRomManual(romId: Int) async throws -> Manual? {

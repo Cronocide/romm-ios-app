@@ -36,6 +36,7 @@ protocol PDependencyFactory {
     func makeGetRomDetailsUseCase() -> GetRomDetailsUseCase
     func makeToggleRomFavoriteUseCase() -> ToggleRomFavoriteUseCase
     func makeCheckRomFavoriteStatusUseCase() -> CheckRomFavoriteStatusUseCase
+    func makeUpdateLastPlayedUseCase() -> PUpdateLastPlayedUseCase
     func makeSearchRomsUseCase() -> SearchRomsUseCase
     func makeLoadManualUseCase() -> LoadManualUseCase
     func makeGetPlatformsUseCase() -> GetPlatformsUseCase
@@ -173,7 +174,11 @@ class DefaultDependencyFactory: PDependencyFactory {
     func makeCheckRomFavoriteStatusUseCase() -> CheckRomFavoriteStatusUseCase {
         CheckRomFavoriteStatusUseCase(romsRepository: romsRepository)
     }
-    
+
+    func makeUpdateLastPlayedUseCase() -> PUpdateLastPlayedUseCase {
+        UpdateLastPlayedUseCase(romsRepository: romsRepository)
+    }
+
     func makeSearchRomsUseCase() -> SearchRomsUseCase {
         SearchRomsUseCase(romsRepository: romsRepository)
     }

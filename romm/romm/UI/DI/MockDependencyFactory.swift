@@ -105,6 +105,10 @@ class MockDependencyFactory: PDependencyFactory {
     func makeCheckRomFavoriteStatusUseCase() -> CheckRomFavoriteStatusUseCase {
         CheckRomFavoriteStatusUseCase(romsRepository: romsRepository)
     }
+
+    func makeUpdateLastPlayedUseCase() -> PUpdateLastPlayedUseCase {
+        UpdateLastPlayedUseCase(romsRepository: romsRepository)
+    }
     
     func makeSearchRomsUseCase() -> SearchRomsUseCase {
         SearchRomsUseCase(romsRepository: romsRepository)
