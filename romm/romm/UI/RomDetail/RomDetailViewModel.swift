@@ -44,6 +44,7 @@ class RomDetailViewModel {
     private let getCollectionsUseCase: GetCollectionsUseCase
     private let checkEmulatorSupportUseCase: PCheckEmulatorSupportUseCase
     private let launchEmulatorUseCase: PLaunchEmulatorUseCase
+    private let updateLastPlayedUseCase: PUpdateLastPlayedUseCase
 
     init(factory: PDependencyFactory = DefaultDependencyFactory.shared,
          apiClient: PRommAPIClient = RommAPIClient.shared) {
@@ -55,6 +56,7 @@ class RomDetailViewModel {
         self.getCollectionsUseCase = factory.makeGetCollectionsUseCase()
         self.checkEmulatorSupportUseCase = factory.makeCheckEmulatorSupportUseCase()
         self.launchEmulatorUseCase = factory.makeLaunchEmulatorUseCase()
+        self.updateLastPlayedUseCase = factory.makeUpdateLastPlayedUseCase()
     }
     
     func loadRomDetails(romId: Int) async {
@@ -314,6 +316,13 @@ class RomDetailViewModel {
         case .success(let decision):
             logger.info("Launching emulator for ROM: \(rom.name) — decision: \(String(describing: decision))")
             self.launchDecision = decision
+            Task { [updateLastPlayedUseCase, logger] in
+                do {
+                    try await updateLastPlayedUseCase.execute(romId: rom.id)
+                } catch {
+                    logger.warning("Failed to update last_played for ROM \(rom.id): \(error)")
+                }
+            }
 
         case .failure(let error):
             logger.error("Failed to launch emulator: \(error.localizedDescription)")

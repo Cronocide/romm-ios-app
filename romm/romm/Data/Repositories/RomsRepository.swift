@@ -186,6 +186,17 @@ class RomsRepository: PRomsRepository {
         }
     }
     
+    func updateLastPlayed(romId: Int) async throws {
+        logger.info("⏱️ Updating last_played for ROM \(romId)")
+        do {
+            _ = try await apiClient.updateRomLastPlayed(id: romId)
+            logger.info("✅ last_played updated for ROM \(romId)")
+        } catch {
+            logger.error("❌ Failed to update last_played for ROM \(romId): \(error)")
+            throw RomError.networkError
+        }
+    }
+
     func isRomFavorite(romId: Int) async throws -> Bool {
         logger.info("🔍 Checking favorite status for ROM \(romId)")
         

@@ -17,6 +17,7 @@ struct PlatformROMsListView: View {
     @State private var launchingRomId: Int?
     @State private var romPendingDelete: DownloadedROM?
     private let launchUseCase: PLaunchEmulatorUseCase = DefaultDependencyFactory.shared.makeLaunchEmulatorUseCase()
+    private let updateLastPlayedUseCase: PUpdateLastPlayedUseCase = DefaultDependencyFactory.shared.makeUpdateLastPlayedUseCase()
 
     var body: some View {
         List {
@@ -86,6 +87,9 @@ struct PlatformROMsListView: View {
         }
         if case .success(let decision) = result {
             launchDecision = decision
+            Task { [updateLastPlayedUseCase] in
+                try? await updateLastPlayedUseCase.execute(romId: rom.id)
+            }
         } else {
             launchingRomId = nil
         }
