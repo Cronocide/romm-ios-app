@@ -63,7 +63,7 @@ public struct UserSchema: Codable, JSONEncodable, Hashable {
         email = try container.decodeIfPresent(String.self, forKey: .email)
         enabled = try container.decode(Bool.self, forKey: .enabled)
         role = try container.decode(Role.self, forKey: .role)
-        oauthScopes = try container.decode([String].self, forKey: .oauthScopes)
+        oauthScopes = container.decodeIfPresentOrDefault([String].self, forKey: .oauthScopes, default: [])
         avatarPath = try container.decode(String.self, forKey: .avatarPath)
         // Handle optional Date fields flexibly
         if container.contains(.lastLogin) {

@@ -43,6 +43,20 @@ public struct RomMetadataSchema: Codable, JSONEncodable, Hashable {
         case averageRating = "average_rating"
     }
 
+    // Decodable protocol methods
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        romId = try container.decode(Int.self, forKey: .romId)
+        genres = container.decodeIfPresentOrDefault([String].self, forKey: .genres, default: [])
+        franchises = container.decodeIfPresentOrDefault([String].self, forKey: .franchises, default: [])
+        collections = container.decodeIfPresentOrDefault([String].self, forKey: .collections, default: [])
+        companies = container.decodeIfPresentOrDefault([String].self, forKey: .companies, default: [])
+        gameModes = container.decodeIfPresentOrDefault([String].self, forKey: .gameModes, default: [])
+        ageRatings = container.decodeIfPresentOrDefault([String].self, forKey: .ageRatings, default: [])
+        firstReleaseDate = try container.decodeIfPresent(Int.self, forKey: .firstReleaseDate)
+        averageRating = try container.decodeIfPresent(Double.self, forKey: .averageRating)
+    }
+
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {

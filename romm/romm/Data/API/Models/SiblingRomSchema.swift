@@ -31,6 +31,16 @@ public struct SiblingRomSchema: Codable, JSONEncodable, Hashable {
         case sortComparator = "sort_comparator"
     }
 
+    // Decodable protocol methods
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(Int.self, forKey: .id)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        fsNameNoTags = container.decodeFlexibleString(forKey: .fsNameNoTags, default: "")
+        fsNameNoExt = container.decodeFlexibleString(forKey: .fsNameNoExt, default: "")
+        sortComparator = container.decodeFlexibleString(forKey: .sortComparator, default: "")
+    }
+
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {

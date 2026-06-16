@@ -257,15 +257,15 @@ public struct DetailedRomSchema: Codable, JSONEncodable, Hashable {
         createdAt = try container.decodeFlexibleDate(forKey: .createdAt) ?? .distantPast
         updatedAt = try container.decodeFlexibleDate(forKey: .updatedAt) ?? .distantPast
         missingFromFs = try container.decode(Bool.self, forKey: .missingFromFs)
-        siblings = try container.decode([SiblingRomSchema].self, forKey: .siblings)
+        siblings = container.decodeLossyArray(SiblingRomSchema.self, forKey: .siblings)
         romUser = try container.decode(RomUserSchema.self, forKey: .romUser)
         mergedRaMetadata = try container.decodeIfPresent(RomRAMetadata.self, forKey: .mergedRaMetadata)
-        mergedScreenshots = try container.decode([String].self, forKey: .mergedScreenshots)
-        userSaves = try container.decode([SaveSchema].self, forKey: .userSaves)
-        userStates = try container.decode([StateSchema].self, forKey: .userStates)
-        userScreenshots = try container.decode([ScreenshotSchema].self, forKey: .userScreenshots)
+        mergedScreenshots = container.decodeIfPresentOrDefault([String].self, forKey: .mergedScreenshots, default: [])
+        userSaves = container.decodeLossyArray(SaveSchema.self, forKey: .userSaves)
+        userStates = container.decodeLossyArray(StateSchema.self, forKey: .userStates)
+        userScreenshots = container.decodeLossyArray(ScreenshotSchema.self, forKey: .userScreenshots)
         userNotes = try container.decodeIfPresent([UserNotesSchema].self, forKey: .userNotes)
-        userCollections = try container.decode([UserCollectionSchema].self, forKey: .userCollections)
+        userCollections = container.decodeLossyArray(UserCollectionSchema.self, forKey: .userCollections)
     }
 
     // Encodable protocol methods

@@ -237,7 +237,7 @@ public struct SimpleRomSchema: Codable, JSONEncodable, Hashable {
         createdAt = try container.decodeFlexibleDate(forKey: .createdAt)
         updatedAt = try container.decodeFlexibleDate(forKey: .updatedAt)
         missingFromFs = try container.decode(Bool.self, forKey: .missingFromFs)
-        siblings = try container.decode([SiblingRomSchema].self, forKey: .siblings)
+        siblings = container.decodeLossyArray(SiblingRomSchema.self, forKey: .siblings)
         romUser = try container.decode(RomUserSchema.self, forKey: .romUser)
     }
 
