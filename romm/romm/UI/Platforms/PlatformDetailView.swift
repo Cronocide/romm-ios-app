@@ -105,12 +105,8 @@ struct PlatformDetailView: View {
             case .empty(let message):
                 EmptyRomsView(message: message)
                 
-            case .error(let errorMessage):
-                PlatformErrorView(message: errorMessage) {
-                    Task {
-                        await viewModel.loadRoms(for: platform.id)
-                    }
-                }
+            case .error:
+                Color(.systemGroupedBackground).ignoresSafeArea()
             }
         }
         .navigationTitle(platform.name)
@@ -187,6 +183,17 @@ struct PlatformDetailView: View {
                 }
             }
         }
+        .alert("Error", isPresented: Binding(
+            get: { if case .error = viewModel.viewState { return true }; return false },
+            set: { if !$0 { viewModel.dismissError() } }
+        ), actions: {
+            Button("Retry") {
+                Task { await viewModel.loadRoms(for: platform.id) }
+            }
+            Button("Dismiss", role: .cancel) { }
+        }, message: {
+            if case .error(let msg) = viewModel.viewState { Text(msg) }
+        })
     }
     
     
@@ -500,37 +507,6 @@ struct EmptyRomsView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-struct PlatformErrorView: View {
-    let message: String
-    let onRetry: () -> Void
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 60))
-                .foregroundColor(.orange)
-            
-            VStack(spacing: 8) {
-                Text("Error")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text(message)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-            }
-            
-            Button("Retry") {
-                onRetry()
-            }
-            .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

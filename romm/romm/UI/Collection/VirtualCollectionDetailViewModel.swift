@@ -26,6 +26,10 @@ class VirtualCollectionDetailViewModel {
         self.virtualCollectionId = virtualCollectionId
     }
     
+    func dismissError() {
+        viewState = .loaded
+    }
+
     func loadVirtualCollection() async {
         viewState = .loading
         

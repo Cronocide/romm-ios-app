@@ -75,6 +75,10 @@ class PlatformDetailViewModel {
         }
     }
 
+    func dismissError() {
+        viewState = .empty("")
+    }
+
     private func loadViewMode() {
         viewMode = getViewModeUseCase.execute()
     }

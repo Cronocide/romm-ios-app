@@ -152,35 +152,3 @@ struct LoadingRomListView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
-
-// MARK: - Error State Component
-struct ErrorRomListView: View {
-    let message: String
-    let onRetry: () -> Void
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 60))
-                .foregroundColor(.orange)
-            
-            VStack(spacing: 8) {
-                Text("Error")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text(message)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-            }
-            
-            Button("Retry") {
-                onRetry()
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}

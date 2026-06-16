@@ -36,30 +36,8 @@ struct VirtualCollectionDetailView: View {
                         .foregroundColor(.secondary)
                 }
                 
-            case .error(let errorMessage):
-                VStack(spacing: 20) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 60))
-                        .foregroundColor(.orange)
-                    
-                    Text("Error")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    
-                    Text(errorMessage)
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                    
-                    Button("Retry") {
-                        Task {
-                            await viewModel.loadVirtualCollection()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .error:
+                Color(.systemGroupedBackground).ignoresSafeArea()
             }
         }
         .navigationTitle(virtualCollection.name)
@@ -67,5 +45,16 @@ struct VirtualCollectionDetailView: View {
         .task {
             await viewModel.loadVirtualCollection()
         }
+        .alert("Error", isPresented: Binding(
+            get: { if case .error = viewModel.viewState { return true }; return false },
+            set: { if !$0 { viewModel.dismissError() } }
+        ), actions: {
+            Button("Retry") {
+                Task { await viewModel.loadVirtualCollection() }
+            }
+            Button("Dismiss", role: .cancel) { }
+        }, message: {
+            if case .error(let msg) = viewModel.viewState { Text(msg) }
+        })
     }
 }

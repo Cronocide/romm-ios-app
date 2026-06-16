@@ -75,12 +75,8 @@ struct CollectionDetailView: View {
                     iconName: "folder"
                 )
                 
-            case .error(let errorMessage):
-                ErrorRomListView(message: errorMessage) {
-                    Task {
-                        await viewModel.loadRoms()
-                    }
-                }
+            case .error:
+                Color(.systemGroupedBackground).ignoresSafeArea()
             }
         }
         .navigationTitle(collection.name)
@@ -127,6 +123,17 @@ struct CollectionDetailView: View {
             guard case .loading = viewModel.viewState else { return }
             await viewModel.loadRoms()
         }
+        .alert("Error", isPresented: Binding(
+            get: { if case .error = viewModel.viewState { return true }; return false },
+            set: { if !$0 { viewModel.dismissError() } }
+        ), actions: {
+            Button("Retry") {
+                Task { await viewModel.loadRoms() }
+            }
+            Button("Dismiss", role: .cancel) { }
+        }, message: {
+            if case .error(let msg) = viewModel.viewState { Text(msg) }
+        })
     }
     
     private func filteredRoms(from roms: [Rom]) -> [Rom] {

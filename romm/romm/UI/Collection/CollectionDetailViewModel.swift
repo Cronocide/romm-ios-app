@@ -38,6 +38,10 @@ class CollectionDetailViewModel {
         self.collectionId = collectionId
         self.getRomsUseCase = factory.makeGetRomsUseCase()
     }
+
+    func dismissError() {
+        viewState = .empty("")
+    }
     
     func loadRoms() async {
         guard case .loading = viewState else { return }
