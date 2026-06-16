@@ -133,26 +133,16 @@ class SFTPUploadViewModel {
     
     private func loadConnections() {
         connections = getAllConnectionsUseCase.execute()
-
-        // If no SFTP connections (or auto-start requested), select local device by default
-        if connections.isEmpty || autoStartLocalDownload {
-            isLocalDeviceSelected = true
-            selectedConnection = nil
-        } else {
-            selectedConnection = manageDefaultConnectionUseCase.getDefaultConnection() ?? connections.first
-            isLocalDeviceSelected = false
-        }
+        isLocalDeviceSelected = true
+        selectedConnection = nil
     }
 
-    /// Starts a local download automatically if requested at init and not yet started.
-    /// Waits until at least one file is selected (loadAvailableFiles runs async).
     func triggerAutoStartIfNeeded() async {
         guard autoStartLocalDownload, !didAutoStart else { return }
 
-        // Wait briefly for available files to load, then proceed.
         var waited = 0
         while availableFiles.isEmpty && waited < 50 {
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            try? await Task.sleep(nanoseconds: 100_000_000)
             waited += 1
         }
 
@@ -178,16 +168,31 @@ class SFTPUploadViewModel {
                 print("🔍 Debug: Successfully got ROM details")
                 print("🔍 Debug: ROM details name: \(romDetails.name)")
                 print("🔍 Debug: ROM details files count: \(romDetails.files.count)")
-                
-                let files = romDetails.files.map { RomFileInfo(from: $0) }
-                
+
+                var files: [RomFileInfo] = []
+                if !romDetails.fsName.isEmpty {
+                    let mainFile = RomFileInfo(
+                        id: romDetails.fsName,
+                        fileName: romDetails.fsName,
+                        fileSizeBytes: Int64(romDetails.fsSizeBytes),
+                        fileExtension: (romDetails.fsName as NSString).pathExtension
+                    )
+                    files.append(mainFile)
+                    print("🔍 Debug: Main ROM file: \(romDetails.fsName)")
+                }
+                for supplementary in romDetails.files {
+                    if supplementary.fileName != romDetails.fsName && !supplementary.fileName.isEmpty {
+                        files.append(RomFileInfo(from: supplementary))
+                    }
+                }
+
                 for (index, file) in files.enumerated() {
                     print("🔍 Debug: File \(index): \(file.fileName) (\(file.fileSizeBytes) bytes)")
                 }
-                
+
                 await MainActor.run {
                     self.availableFiles = files
-                    
+
                     // Auto-select the first file by default
                     if let firstFile = files.first {
                         print("🔍 Debug: Auto-selecting first file: \(firstFile.fileName)")
