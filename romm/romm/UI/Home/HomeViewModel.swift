@@ -14,10 +14,10 @@ class HomeViewModel {
     var platforms: [Platform] = []
     var collections: [Collection] = []
 
-    var isLoadingRecentlyAdded = false
-    var isLoadingContinuePlaying = false
-    var isLoadingPlatforms = false
-    var isLoadingCollections = false
+    var isLoadingRecentlyAdded = true
+    var isLoadingContinuePlaying = true
+    var isLoadingPlatforms = true
+    var isLoadingCollections = true
 
     var hasStartedLoading = false
 

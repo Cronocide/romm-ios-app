@@ -10,33 +10,26 @@ struct HomeView: View {
     @EnvironmentObject var appData: AppData
 
     var body: some View {
-        Group {
-            if !viewModel.hasStartedLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                contentView
-            }
-        }
-        .background(Color(.systemGroupedBackground))
-        .navigationTitle("Home")
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                NavigationLink {
-                    SettingsView()
-                } label: {
-                    Image(systemName: "gear")
+        contentView
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Home")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        Image(systemName: "gear")
+                    }
                 }
             }
-        }
-        .refreshable {
-            await viewModel.load()
-        }
-        .task {
-            if !viewModel.hasStartedLoading {
+            .refreshable {
                 await viewModel.load()
             }
-        }
+            .task {
+                if !viewModel.hasStartedLoading {
+                    await viewModel.load()
+                }
+            }
     }
 
     @ViewBuilder
