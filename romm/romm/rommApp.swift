@@ -12,8 +12,8 @@ struct rommApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     init() {
-        // Initialize Kingfisher cache configuration at app startup
         _ = KingfisherCacheManager.shared
+        KingfisherCacheManager.shared.configureAuth(tokenProvider: TokenProvider())
     }
 
     var body: some Scene {

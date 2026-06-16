@@ -126,4 +126,31 @@ class KingfisherCacheManager: ObservableObject {
     func forceCacheCleanup() {
         cleanCacheToLimit()
     }
+
+    // MARK: - Auth
+
+    func configureAuth(tokenProvider: PTokenProvider) {
+        guard let serverURL = tokenProvider.getServerURL(),
+              let serverHost = URL(string: serverURL)?.host else { return }
+
+        let modifier = AnyModifier { request in
+            guard request.url?.host == serverHost else { return request }
+            var r = request
+            let authMethod = tokenProvider.getAuthMethod()
+            switch authMethod {
+            case .clientToken:
+                if let token = tokenProvider.getClientToken() {
+                    r.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                }
+            case .classic:
+                if let username = tokenProvider.getUsername(),
+                   let password = tokenProvider.getPassword(),
+                   let data = "\(username):\(password)".data(using: .utf8) {
+                    r.setValue("Basic \(data.base64EncodedString())", forHTTPHeaderField: "Authorization")
+                }
+            }
+            return r
+        }
+        KingfisherManager.shared.defaultOptions += [.requestModifier(modifier)]
+    }
 }
