@@ -157,7 +157,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		5D2B9D032E5BA8C200F5233E /* mft.xcframework */ = {isa = PBXFileReference; expectedSignature = "AppleDeveloperProgram:8J69P655GN:Ilyas Hallak"; lastKnownFileType = wrapper.xcframework; name = mft.xcframework; path = "../../mft 2025-08-24 21-54-12/mft.xcframework"; sourceTree = "<group>"; };
+		5D2B9D032E5BA8C200F5233E /* mft.xcframework */ = {isa = PBXFileReference; expectedSignature = "AppleDeveloperProgram:8J69P655GN:Ilyas Hallak"; lastKnownFileType = wrapper.xcframework; name = mft.xcframework; path = ../mft.xcframework; sourceTree = "<group>"; };
 		5D93A11E2FBF55AE00086CE8 /* GPGXDeltaCore.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = GPGXDeltaCore.xcodeproj; path = ../Vendor/GPGXDeltaCore/GPGXDeltaCore.xcodeproj; sourceTree = SOURCE_ROOT; };
 		5D93A1342FBF67DB00086CE8 /* NESDeltaCore.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = NESDeltaCore.xcodeproj; path = ../Vendor/NESDeltaCore/NESDeltaCore.xcodeproj; sourceTree = SOURCE_ROOT; };
 		5D93A1412FBF67E300086CE8 /* N64DeltaCore.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = N64DeltaCore.xcodeproj; path = ../Vendor/N64DeltaCore/N64DeltaCore.xcodeproj; sourceTree = SOURCE_ROOT; };
