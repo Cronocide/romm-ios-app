@@ -168,8 +168,18 @@ jobs:
           grep -hoE "'[^']+' is only available in iOS [0-9.]+ or newer" "$log" 2>/dev/null \
             | sort | uniq -c | sort -rn > "$avail" || true
 
+          # Distinct source locations hit by an availability error — the
+          # progress metric for the backport (should trend to zero).
+          sites=build/availability-sites.txt
+          grep -hE "is only available in iOS [0-9.]+ or newer" "$log" 2>/dev/null \
+            | sed 's|^.*/romm-ios-app/||' | cut -d: -f1 | sort | uniq -c | sort -rn > "$sites" || true
+
+          # Everything that is NOT an availability error. Kept separate so a
+          # mistake in our own refactoring is not buried under the migration
+          # surface we already expect to see.
           errors=build/errors.txt
           grep -hE "^.*: (error|fatal error): " "$log" 2>/dev/null \
+            | grep -vE "is only available in iOS [0-9.]+ or newer" \
             | sed 's|^.*/romm-ios-app/||' | sort -u > "$errors" || true
 
           {
@@ -194,11 +204,21 @@ jobs:
               echo '```'
               echo ""
               echo "Total availability errors: $(awk '{s+=$1} END {print s+0}' "$avail")"
+              echo ""
+              echo "Files affected: $(wc -l < "$sites" | tr -d ' ')"
+              echo ""
+              echo "<details><summary>By file</summary>"
+              echo ""
+              echo '```'
+              head -60 "$sites"
+              echo '```'
+              echo ""
+              echo "</details>"
             fi
 
             if [ -s "$errors" ]; then
               echo ""
-              echo "### Compiler errors ($(wc -l < "$errors" | tr -d ' ') unique)"
+              echo "### Other compiler errors ($(wc -l < "$errors" | tr -d ' ') unique, availability excluded)"
               echo ""
               echo '```'
               head -80 "$errors"
@@ -222,6 +242,7 @@ jobs:
             build/xcodebuild.log
             build/errors.txt
             build/availability.txt
+            build/availability-sites.txt
           if-no-files-found: warn
           retention-days: 14
 
