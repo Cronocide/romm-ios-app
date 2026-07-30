@@ -1,0 +1,228 @@
+name: CI
+
+# Compile-check the app on every push to main.
+#
+# This exists because the project is being developed without a Mac: GitHub
+# Actions is the only compiler available, so this workflow is optimised for
+# fast, readable failure output rather than for producing artifacts.
+#
+# Notes that drive the design:
+#   * The build targets a DEVICE destination, not a simulator. The vendored
+#     `pcsx_rearmed_libretro_ios.framework` is arm64/iOS-only with no simulator
+#     slice, so a simulator build cannot link. Signing is disabled instead.
+#   * For the same reason the unit/UI tests cannot run here — they need a
+#     simulator. This workflow is a compile gate only.
+#   * `deployment_target` lets you smoke-test a lower IPHONEOS_DEPLOYMENT_TARGET
+#     (e.g. 16.0) WITHOUT committing the change to the project, which is how the
+#     iOS 16 backport is being scoped. The override applies to every target,
+#     including the vendored emulator cores.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deployment_target:
+        description: 'Override IPHONEOS_DEPLOYMENT_TARGET (e.g. 16.0). Empty = use the project setting.'
+        required: false
+        type: string
+      clean_build:
+        description: 'Ignore the DerivedData cache and build from scratch'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Debug workflow: a newer push supersedes an in-flight run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (device, unsigned)
+    runs-on: macos-26
+    # The vendored cores (melonDS, mupen64plus, Genesis-Plus-GX, gambatte,
+    # snes9x, visualboyadvance-m) are large C/C++ trees; a cold build is slow.
+    timeout-minutes: 90
+    env:
+      PROJECT: romm/romm.xcodeproj
+      SCHEME: romm
+      XCODE_VERSION: ''
+      DEPLOYMENT_TARGET: ${{ inputs.deployment_target }}
+    steps:
+      # N64DeltaCore pins a nested submodule over the unauthenticated git://
+      # protocol on SourceForge, which is unreliable from hosted runners.
+      # Rewrite it to https before actions/checkout fetches submodules.
+      - name: Harden submodule transport
+        run: |
+          set -euo pipefail
+          git config --global url."https://git.code.sf.net/p/libpng/code".insteadOf "git://git.code.sf.net/p/libpng/code"
+          git config --global protocol.git.allow never
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          if [ -n "$XCODE_VERSION" ]; then
+            app="/Applications/Xcode_${XCODE_VERSION}.app"
+            if [ ! -d "$app" ]; then
+              echo "::error::Xcode $XCODE_VERSION not installed. Available:"; ls -d /Applications/Xcode*.app; exit 1
+            fi
+          else
+            app="$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          fi
+          sudo xcode-select -s "$app/Contents/Developer"
+          xcodebuild -version
+
+      - name: Compute cache key inputs
+        id: keys
+        run: |
+          set -euo pipefail
+          # Vendored core sources only change when a submodule pointer moves.
+          echo "vendor=$(git ls-tree HEAD Vendor | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: build/SourcePackages
+          key: spm-${{ hashFiles('romm/romm.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: spm-
+
+      # DerivedData caching is best-effort. Xcode invalidates aggressively, but
+      # when it hits it saves recompiling the C/C++ emulator cores.
+      - name: Cache DerivedData
+        if: ${{ !inputs.clean_build }}
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData
+          key: dd-${{ steps.keys.outputs.vendor }}-${{ hashFiles('romm/romm.xcodeproj/project.pbxproj') }}-${{ github.sha }}
+          restore-keys: |
+            dd-${{ steps.keys.outputs.vendor }}-${{ hashFiles('romm/romm.xcodeproj/project.pbxproj') }}-
+            dd-${{ steps.keys.outputs.vendor }}-
+
+      - name: Resolve Swift package dependencies
+        run: |
+          set -euo pipefail
+          xcodebuild -resolvePackageDependencies \
+            -project "$PROJECT" -scheme "$SCHEME" \
+            -clonedSourcePackagesDirPath build/SourcePackages
+
+      - name: Build
+        id: build
+        run: |
+          set -euo pipefail
+          mkdir -p build
+
+          build_cmd=(
+            xcodebuild build
+            -project "$PROJECT"
+            -scheme "$SCHEME"
+            -configuration Debug
+            -destination 'generic/platform=iOS'
+            -derivedDataPath build/DerivedData
+            -clonedSourcePackagesDirPath build/SourcePackages
+            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_REQUIRED=NO
+            CODE_SIGN_IDENTITY=
+            CODE_SIGN_ENTITLEMENTS=
+            DEVELOPMENT_TEAM=
+          )
+
+          if [ -n "$DEPLOYMENT_TARGET" ]; then
+            echo "Overriding deployment target: $DEPLOYMENT_TARGET"
+            build_cmd+=(IPHONEOS_DEPLOYMENT_TARGET="$DEPLOYMENT_TARGET")
+          fi
+
+          # Never fail here — the digest step below reports the errors first.
+          set +e
+          if command -v xcbeautify >/dev/null 2>&1; then
+            "${build_cmd[@]}" 2>&1 | tee build/xcodebuild.log | xcbeautify --renderer github-actions
+          else
+            "${build_cmd[@]}" 2>&1 | tee build/xcodebuild.log
+          fi
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "xcodebuild exited $status"
+
+      - name: Error digest
+        if: always()
+        run: |
+          set -euo pipefail
+          log=build/xcodebuild.log
+          [ -f "$log" ] || { echo "No build log produced."; exit 0; }
+
+          # Availability errors are the signal that matters for the iOS 16
+          # backport, so they get their own section, aggregated by API.
+          avail=build/availability.txt
+          grep -hoE "'[^']+' is only available in iOS [0-9.]+ or newer" "$log" 2>/dev/null \
+            | sort | uniq -c | sort -rn > "$avail" || true
+
+          errors=build/errors.txt
+          grep -hE "^.*: (error|fatal error): " "$log" 2>/dev/null \
+            | sed 's|^.*/romm-ios-app/||' | sort -u > "$errors" || true
+
+          {
+            echo "## Build result"
+            echo ""
+            if [ "${{ steps.build.outputs.status }}" = "0" ]; then
+              echo "Build **succeeded**."
+            else
+              echo "Build **failed** (xcodebuild exit ${{ steps.build.outputs.status }})."
+            fi
+            if [ -n "${DEPLOYMENT_TARGET:-}" ]; then
+              echo ""
+              echo "Deployment target override: \`$DEPLOYMENT_TARGET\`"
+            fi
+
+            if [ -s "$avail" ]; then
+              echo ""
+              echo "### Availability errors (grouped)"
+              echo ""
+              echo '```'
+              head -60 "$avail"
+              echo '```'
+              echo ""
+              echo "Total availability errors: $(awk '{s+=$1} END {print s+0}' "$avail")"
+            fi
+
+            if [ -s "$errors" ]; then
+              echo ""
+              echo "### Compiler errors ($(wc -l < "$errors" | tr -d ' ') unique)"
+              echo ""
+              echo '```'
+              head -80 "$errors"
+              echo '```'
+              if [ "$(wc -l < "$errors")" -gt 80 ]; then
+                echo "_(truncated — see the build-log artifact)_"
+              fi
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Mirror to the console so it is visible without opening the summary.
+          if [ -s "$avail" ]; then echo "=== availability errors ==="; head -40 "$avail"; fi
+          if [ -s "$errors" ]; then echo "=== compiler errors ==="; head -40 "$errors"; fi
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ github.run_number }}
+          path: |
+            build/xcodebuild.log
+            build/errors.txt
+            build/availability.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Fail if the build failed
+        if: steps.build.outputs.status != '0'
+        run: exit 1
