@@ -58,7 +58,7 @@ struct AppView: View {
                 .padding()
             }
         }
-        .onChange(of: scenePhase) { _, newPhase in
+        .onChange(of: scenePhase) { newPhase in
             if newPhase == .active {
                 logger.debug("App became active - checking server version")
                 Task {

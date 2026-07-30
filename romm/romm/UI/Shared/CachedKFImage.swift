@@ -54,7 +54,7 @@ private struct CachedKFImageLoader<Content: View, Placeholder: View>: View {
         .onAppear {
             loadImage()
         }
-        .onChange(of: url) { _, _ in
+        .onChange(of: url) { _ in
             loadedImage = nil
             loadImage()
         }

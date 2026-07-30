@@ -158,7 +158,7 @@ struct DebugLogViewer: View {
                     }
                 }
                 .listStyle(.plain)
-                .onChange(of: filteredEntries.count) { _, _ in
+                .onChange(of: filteredEntries.count) { _ in
                     if autoScroll, let lastEntry = filteredEntries.last {
                         withAnimation {
                             proxy.scrollTo(lastEntry.id, anchor: .bottom)

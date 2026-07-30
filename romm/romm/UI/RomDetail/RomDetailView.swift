@@ -145,7 +145,7 @@ struct RomDetailView: View {
                             topTrailingRadius: 20
                         )
                     )
-                    .onChange(of: selectedTab) { _, newTab in
+                    .onChange(of: selectedTab) { newTab in
                         if newTab == .manual && viewModel.manual == nil && !viewModel.isLoadingManual {
                             Task {
                                 await viewModel.loadManual(for: rom.id)

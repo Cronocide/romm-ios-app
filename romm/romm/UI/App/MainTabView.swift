@@ -17,35 +17,37 @@ struct MainTabView: View {
     
     var body: some View {
         TabView(selection: $appData.selectedTab) {
-            Tab("Home", systemImage: "house", value: AppTab.home) {
-                NavigationStack {
-                    HomeView()
-                }
+            NavigationStack {
+                HomeView()
             }
+            .tabItem { Label("Home", systemImage: "house") }
+            .tag(AppTab.home)
 
-            Tab("Platforms", systemImage: "gamecontroller", value: AppTab.platforms) {
-                NavigationStack {
-                    PlatformsView()
-                }
+            NavigationStack {
+                PlatformsView()
             }
+            .tabItem { Label("Platforms", systemImage: "gamecontroller") }
+            .tag(AppTab.platforms)
 
-            Tab("Collections", systemImage: "books.vertical", value: AppTab.collections) {
-                NavigationStack {
-                    CollectionView()
-                }
+            NavigationStack {
+                CollectionView()
             }
+            .tabItem { Label("Collections", systemImage: "books.vertical") }
+            .tag(AppTab.collections)
 
-            Tab("Downloads", systemImage: "arrow.down.circle", value: AppTab.downloads) {
-                NavigationStack {
-                    LocalDeviceDetailView()
-                }
+            NavigationStack {
+                LocalDeviceDetailView()
             }
+            .tabItem { Label("Downloads", systemImage: "arrow.down.circle") }
+            .tag(AppTab.downloads)
 
-            Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: .search) {
-                NavigationStack {
-                    SearchView()
-                }
+            // Note: the iOS 18 `role: .search` treatment has no iOS 16
+            // equivalent, so Search is an ordinary tab here.
+            NavigationStack {
+                SearchView()
             }
+            .tabItem { Label("Search", systemImage: "magnifyingglass") }
+            .tag(AppTab.search)
         }
     }
 }

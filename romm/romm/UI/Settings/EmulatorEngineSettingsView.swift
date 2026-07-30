@@ -21,6 +21,6 @@ struct EmulatorEngineSettingsView: View {
             Section(footer: Text("Native runs emulation on-device via embedded cores (DeltaCore for Game Boy / Color, GBA, NES, SNES, N64, Nintendo DS, Sega Genesis; libretro for PlayStation). Other platforms fall back to Web automatically.")) { EmptyView() }
         }
         .navigationTitle("Emulator")
-        .onChange(of: selection) { _, new in preference.current = new }
+        .onChange(of: selection) { new in preference.current = new }
     }
 }

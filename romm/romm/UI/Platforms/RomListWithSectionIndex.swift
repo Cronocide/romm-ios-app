@@ -161,12 +161,12 @@ struct RomListWithSectionIndex: View {
                 lastRomCount = roms.count
             }
         }
-        .onChange(of: roms.count) { oldValue, newValue in
-            // Clear triggered roms when new data is loaded
-            if newValue != oldValue {
-                loadMoreTriggeredRoms.removeAll()
-                lastRomCount = newValue
-            }
+        .onChange(of: roms.count) { newValue in
+            // Clear triggered roms when new data is loaded.
+            // The previous two-parameter form guarded on `newValue != oldValue`,
+            // which onChange already guarantees, so the body ran unconditionally.
+            loadMoreTriggeredRoms.removeAll()
+            lastRomCount = newValue
         }
     }
     

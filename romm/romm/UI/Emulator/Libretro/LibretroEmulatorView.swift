@@ -42,7 +42,7 @@ struct LibretroEmulatorView: View {
             viewModel.bootstrap()
         }
         .onDisappear { viewModel.teardown() }
-        .onChange(of: scenePhase) { _, phase in
+        .onChange(of: scenePhase) { phase in
             // Gate on session presence: after teardown the session is nil,
             // and a stray .background firing here would otherwise reach the
             // singleton frontend with stale state.
@@ -53,7 +53,7 @@ struct LibretroEmulatorView: View {
             @unknown default: break
             }
         }
-        .onChange(of: showMenu) { _, presented in
+        .onChange(of: showMenu) { presented in
             // Skip resume when the user is quitting — the emulator is about
             // to be torn down, kicking the core run-loop back to life would
             // race with dlclose().
@@ -217,7 +217,7 @@ private struct LibretroMenuSheet: View {
                 }
                 .pickerStyle(.segmented)
                 .frame(maxWidth: 240)
-                .onChange(of: aspectRatio) { _, newValue in
+                .onChange(of: aspectRatio) { newValue in
                     aspectRatioPreference.psx = newValue
                     session?.reloadAspectRatio()
                 }

@@ -32,7 +32,7 @@ struct SearchView: View {
             } message: {
                 Text(searchViewModel.errorMessage ?? "")
             }
-            .onChange(of: searchText) { _, newValue in
+            .onChange(of: searchText) { newValue in
                 searchViewModel.scheduleSearch(query: newValue)
             }
             .onDisappear {

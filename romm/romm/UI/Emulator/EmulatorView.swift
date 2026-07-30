@@ -115,7 +115,7 @@ struct EmulatorView: View {
             // Start emulator when view appears
             viewModel.startEmulator()
         }
-        .onChange(of: viewModel.emulatorURL) { _, newURL in
+        .onChange(of: viewModel.emulatorURL) { newURL in
             if let newURL {
                 print("🔗 EmulatorView detected emulatorURL change: \(newURL.absoluteString)")
             } else {

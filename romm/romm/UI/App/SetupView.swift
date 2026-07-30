@@ -173,7 +173,7 @@ struct SetupView: View {
                     .disableAutocorrection(true)
                     .disabled(serverValidated)
                     .opacity(serverValidated ? 0.7 : 1.0)
-                    .onChange(of: serverURL) { _, _ in
+                    .onChange(of: serverURL) { _ in
                         // Reset validation when URL changes
                         if serverValidated {
                             resetServerValidation()
@@ -820,7 +820,7 @@ struct ConnectionDebugPanel: View {
                     .frame(maxHeight: 150)
                     .background(Color(.systemGray6))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .onChange(of: logs.count) { _, _ in
+                    .onChange(of: logs.count) { _ in
                         if let lastLog = logs.last {
                             withAnimation {
                                 proxy.scrollTo(lastLog.id, anchor: .bottom)

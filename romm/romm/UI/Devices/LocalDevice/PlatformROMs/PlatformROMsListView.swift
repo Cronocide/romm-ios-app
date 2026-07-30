@@ -66,8 +66,15 @@ struct PlatformROMsListView: View {
         }
         .navigationTitle(viewModel.displayName(forPlatformName: platformName))
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(item: $detailRom) { rom in
-            RomDetailView(rom: rom.toRom())
+        .navigationDestination(
+            isPresented: Binding(
+                get: { detailRom != nil },
+                set: { if !$0 { detailRom = nil } }
+            )
+        ) {
+            if let rom = detailRom {
+                RomDetailView(rom: rom.toRom())
+            }
         }
         .fullScreenCover(item: $launchDecision, onDismiss: {
             launchingRomId = nil

@@ -42,14 +42,14 @@ struct NativeEmulatorView: View {
         .onDisappear {
             viewModel.teardown()
         }
-        .onChange(of: scenePhase) { _, phase in
+        .onChange(of: scenePhase) { phase in
             switch phase {
             case .active: viewModel.session?.resume()
             case .inactive, .background: viewModel.session?.pause()
             @unknown default: break
             }
         }
-        .onChange(of: showMenu) { _, presented in
+        .onChange(of: showMenu) { presented in
             if presented {
                 viewModel.session?.pause()
             } else {
