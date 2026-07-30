@@ -9,6 +9,37 @@ framework — is mechanical but wide.
 
 ---
 
+## Status
+
+**The app compiles at iOS 16.0.** Steps 1–10 below are done and CI is green with both the
+availability-error and compiler-error digests empty.
+
+| Step | State |
+|---|---|
+| 1. CI harness, green baseline | ✅ |
+| 2. Measure the 16.0 error surface | ✅ (superseded — committed the target instead of probing) |
+| 3. SPM: SWCompression 4.8.6, BitByteData pinned < 2.1.0 | ✅ |
+| 4. Deployment target → 16.0 (6 configurations) | ✅ |
+| 5. 25 `@Observable` → `ObservableObject` | ✅ |
+| 6. 29 view ownership sites | ✅ |
+| 7. 15 `onChange` sites, `@Bindable` | ✅ |
+| 8. `MainActor.assumeIsolated` × 5 | ✅ |
+| 9. iOS 18 `Tab {}` builder | ✅ |
+| 10. `.navigationDestination(item:)` | ✅ |
+| 11. `ConnectionLogger` subscription regression | ✅ |
+| 11. `SFTPDevicesViewModel` off-main publishing | ✅ |
+
+**What "compiles" does and does not mean.** There is no automated test signal (§1) and no
+runtime verification. Everything in §6 is invisible to the compiler and to CI. Sideloading
+the unsigned IPA onto a real iOS 16 device is still required before believing this works.
+
+Known and deliberately not addressed: `SetupView` reads `appViewModel.appData.errorMessage`,
+and nested `ObservableObject`s do not propagate through an outer one, so that error text is
+not reactive. This predates the backport — Observation did not track a nested
+`ObservableObject`'s `@Published` either — so it was left alone to keep the diff attributable.
+
+---
+
 ## 1. The binding constraint: there is no Mac
 
 Every decision below follows from this. GitHub Actions is the only available compiler, so:

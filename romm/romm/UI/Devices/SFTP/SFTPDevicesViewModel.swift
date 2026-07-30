@@ -1,15 +1,12 @@
 import Foundation
 
-// NOTE: this is the only view model in the app that is not @MainActor, and
-// loadConnections() is reached from non-isolated async contexts
-// (loadConnectionsAsync, forceRefreshConnections, deleteConnection), so the
-// @Published mutations above can occur off the main thread and trip SwiftUI's
-// "Publishing changes from background threads is not allowed" runtime warning.
-//
-// Isolation is deliberately left unchanged here: annotating the class
-// @MainActor cascades into `onSave: viewModel.saveConnection` (a bare closure
-// reference in SFTPDevicesView) and into deinit -> cancelAllConnectionTests().
-// Fix it as a separate change once the build is green and it can be verified.
+// This is the only view model that is not @MainActor as a whole. Rather than
+// isolating the class -- which would cascade into `onSave: viewModel.saveConnection`
+// (a bare closure reference in SFTPDevicesView) and into deinit ->
+// cancelAllConnectionTests() -- only the async entry points that could run off
+// the main thread are isolated. loadConnections() stays non-isolated: a
+// non-isolated sync function runs on its caller's thread, so main-isolated
+// callers make its @Published mutations main-safe.
 class SFTPDevicesViewModel: ObservableObject {
     @Published var connections: [SFTPConnection] = []
     @Published var isLoading = false
@@ -46,6 +43,7 @@ class SFTPDevicesViewModel: ObservableObject {
         connections = getAllConnectionsUseCase.execute()
     }
 
+    @MainActor
     func loadConnectionsAsync() async {
         // Only load once per ViewModel lifecycle to prevent repeated tests on every screen open
         guard !hasLoadedOnce else { return }
@@ -64,6 +62,7 @@ class SFTPDevicesViewModel: ObservableObject {
         }
     }
     
+    @MainActor
     func forceRefreshConnections() async {
         loadConnections()
         await refreshConnectionStatuses()
@@ -91,6 +90,7 @@ class SFTPDevicesViewModel: ObservableObject {
         }
     }
     
+    @MainActor
     func deleteConnection(_ connection: SFTPConnection) async {
         do {
             try deleteConnectionUseCase.execute(connection)
@@ -168,6 +168,7 @@ class SFTPDevicesViewModel: ObservableObject {
         runningTasks[connection.id] = task
     }
     
+    @MainActor
     func refreshConnectionStatuses() async {
         // Set all connections to connecting state immediately for UI feedback
         await MainActor.run {
@@ -187,6 +188,7 @@ class SFTPDevicesViewModel: ObservableObject {
     }
 
     // Load connection statuses from cache only (no network calls)
+    @MainActor
     private func loadStatusesFromCache() async {
         for i in 0..<connections.count {
             let status = await checkConnectionStatusUseCase.execute(for: connections[i], forceRefresh: false)
