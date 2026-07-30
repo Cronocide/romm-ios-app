@@ -35,9 +35,11 @@ on:
 permissions:
   contents: read
 
-# Debug workflow: a newer push supersedes an in-flight run.
+# Debug workflow: a newer push supersedes an in-flight run. The deployment
+# target is part of the key so that dispatching a 16.0 probe does not cancel
+# an in-flight baseline build on the same ref (they answer different questions).
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ inputs.deployment_target || 'project-default' }}
   cancel-in-progress: true
 
 jobs:
