@@ -14,6 +14,12 @@ Join the beta program and help improve the app:
 
 [Join TestFlight Beta](https://testflight.apple.com/join/F4C5mhrC)
 
+### Unsigned IPA
+
+Every release tag also publishes an unsigned IPA on the [Releases page](https://github.com/ilyas-hallak/romm-ios-app/releases). iOS will not install it as-is — sign it with your own Apple ID using [AltStore](https://altstore.io), [SideStore](https://sidestore.io), or [Sideloadly](https://sideloadly.io). Each release lists a SHA-256 checksum.
+
+Maintainers: see [docs/Release-Pipeline.md](docs/Release-Pipeline.md) for how releases are cut.
+
 ## Screenshots
 
 <p align="center">

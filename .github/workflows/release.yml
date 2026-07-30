@@ -1,0 +1,300 @@
+name: Release
+
+# Publishes an unsigned IPA as a GitHub Release asset whenever an authorized
+# maintainer pushes a release tag (v1.1, v1.0.0, v1.0.0-beta.13, ...).
+#
+# Authorization has two independent gates:
+#   1. The `authorize` job checks the pusher against the RELEASE_AUTHORS
+#      repository variable and checks that the tag points at a commit that is
+#      already on a release branch.
+#   2. The `build` job targets the `release` GitHub Environment. Configure that
+#      environment with required reviewers and a `v*` deployment tag rule so a
+#      human has to approve before anything is published.
+#
+# See docs/Release-Pipeline.md for the one-time repository setup.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to (re)build, e.g. v1.1'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    name: Authorize
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.gate.outputs.tag }}
+      version: ${{ steps.gate.outputs.version }}
+      marketing_version: ${{ steps.gate.outputs.marketing_version }}
+      prerelease: ${{ steps.gate.outputs.prerelease }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag and actor
+        id: gate
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          OWNER: ${{ github.repository_owner }}
+          ALLOWLIST: ${{ vars.RELEASE_AUTHORS }}
+          RELEASE_BRANCHES: ${{ vars.RELEASE_BRANCHES }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+
+          # --- 1. tag must look like a release tag -------------------------
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+(\.[0-9]+){1,2}(-[0-9A-Za-z][0-9A-Za-z.-]*)?$'; then
+            echo "::error::'$TAG' is not a release tag. Expected v<major>.<minor>[.<patch>][-prerelease], e.g. v1.1 or v1.0.0-beta.13."
+            exit 1
+          fi
+          version="${TAG#v}"
+          # CFBundleShortVersionString only accepts 1-3 dot separated integers,
+          # so a prerelease suffix is dropped for the bundle version itself.
+          marketing_version="${version%%-*}"
+          prerelease=false
+          if [ "$version" != "$marketing_version" ]; then
+            prerelease=true
+          fi
+
+          # --- 2. pusher must be an authorized release author --------------
+          # RELEASE_AUTHORS is a comma/space/newline separated list of GitHub
+          # logins. When unset, only the repository owner may release.
+          allowlist="${ALLOWLIST:-$OWNER}"
+          authorized=false
+          for login in $(printf '%s' "$allowlist" | tr ',;\n\r\t' '     '); do
+            if [ "$(printf '%s' "$login" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$ACTOR" | tr '[:upper:]' '[:lower:]')" ]; then
+              authorized=true
+              break
+            fi
+          done
+          if [ "$authorized" != "true" ]; then
+            echo "::error::@$ACTOR is not authorized to publish releases. Add the login to the RELEASE_AUTHORS repository variable."
+            exit 1
+          fi
+
+          # --- 3. tag must point at a reviewed commit ----------------------
+          # Guards against a release built from a commit that never landed on a
+          # release branch (e.g. a tag pushed onto an arbitrary fork commit).
+          tag_sha="$(git rev-parse "refs/tags/$TAG^{commit}")"
+          branches="${RELEASE_BRANCHES:-${DEFAULT_BRANCH:-main}}"
+          reachable=false
+          for branch in $(printf '%s' "$branches" | tr ',;\n\r\t' '     '); do
+            if git rev-parse --verify --quiet "refs/remotes/origin/$branch" >/dev/null &&
+               git merge-base --is-ancestor "$tag_sha" "refs/remotes/origin/$branch"; then
+              reachable=true
+              echo "Tag $TAG ($tag_sha) is on origin/$branch."
+              break
+            fi
+          done
+          if [ "$reachable" != "true" ]; then
+            echo "::error::$TAG ($tag_sha) is not reachable from any release branch ($branches). Merge the commit first, or widen the RELEASE_BRANCHES repository variable."
+            exit 1
+          fi
+
+          {
+            echo "tag=$TAG"
+            echo "version=$version"
+            echo "marketing_version=$marketing_version"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Authorized @$ACTOR to release $TAG (bundle version $marketing_version, prerelease=$prerelease)."
+
+  build:
+    name: Build and publish IPA
+    needs: authorize
+    # Protect this environment with required reviewers + a `v*` tag rule to
+    # require manual approval before a release is published.
+    environment: release
+    # macOS 26 image: iOS 26 SDK, satisfies the project's iOS 18.6 deployment
+    # target and the Xcode 16.3+ project format (objectVersion 77).
+    runs-on: macos-26
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.authorize.outputs.tag }}
+      MARKETING_VERSION: ${{ needs.authorize.outputs.marketing_version }}
+      PRERELEASE: ${{ needs.authorize.outputs.prerelease }}
+      PROJECT: romm/romm.xcodeproj
+      SCHEME: romm
+      # Optional pin, e.g. "26.0". Empty selects the newest installed Xcode.
+      XCODE_VERSION: ''
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ needs.authorize.outputs.tag }}
+          # The emulator cores in Vendor/ are submodules and are linked into
+          # the app, so the build needs them (and their nested submodules).
+          submodules: recursive
+          # Nothing here needs history; the ancestry check already ran in
+          # `authorize` and release notes are generated server-side.
+          fetch-depth: 1
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          if [ -n "$XCODE_VERSION" ]; then
+            app="/Applications/Xcode_${XCODE_VERSION}.app"
+            if [ ! -d "$app" ]; then
+              echo "::error::Xcode $XCODE_VERSION not installed on this runner. Available:"
+              ls -d /Applications/Xcode*.app
+              exit 1
+            fi
+          else
+            app="$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          fi
+          sudo xcode-select -s "$app/Contents/Developer"
+          xcodebuild -version
+
+      - name: Cache Swift package dependencies
+        uses: actions/cache@v4
+        with:
+          path: build/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('romm/romm.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Resolve Swift package dependencies
+        run: |
+          set -euo pipefail
+          xcodebuild -resolvePackageDependencies \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -clonedSourcePackagesDirPath build/SourcePackages
+
+      - name: Archive (unsigned)
+        run: |
+          set -euo pipefail
+          mkdir -p build
+
+          # Signing is disabled outright: the released IPA is meant to be
+          # re-signed by the end user with their own Apple ID.
+          archive=(
+            xcodebuild archive
+            -project "$PROJECT"
+            -scheme "$SCHEME"
+            -configuration Release
+            -destination 'generic/platform=iOS'
+            -archivePath build/romm.xcarchive
+            -derivedDataPath build/DerivedData
+            -clonedSourcePackagesDirPath build/SourcePackages
+            MARKETING_VERSION="$MARKETING_VERSION"
+            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_REQUIRED=NO
+            CODE_SIGN_IDENTITY=
+            CODE_SIGN_ENTITLEMENTS=
+            DEVELOPMENT_TEAM=
+          )
+
+          if command -v xcbeautify >/dev/null 2>&1; then
+            "${archive[@]}" | tee build/xcodebuild.log | xcbeautify --renderer github-actions
+          else
+            "${archive[@]}" | tee build/xcodebuild.log
+          fi
+
+      - name: Package IPA
+        id: package
+        run: |
+          set -euo pipefail
+          app="$(find build/romm.xcarchive/Products/Applications -maxdepth 1 -name '*.app' | head -1)"
+          if [ -z "$app" ]; then
+            echo "::error::No .app found in the archive."
+            exit 1
+          fi
+
+          ipa="romm-${TAG}.ipa"
+          rm -rf build/Payload
+          mkdir -p build/Payload
+          cp -R "$app" build/Payload/
+          # The app is unsigned, but vendored binaries ship their own stale
+          # signatures; strip them so re-signing tools start from a clean slate.
+          find build/Payload -name '_CodeSignature' -type d -prune -exec rm -rf {} +
+          ( cd build && zip -qry "$ipa" Payload )
+          rm -rf build/Payload
+
+          sha256="$(shasum -a 256 "build/$ipa" | cut -d' ' -f1)"
+          size="$(du -h "build/$ipa" | cut -f1)"
+          echo "ipa=build/$ipa" >> "$GITHUB_OUTPUT"
+          echo "ipa_name=$ipa" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+          echo "size=$size" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### IPA"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| File | \`$ipa\` |"
+            echo "| Size | $size |"
+            echo "| SHA-256 | \`$sha256\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log-${{ needs.authorize.outputs.tag }}
+          path: build/xcodebuild.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          IPA: ${{ steps.package.outputs.ipa }}
+          IPA_NAME: ${{ steps.package.outputs.ipa_name }}
+          SHA256: ${{ steps.package.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+
+          notes=build/release-notes.md
+          cat > "$notes" <<EOF
+          ## Install
+
+          \`$IPA_NAME\` is an **unsigned** IPA. iOS will not install it as-is — sign it
+          with your own Apple ID using [AltStore](https://altstore.io),
+          [SideStore](https://sidestore.io), or
+          [Sideloadly](https://sideloadly.io), or use the
+          [TestFlight beta](https://testflight.apple.com/join/F4C5mhrC) instead.
+
+          \`\`\`
+          SHA-256  $SHA256
+          \`\`\`
+
+          EOF
+
+          # Append the auto-generated changelog for this tag.
+          gh api --method POST "repos/$REPO/releases/generate-notes" \
+            -f tag_name="$TAG" --jq .body >> "$notes" || true
+
+          flags=(--title "$TAG" --notes-file "$notes" --verify-tag)
+          if [ "$PRERELEASE" = "true" ]; then
+            flags+=(--prerelease)
+          fi
+
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "Release $TAG exists, updating it."
+            gh release edit "$TAG" --repo "$REPO" --notes-file "$notes"
+            gh release upload "$TAG" "$IPA" --repo "$REPO" --clobber
+          else
+            gh release create "$TAG" "$IPA" --repo "$REPO" "${flags[@]}"
+          fi
+
+          echo "Published $IPA_NAME to $TAG."
