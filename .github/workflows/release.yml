@@ -122,8 +122,8 @@ jobs:
     # Protect this environment with required reviewers + a `v*` tag rule to
     # require manual approval before a release is published.
     environment: release
-    # macOS 26 image: iOS 26 SDK, satisfies the project's iOS 18.6 deployment
-    # target and the Xcode 16.3+ project format (objectVersion 77).
+    # macOS 26 image: satisfies the Xcode 16.3+ project format
+    # (objectVersion 77). The app's deployment target is iOS 16.0.
     runs-on: macos-26
     permissions:
       contents: write
@@ -136,6 +136,15 @@ jobs:
       # Optional pin, e.g. "26.0". Empty selects the newest installed Xcode.
       XCODE_VERSION: ''
     steps:
+      # N64DeltaCore pins a nested submodule over the unauthenticated git://
+      # protocol on SourceForge, which is unreliable from hosted runners.
+      # Rewrite it to https before actions/checkout fetches submodules.
+      - name: Harden submodule transport
+        run: |
+          set -euo pipefail
+          git config --global url."https://git.code.sf.net/p/libpng/code".insteadOf "git://git.code.sf.net/p/libpng/code"
+          git config --global protocol.git.allow never
+
       - name: Check out repository
         uses: actions/checkout@v4
         with:
