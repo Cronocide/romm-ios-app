@@ -1,5 +1,4 @@
 import Foundation
-import Observation
 
 struct DuplicateFileInfo: Identifiable {
     let id = UUID()
@@ -48,17 +47,16 @@ struct RomFileInfo: Identifiable, Hashable {
 }
 
 @MainActor
-@Observable
-class SFTPUploadViewModel {
-    var connections: [SFTPConnection] = []
-    var selectedConnection: SFTPConnection?
-    var isLocalDeviceSelected = false
-    var targetPath: String?
-    var isUploading = false
-    var uploadProgress: Double = 0.0
-    var uploadedBytes: Int64 = 0
-    var totalBytes: Int64 = 0
-    private var _error: String?
+class SFTPUploadViewModel: ObservableObject {
+    @Published var connections: [SFTPConnection] = []
+    @Published var selectedConnection: SFTPConnection?
+    @Published var isLocalDeviceSelected = false
+    @Published var targetPath: String?
+    @Published var isUploading = false
+    @Published var uploadProgress: Double = 0.0
+    @Published var uploadedBytes: Int64 = 0
+    @Published var totalBytes: Int64 = 0
+    @Published private var _error: String?
     var error: String? {
         get {
             // Don't show errors if upload was successful
@@ -72,33 +70,33 @@ class SFTPUploadViewModel {
             _error = newValue
         }
     }
-    var isCompleted = false
-    private var isUploadSuccessful = false
-    var showingDirectoryBrowser = false
+    @Published var isCompleted = false
+    @Published private var isUploadSuccessful = false
+    @Published var showingDirectoryBrowser = false
     
     // Preparation progress
-    var isPreparing = false
-    var prepareProgress: Double = 0.0
-    var preparedBytes: Int64 = 0
-    var prepareMessage = "Preparing ROM file..."
+    @Published var isPreparing = false
+    @Published var prepareProgress: Double = 0.0
+    @Published var preparedBytes: Int64 = 0
+    @Published var prepareMessage = "Preparing ROM file..."
     
     // Multi-file support
-    var availableFiles: [RomFileInfo] = []
-    var selectedFiles: Set<String> = []
-    var isLoadingFiles = false
-    var currentFileIndex = 0
-    var totalFiles = 0
+    @Published var availableFiles: [RomFileInfo] = []
+    @Published var selectedFiles: Set<String> = []
+    @Published var isLoadingFiles = false
+    @Published var currentFileIndex = 0
+    @Published var totalFiles = 0
     
     // Duplicate detection
-    var isCheckingDuplicates = false
-    var duplicateWarnings: [String: DuplicateFileInfo] = [:] // fileName -> DuplicateInfo
+    @Published var isCheckingDuplicates = false
+    @Published var duplicateWarnings: [String: DuplicateFileInfo] = [:] // fileName -> DuplicateInfo
     var hasDuplicateWarnings: Bool {
         !duplicateWarnings.isEmpty
     }
     
     let rom: Rom
     let autoStartLocalDownload: Bool
-    private(set) var didAutoStart: Bool = false
+    @Published private(set) var didAutoStart: Bool = false
     private let getAllConnectionsUseCase: GetAllConnectionsUseCase
     private let manageDefaultConnectionUseCase: ManageDefaultConnectionUseCase
     private let uploadFileUseCase: UploadFileUseCase

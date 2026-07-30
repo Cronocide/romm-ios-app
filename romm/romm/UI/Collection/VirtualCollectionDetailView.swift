@@ -9,11 +9,11 @@ import SwiftUI
 
 struct VirtualCollectionDetailView: View {
     let virtualCollection: VirtualCollection
-    @State private var viewModel: VirtualCollectionDetailViewModel
+    @StateObject private var viewModel: VirtualCollectionDetailViewModel
     
     init(virtualCollection: VirtualCollection) {
         self.virtualCollection = virtualCollection
-        self._viewModel = State(wrappedValue: VirtualCollectionDetailViewModel(virtualCollectionId: virtualCollection.id))
+        self._viewModel = StateObject(wrappedValue: VirtualCollectionDetailViewModel(virtualCollectionId: virtualCollection.id))
     }
     
     var body: some View {

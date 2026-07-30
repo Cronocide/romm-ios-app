@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SFTPDirectoryBrowserView: View {
-    @State private var viewModel: SFTPDirectoryBrowserViewModel
+    @StateObject private var viewModel: SFTPDirectoryBrowserViewModel
     @Environment(\.dismiss) private var dismiss
     
     @State private var showingCreateDirectory = false
@@ -11,7 +11,7 @@ struct SFTPDirectoryBrowserView: View {
     private let romName: String?
     
     init(connection: SFTPConnection, romName: String? = nil, dependencyFactory: PDependencyFactory = DefaultDependencyFactory.shared, onPathSelected: @escaping (String) -> Void) {
-        self._viewModel = State(wrappedValue: dependencyFactory.makeSFTPDirectoryBrowserViewModel(connection: connection))
+        self._viewModel = StateObject(wrappedValue: dependencyFactory.makeSFTPDirectoryBrowserViewModel(connection: connection))
         self.onPathSelected = onPathSelected
         self.romName = romName
     }

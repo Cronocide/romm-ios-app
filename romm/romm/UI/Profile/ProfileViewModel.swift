@@ -7,18 +7,19 @@
 
 import Foundation
 import os
-import Observation
 
-@Observable
 @MainActor
-class ProfileViewModel {
+class ProfileViewModel: ObservableObject {
     private let logger = Logger.viewModel
     private let logoutUseCase: LogoutUseCase
     private let clearSetupConfigurationUseCase: PClearSetupConfigurationUseCase
     private let getGroupRomsUseCase: PGetGroupRomsUseCase
     private let saveGroupRomsUseCase: PSaveGroupRomsUseCase
 
-    var groupRomsByMetaId: Bool {
+    // The didSet persists the setting. It does not fire for the assignment in
+    // init(), which is initialization rather than mutation -- preserved from
+    // the @Observable version.
+    @Published var groupRomsByMetaId: Bool {
         didSet {
             guard oldValue != groupRomsByMetaId else { return }
             saveGroupRomsUseCase.execute(groupRomsByMetaId)

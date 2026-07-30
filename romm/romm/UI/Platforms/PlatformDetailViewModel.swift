@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import Observation
 
 enum PlatformDetailViewState {
     case loading
@@ -16,14 +15,13 @@ enum PlatformDetailViewState {
     case error(String)
 }
 
-@Observable
 @MainActor
-class PlatformDetailViewModel {
-    var viewState: PlatformDetailViewState = .loading
-    var charIndex: [String: Int] = [:] // A-Z index with counts
-    var selectedChar: String? = nil // Currently selected character filter
-    var lastLoadedRoms: [Rom] = [] // Keep last loaded ROMs for smooth transitions
-    var viewMode: ViewMode = .smallCard
+class PlatformDetailViewModel: ObservableObject {
+    @Published var viewState: PlatformDetailViewState = .loading
+    @Published var charIndex: [String: Int] = [:] // A-Z index with counts
+    @Published var selectedChar: String? = nil // Currently selected character filter
+    @Published var lastLoadedRoms: [Rom] = [] // Keep last loaded ROMs for smooth transitions
+    @Published var viewMode: ViewMode = .smallCard
     
     var hasLoadedRoms: Bool {
         !lastLoadedRoms.isEmpty
@@ -42,14 +40,14 @@ class PlatformDetailViewModel {
     private let romsWithFiltersUseCase: GetRomsWithFiltersUseCase
     private let getViewModeUseCase: PGetViewModeUseCase
     private let saveViewModeUseCase: PSaveViewModeUseCase
-    private var currentOffset = 0
+    @Published private var currentOffset = 0
     private let pageSize = 72
-    private var hasMoreRoms = true
-    private var totalRoms = 0
-    private var currentPlatformId: Int?
-    private var currentChar: String?
-    var currentOrderBy: String = "name"
-    var currentOrderDir: String = "asc"
+    @Published private var hasMoreRoms = true
+    @Published private var totalRoms = 0
+    @Published private var currentPlatformId: Int?
+    @Published private var currentChar: String?
+    @Published var currentOrderBy: String = "name"
+    @Published var currentOrderDir: String = "asc"
 
     init(factory: PDependencyFactory = DefaultDependencyFactory.shared) {
         self.romsUseCase = factory.makeGetRomsUseCase()

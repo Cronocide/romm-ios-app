@@ -1,15 +1,24 @@
 import Foundation
-import Observation
 
-@Observable
-class SFTPDevicesViewModel {
-    var connections: [SFTPConnection] = []
-    var isLoading = false
-    var error: String?
-    var showingAddDevice = false
-    var editingConnection: SFTPConnection?
+// NOTE: this is the only view model in the app that is not @MainActor, and
+// loadConnections() is reached from non-isolated async contexts
+// (loadConnectionsAsync, forceRefreshConnections, deleteConnection), so the
+// @Published mutations above can occur off the main thread and trip SwiftUI's
+// "Publishing changes from background threads is not allowed" runtime warning.
+//
+// Isolation is deliberately left unchanged here: annotating the class
+// @MainActor cascades into `onSave: viewModel.saveConnection` (a bare closure
+// reference in SFTPDevicesView) and into deinit -> cancelAllConnectionTests().
+// Fix it as a separate change once the build is green and it can be verified.
+class SFTPDevicesViewModel: ObservableObject {
+    @Published var connections: [SFTPConnection] = []
+    @Published var isLoading = false
+    @Published var error: String?
+    @Published var showingAddDevice = false
+    @Published var editingConnection: SFTPConnection?
 
-    // Track running connection tests to allow cancellation
+    // Track running connection tests to allow cancellation.
+    // Not @Published: bookkeeping that no view reads, and deinit touches it.
     private var runningTasks: [UUID: Task<Void, Never>] = [:]
 
     // Prevent repeated loading on every view appear

@@ -6,25 +6,23 @@
 //
 
 import Foundation
-import Observation
 
-@Observable
 @MainActor
-class CollectionDetailViewModel {
+class CollectionDetailViewModel: ObservableObject {
     private let logger = Logger.viewModel
-    var viewState: RomViewState = .loading
-    var charIndex: [String: Int] = [:]
-    var selectedChar: String? = nil
-    var currentOrderBy: String = "name"
-    var currentOrderDir: String = "asc"
-    var canLoadMore: Bool = false
+    @Published var viewState: RomViewState = .loading
+    @Published var charIndex: [String: Int] = [:]
+    @Published var selectedChar: String? = nil
+    @Published var currentOrderBy: String = "name"
+    @Published var currentOrderDir: String = "asc"
+    @Published var canLoadMore: Bool = false
     
     private let getRomsUseCase: GetRomsUseCase
-    private var collectionId: Int
-    private var currentRoms: [Rom] = []
-    private var currentLimit: Int = 50
-    private var currentOffset: Int = 0
-    private var totalRoms: Int = 0
+    @Published private var collectionId: Int
+    @Published private var currentRoms: [Rom] = []
+    @Published private var currentLimit: Int = 50
+    @Published private var currentOffset: Int = 0
+    @Published private var totalRoms: Int = 0
     
     enum RomViewState {
         case loading

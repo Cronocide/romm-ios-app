@@ -6,16 +6,14 @@
 //
 
 import SwiftUI
-import Observation
 
 @MainActor
-@Observable
-class CreateCollectionViewModel {
-    var name: String = ""
-    var description: String = ""
-    var isPublic: Bool = false
-    var isCreating: Bool = false
-    var error: String?
+class CreateCollectionViewModel: ObservableObject {
+    @Published var name: String = ""
+    @Published var description: String = ""
+    @Published var isPublic: Bool = false
+    @Published var isCreating: Bool = false
+    @Published var error: String?
     
     private let createCollectionUseCase: CreateCollectionUseCase
     
@@ -63,7 +61,7 @@ class CreateCollectionViewModel {
 
 struct CreateCollectionView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var viewModel = CreateCollectionViewModel()
+    @StateObject private var viewModel = CreateCollectionViewModel()
     
     let onCollectionCreated: (Collection) -> Void
     

@@ -10,13 +10,13 @@ import SwiftUI
 
 struct CollectionDetailView: View {
     let collection: Collection
-    @State private var viewModel: CollectionDetailViewModel
+    @StateObject private var viewModel: CollectionDetailViewModel
     @State private var viewMode: ViewMode = ViewMode(rawValue: UserDefaults.standard.string(forKey: "selectedViewMode") ?? ViewMode.smallCard.rawValue) ?? .smallCard
     @State private var searchText = ""
     
     init(collection: Collection) {
         self.collection = collection
-        self._viewModel = State(wrappedValue: CollectionDetailViewModel(collectionId: collection.id))
+        self._viewModel = StateObject(wrappedValue: CollectionDetailViewModel(collectionId: collection.id))
     }
     
     var body: some View {

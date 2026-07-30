@@ -6,7 +6,7 @@
 import SwiftUI
 
 struct HomeView: View {
-    @State private var viewModel = HomeViewModel()
+    @StateObject private var viewModel = HomeViewModel()
     @EnvironmentObject var appData: AppData
 
     var body: some View {

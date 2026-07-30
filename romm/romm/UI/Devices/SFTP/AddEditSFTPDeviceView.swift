@@ -1,13 +1,13 @@
 import SwiftUI
 
 struct AddEditSFTPDeviceView: View {
-    @State private var viewModel: AddEditSFTPDeviceViewModel
+    @StateObject private var viewModel: AddEditSFTPDeviceViewModel
     @Environment(\.dismiss) private var dismiss
     
     let onSave: (SFTPConnection, SFTPCredentials) -> Void
     
     init(connection: SFTPConnection? = nil, factory: PDependencyFactory = DefaultDependencyFactory.shared, onSave: @escaping (SFTPConnection, SFTPCredentials) -> Void) {
-        self._viewModel = State(wrappedValue: factory.makeAddEditSFTPDeviceViewModel(connection: connection))
+        self._viewModel = StateObject(wrappedValue: factory.makeAddEditSFTPDeviceViewModel(connection: connection))
         self.onSave = onSave
     }
     

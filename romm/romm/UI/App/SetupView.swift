@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SetupView: View {
-    let appViewModel: AppViewModel
+    @ObservedObject var appViewModel: AppViewModel
     @State private var serverURL = ""
     @State private var username = ""
     @State private var password = ""
@@ -34,7 +34,11 @@ struct SetupView: View {
     @State private var clientTokenError: String?
     @State private var showQRScanner = false
 
-    private var connectionLogger: ConnectionLogger { ConnectionLogger.shared }
+    // Must be a stored @ObservedObject, not a computed bridge to .shared:
+    // @Observable tracked the property read through the computed accessor, but
+    // ObservableObject only re-renders via a subscribed property wrapper. As a
+    // computed var this compiles and silently stops updating the live log.
+    @ObservedObject private var connectionLogger = ConnectionLogger.shared
     private let launchArguments = ProcessInfo.processInfo.arguments
     private var shouldShowLoginForUITests: Bool { launchArguments.contains("-ui_testing_show_login") }
 

@@ -1,20 +1,19 @@
 import Foundation
 
 @MainActor
-@Observable
-class SFTPDirectoryBrowserViewModel {
-    var directoryItems: [SFTPDirectoryItem] = []
-    var currentPath = "/"
-    var isLoading = false
-    var error: String?
-    var selectedPath: String?
-    var favoriteDirectories: [String] = []
+class SFTPDirectoryBrowserViewModel: ObservableObject {
+    @Published var directoryItems: [SFTPDirectoryItem] = []
+    @Published var currentPath = "/"
+    @Published var isLoading = false
+    @Published var error: String?
+    @Published var selectedPath: String?
+    @Published var favoriteDirectories: [String] = []
     
     private let connection: SFTPConnection
     private let listDirectoryUseCase: ListDirectoryUseCase
     private let manageFavoriteDirectoriesUseCase: ManageFavoriteDirectoriesUseCase
     private let createDirectoryUseCase: CreateSFTPDirectoryUseCase
-    private var pathHistory: [String] = ["/"]
+    @Published private var pathHistory: [String] = ["/"]
 
     init(
         connection: SFTPConnection,

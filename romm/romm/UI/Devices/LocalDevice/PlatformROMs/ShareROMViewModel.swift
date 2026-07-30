@@ -1,15 +1,13 @@
 import Foundation
-import Observation
 
-@Observable
 @MainActor
-final class ShareROMViewModel {
-    var shareSheetItem: ShareSheetItem?
-    var showFileNotFoundAlert = false
+final class ShareROMViewModel: ObservableObject {
+    @Published var shareSheetItem: ShareSheetItem?
+    @Published var showFileNotFoundAlert = false
 
     private let rom: DownloadedROM
     private let getShareFilesUseCase: PGetROMShareFilesUseCase
-    private var temporaryShareDirectory: URL?
+    @Published private var temporaryShareDirectory: URL?
 
     init(rom: DownloadedROM, getShareFilesUseCase: PGetROMShareFilesUseCase) {
         self.rom = rom

@@ -61,13 +61,12 @@ struct ConnectionLogEntry: Identifiable {
 
 /// Observable logger for tracking connection attempts
 /// Used to provide real-time feedback during login/setup
-@Observable
 @MainActor
-class ConnectionLogger {
+class ConnectionLogger: ObservableObject {
     static let shared = ConnectionLogger()
 
-    private(set) var logs: [ConnectionLogEntry] = []
-    private(set) var isConnecting: Bool = false
+    @Published private(set) var logs: [ConnectionLogEntry] = []
+    @Published private(set) var isConnecting: Bool = false
 
     private init() {}
 

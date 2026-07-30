@@ -1,5 +1,4 @@
 import Foundation
-import Observation
 import SwiftUI
 import DeltaCore
 import GBADeltaCore
@@ -10,14 +9,13 @@ import GBCDeltaCore
 import N64DeltaCore
 import MelonDSDeltaCore
 
-@Observable
 @MainActor
-final class NativeEmulatorViewModel {
+final class NativeEmulatorViewModel: ObservableObject {
     let rom: Rom
     let gameType: DeltaGameType
-    var errorMessage: String?
-    var session: NativeEmulatorSession?
-    var isLoading: Bool = true
+    @Published var errorMessage: String?
+    @Published var session: NativeEmulatorSession?
+    @Published var isLoading: Bool = true
 
     private let getDownloadedROM: PGetDownloadedROMUseCase
     private let resolveROMFile: PResolveROMFileUseCase

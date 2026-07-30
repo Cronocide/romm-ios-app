@@ -6,17 +6,15 @@
 //
 
 import Foundation
-import Observation
 
-@Observable
 @MainActor
-class CollectionPickerViewModel {
-    var availableCollections: [Collection] = []
-    var isLoadingCollections: Bool = false
-    var errorMessage: String? = nil
-    var successMessage: String? = nil
-    var showSuccessToast: Bool = false
-    var showErrorToast: Bool = false
+class CollectionPickerViewModel: ObservableObject {
+    @Published var availableCollections: [Collection] = []
+    @Published var isLoadingCollections: Bool = false
+    @Published var errorMessage: String? = nil
+    @Published var successMessage: String? = nil
+    @Published var showSuccessToast: Bool = false
+    @Published var showErrorToast: Bool = false
     
     private let logger = Logger.viewModel
     

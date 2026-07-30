@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct TransferHistoryView: View {
-    @State private var viewModel: TransferHistoryViewModel
+    @StateObject private var viewModel: TransferHistoryViewModel
 
     init(deviceId: UUID, factory: PDependencyFactory = DefaultDependencyFactory.shared) {
-        self._viewModel = State(wrappedValue: TransferHistoryViewModel(
+        self._viewModel = StateObject(wrappedValue: TransferHistoryViewModel(
             deviceId: deviceId,
             factory: factory
         ))

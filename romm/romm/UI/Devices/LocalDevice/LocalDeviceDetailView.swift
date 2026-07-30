@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct LocalDeviceDetailView: View {
-    @State private var viewModel = LocalDeviceDetailViewModel()
+    @StateObject private var viewModel = LocalDeviceDetailViewModel()
     @State private var showingDeviceManagement = false
     @State private var isStorageExpanded = false
 

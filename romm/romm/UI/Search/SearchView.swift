@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SearchView: View {
-    @State private var searchViewModel = SearchViewModel()
+    @StateObject private var searchViewModel = SearchViewModel()
     @State private var searchText = ""
 
     var body: some View {

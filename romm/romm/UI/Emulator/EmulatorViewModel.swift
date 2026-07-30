@@ -6,17 +6,15 @@
 //
 
 import Foundation
-import Observation
 import WebKit
 
-@Observable
 @MainActor
-class EmulatorViewModel {
+class EmulatorViewModel: ObservableObject {
     // State
-    var isLoading: Bool = true
-    var showControls: Bool = false
-    var errorMessage: String?
-    var emulatorURL: URL?
+    @Published var isLoading: Bool = true
+    @Published var showControls: Bool = false
+    @Published var errorMessage: String?
+    @Published var emulatorURL: URL?
 
     // Dependencies
     private let rom: Rom

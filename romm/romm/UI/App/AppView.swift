@@ -10,7 +10,7 @@ import os
 
 struct AppView: View {
     private let logger = Logger.ui
-    @State private var appViewModel = AppViewModel()
+    @StateObject private var appViewModel = AppViewModel()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {

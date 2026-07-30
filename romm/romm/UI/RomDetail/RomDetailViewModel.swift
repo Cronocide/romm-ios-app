@@ -6,33 +6,31 @@
 //
 
 import Foundation
-import Observation
 
-@Observable
 @MainActor
-class RomDetailViewModel {
-    var romDetails: RomDetails?
-    var isLoading: Bool = false
-    var errorMessage: String?
-    var actualFavoriteStatus: Bool = false // True favorite status from Collections API
-    var manual: Manual?
-    var manualPDFData: Data?
-    var isLoadingManual: Bool = false
-    var romCollectionsCount: Int = 0
-    var selectedSiblingId: Int? = nil // Currently selected sibling (nil = current ROM)
-    var originalRomDetails: RomDetails? = nil // Store original ROM with all siblings
-    var siblingDetails: [Int: String] = [:] // Cache sibling names (id -> display name)
-    var saves: [SaveSchema] = []
-    var states: [StateSchema] = []
-    var isLoadingSaves: Bool = false
-    var isLoadingStates: Bool = false
+class RomDetailViewModel: ObservableObject {
+    @Published var romDetails: RomDetails?
+    @Published var isLoading: Bool = false
+    @Published var errorMessage: String?
+    @Published var actualFavoriteStatus: Bool = false // True favorite status from Collections API
+    @Published var manual: Manual?
+    @Published var manualPDFData: Data?
+    @Published var isLoadingManual: Bool = false
+    @Published var romCollectionsCount: Int = 0
+    @Published var selectedSiblingId: Int? = nil // Currently selected sibling (nil = current ROM)
+    @Published var originalRomDetails: RomDetails? = nil // Store original ROM with all siblings
+    @Published var siblingDetails: [Int: String] = [:] // Cache sibling names (id -> display name)
+    @Published var saves: [SaveSchema] = []
+    @Published var states: [StateSchema] = []
+    @Published var isLoadingSaves: Bool = false
+    @Published var isLoadingStates: Bool = false
 
     // Emulator
-    var showingEmulator: Bool = false
-    var canPlayEmulator: Bool = false
-    var showingEmulatorFeatureHint: Bool = false
-    var launchDecision: LaunchDecision? = nil
-    var isLaunchingEmulator: Bool = false
+    @Published var showingEmulator: Bool = false
+    @Published var canPlayEmulator: Bool = false
+    @Published var showingEmulatorFeatureHint: Bool = false
+    @Published var launchDecision: LaunchDecision? = nil
+    @Published var isLaunchingEmulator: Bool = false
 
     private let logger = Logger.viewModel
 

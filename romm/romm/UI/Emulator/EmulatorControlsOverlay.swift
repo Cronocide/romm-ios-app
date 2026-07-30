@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct EmulatorControlsOverlay: View {
-    var viewModel: EmulatorViewModel
+    @ObservedObject var viewModel: EmulatorViewModel
     let onExit: () -> Void
 
     var body: some View {

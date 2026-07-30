@@ -1,17 +1,15 @@
 import Foundation
-import Observation
 
 @MainActor
-@Observable
-class LocalDeviceDetailViewModel {
-    var downloadedROMs: [DownloadedROM] = []
-    var romsByPlatform: [String: [DownloadedROM]] = [:]
-    var platformDisplayNamesBySlug: [String: String] = [:]
-    var isLoading = false
-    var error: String?
-    var totalDownloadedSize: Int64 = 0
-    var showingDeleteConfirmation = false
-    var romToDelete: DownloadedROM?
+class LocalDeviceDetailViewModel: ObservableObject {
+    @Published var downloadedROMs: [DownloadedROM] = []
+    @Published var romsByPlatform: [String: [DownloadedROM]] = [:]
+    @Published var platformDisplayNamesBySlug: [String: String] = [:]
+    @Published var isLoading = false
+    @Published var error: String?
+    @Published var totalDownloadedSize: Int64 = 0
+    @Published var showingDeleteConfirmation = false
+    @Published var romToDelete: DownloadedROM?
 
     private let repository: PLocalROMRepository
     private let getPlatformsUseCase: GetPlatformsUseCase

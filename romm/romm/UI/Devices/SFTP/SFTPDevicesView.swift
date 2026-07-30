@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SFTPDevicesView: View {
-    @State private var viewModel = SFTPDevicesViewModel()
+    @StateObject private var viewModel = SFTPDevicesViewModel()
 
     var body: some View {
         devicesList

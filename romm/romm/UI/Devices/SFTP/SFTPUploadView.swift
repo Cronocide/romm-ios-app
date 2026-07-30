@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SFTPUploadView: View {
-    @State private var viewModel: SFTPUploadViewModel
+    @StateObject private var viewModel: SFTPUploadViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showingDeviceManagement = false
 
@@ -15,7 +15,7 @@ struct SFTPUploadView: View {
         onShowInDownloads: (() -> Void)? = nil,
         factory: PDependencyFactory = DefaultDependencyFactory.shared
     ) {
-        self._viewModel = State(initialValue: factory.makeSFTPUploadViewModel(rom: rom, autoStartLocalDownload: autoStartLocalDownload))
+        self._viewModel = StateObject(wrappedValue: factory.makeSFTPUploadViewModel(rom: rom, autoStartLocalDownload: autoStartLocalDownload))
         self.onPlayAfterDownload = onPlayAfterDownload
         self.onShowInDownloads = onShowInDownloads
     }

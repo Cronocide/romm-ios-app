@@ -11,7 +11,7 @@ import os
 struct SettingsView: View {
     private let logger = Logger.ui
     @EnvironmentObject var appData: AppData
-    @State private var profileViewModel = ProfileViewModel()
+    @StateObject private var profileViewModel = ProfileViewModel()
     @StateObject private var experimentalSettings = ExperimentalFeatureSettings.shared
     @StateObject private var cloudSyncSettings = CloudSaveSyncSettings.shared
     @State private var showingLogoutAlert = false
@@ -26,8 +26,7 @@ struct SettingsView: View {
     }
     
     var body: some View {
-        @Bindable var profileVM = profileViewModel
-        return List {
+        List {
             // User Section
             if let user = appData.currentUser {
                 Section("User") {
@@ -106,7 +105,7 @@ struct SettingsView: View {
 
             // Platforms Section
             Section {
-                Toggle(isOn: $profileVM.groupRomsByMetaId) {
+                Toggle(isOn: $profileViewModel.groupRomsByMetaId) {
                     HStack {
                         Image(systemName: "rectangle.stack")
                         VStack(alignment: .leading, spacing: 2) {

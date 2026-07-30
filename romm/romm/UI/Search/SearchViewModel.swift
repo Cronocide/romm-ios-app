@@ -8,11 +8,10 @@
 import Foundation
 
 @MainActor
-@Observable
-class SearchViewModel {
-    var searchResults: [Rom] = []
-    var isLoading = false
-    var errorMessage: String?
+class SearchViewModel: ObservableObject {
+    @Published var searchResults: [Rom] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
 
     private let searchRomsUseCase: SearchRomsUseCase
     private var searchTask: Task<Void, Never>?

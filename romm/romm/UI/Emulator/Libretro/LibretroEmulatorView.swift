@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 struct LibretroEmulatorView: View {
-    @SwiftUI.State private var viewModel: LibretroEmulatorViewModel
+    @SwiftUI.StateObject private var viewModel: LibretroEmulatorViewModel
     @SwiftUI.State private var showMenu = false
     @SwiftUI.State private var isQuitting = false
     @Environment(\.dismiss) private var dismiss
@@ -10,7 +10,7 @@ struct LibretroEmulatorView: View {
 
     init(rom: Rom, core: LibretroCore, factory: PDependencyFactory = DefaultDependencyFactory.shared) {
         let vm = factory.makeLibretroEmulatorViewModel(rom: rom, core: core)
-        self._viewModel = SwiftUI.State(wrappedValue: vm)
+        self._viewModel = SwiftUI.StateObject(wrappedValue: vm)
     }
 
     var body: some View {

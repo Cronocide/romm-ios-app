@@ -1,16 +1,36 @@
 import Foundation
 import Darwin
 
+/// Pre-iOS-17 stand-in for `MainActor.assumeIsolated`.
+///
+/// libretro invokes the C callbacks below synchronously from `retro_run()`,
+/// which `LibretroFrontend.startRunLoop()` drives from a `DispatchSource` timer
+/// on the main queue -- so they are already main-actor isolated. Since
+/// `MainActor.assumeIsolated` is iOS 17+, this reproduces it: an unchecked
+/// synchronous cast, with the trap-on-violation behaviour kept under DEBUG.
+///
+/// The precondition is DEBUG-only deliberately: `audioSampleCallback` runs once
+/// per audio sample, and a queue check there would be on the hot path.
+@inline(__always)
+private func assumingMainActor<T>(_ body: @MainActor () -> T) -> T {
+    #if DEBUG
+    dispatchPrecondition(condition: .onQueue(.main))
+    #endif
+    return withoutActuallyEscaping(body) { escaping in
+        unsafeBitCast(escaping, to: (() -> T).self)()
+    }
+}
+
 extension LibretroFrontend {
 
     // MARK: - Static C callbacks
 
     static let envCallback: LibretroABI.EnvironmentFn = { cmd, data in
-        return MainActor.assumeIsolated { LibretroFrontend.shared.handleEnv(cmd: cmd, data: data) }
+        return assumingMainActor { LibretroFrontend.shared.handleEnv(cmd: cmd, data: data) }
     }
 
     static let videoRefreshCallback: LibretroABI.VideoRefreshFn = { data, width, height, pitch in
-        MainActor.assumeIsolated {
+        assumingMainActor {
             let s = LibretroFrontend.shared
             s.frameCount &+= 1
             if s.frameCount <= 5 || s.frameCount % 60 == 0 {
@@ -26,7 +46,7 @@ extension LibretroFrontend {
     static let audioSampleCallback: LibretroABI.AudioSampleFn = { left, right in
         var pair: [Int16] = [left, right]
         pair.withUnsafeBufferPointer { buf in
-            MainActor.assumeIsolated {
+            assumingMainActor {
                 LibretroFrontend.shared.enqueueAudio(buf.baseAddress!, frames: 1)
             }
         }
@@ -34,7 +54,7 @@ extension LibretroFrontend {
 
     static let audioBatchCallback: LibretroABI.AudioSampleBatchFn = { data, frames in
         guard let data = data else { return frames }
-        MainActor.assumeIsolated {
+        assumingMainActor {
             LibretroFrontend.shared.enqueueAudio(data, frames: frames)
         }
         return frames
@@ -44,7 +64,7 @@ extension LibretroFrontend {
 
     static let inputStateCallback: LibretroABI.InputStateFn = { port, device, _, id in
         guard port == 0, device == LibretroABI.DEVICE_JOYPAD, id < 16 else { return 0 }
-        return MainActor.assumeIsolated {
+        return assumingMainActor {
             LibretroFrontend.shared.buttonState[Int(id)] ? 1 : 0
         }
     }

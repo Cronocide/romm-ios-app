@@ -7,7 +7,6 @@
 
 import Foundation
 import os
-import Observation
 
 enum CollectionViewState {
     case loading
@@ -16,20 +15,19 @@ enum CollectionViewState {
     case loadingMore
 }
 
-@Observable
 @MainActor
-class CollectionsViewModel {
+class CollectionsViewModel: ObservableObject {
     private let logger = Logger.viewModel
-    var collections: [Collection] = []
-    var virtualCollections: [VirtualCollection] = []
-    var isLoading: Bool = false
-    var errorMessage: String?
-    var showingCreateCollection: Bool = false
-    var collectionToDelete: Collection?
-    var isDeleting: Bool = false
-    var canLoadMoreCollections: Bool = true
-    var isLoadingMore: Bool = false
-    private var hasLoadedOnce: Bool = false
+    @Published var collections: [Collection] = []
+    @Published var virtualCollections: [VirtualCollection] = []
+    @Published var isLoading: Bool = false
+    @Published var errorMessage: String?
+    @Published var showingCreateCollection: Bool = false
+    @Published var collectionToDelete: Collection?
+    @Published var isDeleting: Bool = false
+    @Published var canLoadMoreCollections: Bool = true
+    @Published var isLoadingMore: Bool = false
+    @Published private var hasLoadedOnce: Bool = false
 
     var viewState: CollectionViewState {
         if isLoading && !hasLoadedOnce {
@@ -49,7 +47,7 @@ class CollectionsViewModel {
     private let tokenProvider: PTokenProvider
 
     // Pagination state
-    private var currentCollectionOffset = 0
+    @Published private var currentCollectionOffset = 0
     private let collectionsPageSize = 20
 
     // Task management to prevent cancellations

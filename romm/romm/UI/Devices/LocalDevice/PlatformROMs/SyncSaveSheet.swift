@@ -19,7 +19,7 @@ enum PendingUpload: Equatable {
 }
 
 struct SyncSaveSheet: View {
-    @State var viewModel: SyncSaveViewModel
+    @StateObject var viewModel: SyncSaveViewModel
     let onDismiss: () -> Void
 
     @Environment(\.dismiss) private var dismiss

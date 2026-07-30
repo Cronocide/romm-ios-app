@@ -9,7 +9,7 @@ import SwiftUI
 
 struct PlatformsView: View {
 
-    @State private var platformsViewModel = PlatformsViewModel()
+    @StateObject private var platformsViewModel = PlatformsViewModel()
 
     @EnvironmentObject var appData: AppData
     
@@ -64,7 +64,7 @@ struct PlatformsView: View {
 struct PlatformListView: View {
     let platforms: [Platform]
     let isLoading: Bool
-    let viewModel: PlatformsViewModel
+    @ObservedObject var viewModel: PlatformsViewModel
 
     // Filter platforms with at least one ROM
     private var nonEmptyPlatforms: [Platform] {

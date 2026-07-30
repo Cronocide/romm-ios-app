@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct ShareSwipeButton: View {
-    @State private var viewModel: ShareROMViewModel
+    @StateObject private var viewModel: ShareROMViewModel
 
     init(rom: DownloadedROM, factory: PDependencyFactory = DefaultDependencyFactory.shared) {
-        _viewModel = State(initialValue: factory.makeShareROMViewModel(rom: rom))
+        _viewModel = StateObject(wrappedValue: factory.makeShareROMViewModel(rom: rom))
     }
 
     var body: some View {

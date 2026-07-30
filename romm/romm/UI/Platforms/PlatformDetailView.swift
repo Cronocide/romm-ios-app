@@ -12,7 +12,7 @@ struct PlatformDetailView: View {
     
     let platform: Platform
     
-    @State private var viewModel = PlatformDetailViewModel()
+    @StateObject private var viewModel = PlatformDetailViewModel()
     
     @State private var showingSortSheet = false
     

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct StatsView: View {
-    @State private var statsViewModel = StatsViewModel()
+    @StateObject private var statsViewModel = StatsViewModel()
 
     var body: some View {
         Group {

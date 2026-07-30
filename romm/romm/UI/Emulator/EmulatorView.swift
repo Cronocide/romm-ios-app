@@ -11,14 +11,14 @@ import WebKit
 
 struct EmulatorView: View {
     let rom: Rom
-    @State private var viewModel: EmulatorViewModel
+    @StateObject private var viewModel: EmulatorViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showExitConfirmation = false
     @State private var showMenu = false
 
     init(rom: Rom) {
         self.rom = rom
-        _viewModel = State(initialValue: EmulatorViewModel(rom: rom))
+        _viewModel = StateObject(wrappedValue: EmulatorViewModel(rom: rom))
     }
 
     var body: some View {
@@ -130,7 +130,7 @@ struct EmulatorView: View {
 }
 
 struct EmulatorWebView: UIViewRepresentable {
-    var viewModel: EmulatorViewModel
+    @ObservedObject var viewModel: EmulatorViewModel
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()

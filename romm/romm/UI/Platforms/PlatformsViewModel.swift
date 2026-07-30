@@ -6,14 +6,12 @@
 //
 
 import Foundation
-import Observation
 
-@Observable
 @MainActor
-class PlatformsViewModel {
-    var platforms: [Platform] = []
-    var isLoading: Bool = false
-    var errorMessage: String?
+class PlatformsViewModel: ObservableObject {
+    @Published var platforms: [Platform] = []
+    @Published var isLoading: Bool = false
+    @Published var errorMessage: String?
     
     private let getPlatformsUseCase: GetPlatformsUseCase
     private let addPlatformUseCase: AddPlatformUseCase

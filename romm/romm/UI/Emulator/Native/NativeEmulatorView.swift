@@ -2,13 +2,13 @@ import SwiftUI
 import DeltaCore
 
 struct NativeEmulatorView: View {
-    @SwiftUI.State private var viewModel: NativeEmulatorViewModel
+    @SwiftUI.StateObject private var viewModel: NativeEmulatorViewModel
     @SwiftUI.State private var showMenu = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
     init(rom: Rom, gameType: DeltaGameType, factory: PDependencyFactory = DefaultDependencyFactory.shared) {
-        self._viewModel = SwiftUI.State(wrappedValue: NativeEmulatorViewModel(
+        self._viewModel = SwiftUI.StateObject(wrappedValue: NativeEmulatorViewModel(
             rom: rom, gameType: gameType,
             getDownloadedROM: factory.makeGetDownloadedROMUseCase(),
             resolveROMFile: factory.makeResolveROMFileUseCase(),

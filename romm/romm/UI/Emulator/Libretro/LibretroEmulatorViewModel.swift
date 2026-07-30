@@ -1,15 +1,13 @@
 import Foundation
-import Observation
 import SwiftUI
 
-@Observable
 @MainActor
-final class LibretroEmulatorViewModel {
+final class LibretroEmulatorViewModel: ObservableObject {
     let rom: Rom
     let core: LibretroCore
-    var errorMessage: String?
-    var session: LibretroSession?
-    var isLoading: Bool = true
+    @Published var errorMessage: String?
+    @Published var session: LibretroSession?
+    @Published var isLoading: Bool = true
     var onMenuRequested: (() -> Void)?
 
     private let getDownloadedROM: PGetDownloadedROMUseCase

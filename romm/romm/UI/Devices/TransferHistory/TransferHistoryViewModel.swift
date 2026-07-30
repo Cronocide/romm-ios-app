@@ -1,14 +1,12 @@
 import Foundation
-import Observation
 
 @MainActor
-@Observable
-class TransferHistoryViewModel {
+class TransferHistoryViewModel: ObservableObject {
 
-    var platformGroups: [TransferHistoryByPlatform] = []
-    var isLoading = false
-    var error: String?
-    var showingClearConfirmation = false
+    @Published var platformGroups: [TransferHistoryByPlatform] = []
+    @Published var isLoading = false
+    @Published var error: String?
+    @Published var showingClearConfirmation = false
 
     private let deviceId: UUID
     private let getHistoryUseCase: GetTransferHistoryGroupedByPlatformUseCase

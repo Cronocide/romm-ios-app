@@ -1,27 +1,26 @@
 import Foundation
 
 @MainActor
-@Observable
-class AddEditSFTPDeviceViewModel {
-    var name = ""
-    var host = ""
-    var port = "22"
-    var username = ""
-    var authenticationType: AuthenticationType = .password
-    var password = ""
-    var privateKey = ""
-    var passphrase = ""
-    var rootPath = "/"
-    var isDefault = false
+class AddEditSFTPDeviceViewModel: ObservableObject {
+    @Published var name = ""
+    @Published var host = ""
+    @Published var port = "22"
+    @Published var username = ""
+    @Published var authenticationType: AuthenticationType = .password
+    @Published var password = ""
+    @Published var privateKey = ""
+    @Published var passphrase = ""
+    @Published var rootPath = "/"
+    @Published var isDefault = false
     
-    var isLoading = false
-    var error: String?
-    var isTestingConnection = false
-    var testResult: ConnectionStatus?
+    @Published var isLoading = false
+    @Published var error: String?
+    @Published var isTestingConnection = false
+    @Published var testResult: ConnectionStatus?
     
     private let getCredentialsUseCase: GetCredentialsUseCase
     private let testConnectionUseCase: TestConnectionUseCase
-    private var editingConnection: SFTPConnection?
+    @Published private var editingConnection: SFTPConnection?
 
     var isEditing: Bool {
         editingConnection != nil

@@ -6,7 +6,7 @@ struct PlatformROMsListView: View {
     /// Read reactively from the parent's @Observable view model so the list
     /// updates after a delete — passing a snapshot `[DownloadedROM]` left the
     /// pushed detail view stuck on stale data while the parent reloaded.
-    let viewModel: LocalDeviceDetailViewModel
+    @ObservedObject var viewModel: LocalDeviceDetailViewModel
     let onDelete: (DownloadedROM) -> Void
 
     private var roms: [DownloadedROM] {

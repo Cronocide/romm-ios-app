@@ -6,15 +6,13 @@
 //
 
 import Foundation
-import Observation
 
-@Observable
 @MainActor
-class VirtualCollectionDetailViewModel {
+class VirtualCollectionDetailViewModel: ObservableObject {
     private let logger = Logger.viewModel
-    var viewState: ViewState = .loading
+    @Published var viewState: ViewState = .loading
     
-    private var virtualCollectionId: String
+    @Published private var virtualCollectionId: String
     
     enum ViewState {
         case loading

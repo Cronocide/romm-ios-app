@@ -4,22 +4,20 @@
 //
 
 import Foundation
-import Observation
 
-@Observable
 @MainActor
-class HomeViewModel {
-    var recentlyAdded: [Rom] = []
-    var continuePlaying: [Rom] = []
-    var platforms: [Platform] = []
-    var collections: [Collection] = []
+class HomeViewModel: ObservableObject {
+    @Published var recentlyAdded: [Rom] = []
+    @Published var continuePlaying: [Rom] = []
+    @Published var platforms: [Platform] = []
+    @Published var collections: [Collection] = []
 
-    var isLoadingRecentlyAdded = true
-    var isLoadingContinuePlaying = true
-    var isLoadingPlatforms = true
-    var isLoadingCollections = true
+    @Published var isLoadingRecentlyAdded = true
+    @Published var isLoadingContinuePlaying = true
+    @Published var isLoadingPlatforms = true
+    @Published var isLoadingCollections = true
 
-    var hasStartedLoading = false
+    @Published var hasStartedLoading = false
 
     private let getRomsWithFiltersUseCase: GetRomsWithFiltersUseCase
     private let getPlatformsUseCase: GetPlatformsUseCase

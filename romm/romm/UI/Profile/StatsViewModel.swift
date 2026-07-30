@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import Observation
 
 enum StatsSortOrder: String, CaseIterable {
     case name = "Name"
@@ -25,14 +24,13 @@ struct PlatformStats: Identifiable, Hashable {
     let logoPath: String?
 }
 
-@Observable
 @MainActor
-class StatsViewModel {
-    var stats: Stats?
-    var platforms: [Platform] = []
-    var isLoading: Bool = false
-    var errorMessage: String?
-    var sortOrder: StatsSortOrder = .name
+class StatsViewModel: ObservableObject {
+    @Published var stats: Stats?
+    @Published var platforms: [Platform] = []
+    @Published var isLoading: Bool = false
+    @Published var errorMessage: String?
+    @Published var sortOrder: StatsSortOrder = .name
 
     private let getStatsUseCase: GetStatsUseCase
     private let getPlatformsUseCase: GetPlatformsUseCase

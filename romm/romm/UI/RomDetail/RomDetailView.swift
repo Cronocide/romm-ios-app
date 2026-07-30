@@ -10,7 +10,7 @@ import SafariServices
 
 struct RomDetailView: View {
     let rom: Rom
-    @State private var viewModel = RomDetailViewModel()
+    @StateObject private var viewModel = RomDetailViewModel()
     
     @Environment(\.dismiss) private var dismiss
     @State private var scrollOffset: CGFloat = 0

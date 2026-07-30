@@ -1,23 +1,21 @@
 import Foundation
-import Observation
 
-@Observable
 @MainActor
-final class SyncSaveViewModel {
+final class SyncSaveViewModel: ObservableObject {
     let rom: DownloadedROM
 
-    var serverStates: [StateSchema] = []
-    var serverSaves: [SaveSchema] = []
-    var localStates: [SaveStateEntry] = []
-    var hasLocalBattery = false
-    var localBatteryDate: Date?
-    var isLoadingServer = false
-    var downloadingStateIds: Set<Int> = []
-    var downloadingSaveIds: Set<Int> = []
-    var uploadingStateSlots: Set<Int> = []
-    var isUploadingBattery = false
-    var errorMessage: String?
-    var pendingUpload: PendingUpload?
+    @Published var serverStates: [StateSchema] = []
+    @Published var serverSaves: [SaveSchema] = []
+    @Published var localStates: [SaveStateEntry] = []
+    @Published var hasLocalBattery = false
+    @Published var localBatteryDate: Date?
+    @Published var isLoadingServer = false
+    @Published var downloadingStateIds: Set<Int> = []
+    @Published var downloadingSaveIds: Set<Int> = []
+    @Published var uploadingStateSlots: Set<Int> = []
+    @Published var isUploadingBattery = false
+    @Published var errorMessage: String?
+    @Published var pendingUpload: PendingUpload?
 
     private let listSavesUseCase: PListServerSavesUseCase
     private let listStatesUseCase: PListServerStatesUseCase

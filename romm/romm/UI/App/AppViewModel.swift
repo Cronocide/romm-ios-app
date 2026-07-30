@@ -7,7 +7,6 @@
 
 import Combine
 import Foundation
-import Observation
 import os
 
 enum AppState {
@@ -17,10 +16,9 @@ enum AppState {
     case authenticationFailed
 }
 
-@Observable
 @MainActor
-class AppViewModel {
-    var appState: AppState = .loading
+class AppViewModel: ObservableObject {
+    @Published var appState: AppState = .loading
 
     private let logger = Logger.viewModel
     private let launchArguments = ProcessInfo.processInfo.arguments

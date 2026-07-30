@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct CollectionView: View {
-    @State private var collectionsViewModel = CollectionsViewModel()
+    @StateObject private var collectionsViewModel = CollectionsViewModel()
     @EnvironmentObject var appData: AppData
     
     var body: some View {

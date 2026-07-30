@@ -11,7 +11,7 @@ struct CollectionPickerView: View {
     let rom: Rom
     @Binding var isPresented: Bool
     let onCollectionChanged: (() -> Void)?
-    @State private var viewModel = CollectionPickerViewModel()
+    @StateObject private var viewModel = CollectionPickerViewModel()
     @State private var hasChanges = false
     
     var body: some View {
